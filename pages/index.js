@@ -1,5 +1,6 @@
 import Head from 'next/head'
 import { getImages } from '../lib/posts'
+import styles from '../styles/main.module.css'
 
 export async function getStaticProps() {
   const imgNames = getImages()
@@ -18,13 +19,13 @@ export default function Home({ imgNames }) {
       </Head>
 
       <h1> yuji tanaka </h1>
-
-      <div className="container columns">
+      
+      <div className={`${styles.container} ${styles.columns}`}>
         {imgNames.map(imgName => (
           <picture key={imgName}>
             <img
               src={`/images/${imgName}`}
-              className=".img"
+              className={styles.img}
             />
           </picture>
         ))}
