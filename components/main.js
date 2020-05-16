@@ -1,11 +1,7 @@
 import Head from 'next/head'
 import styles from './main.module.css'
 
-const name = 'Your Name'
-export const siteTitle = 'Next.js Sample Website'
-
 export default function MainComponent({ imgNames }) {
-  console.log(imgNames);
   return (
     <>
       <Head>
