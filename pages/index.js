@@ -2,7 +2,7 @@ import Head from 'next/head'
 import MainComponent from '../components/main'
 import { getImages } from '../lib/posts'
 
-export async function getServerSideProps() {
+export async function getStaticProps() {
   const imgNames = getImages()
   return {
     props: {
