@@ -19,17 +19,15 @@ export default function Home({ imgNames }) {
 
       <h1> yuji tanaka </h1>
 
-      <div> 
-        <div className="container columns">
-          {imgNames.map(imgName => (
-              <picture key={imgName}>
-                <img
-                  src={`/images/${imgName}`}
-                  className=".img"
-                />
-              </picture>
-            ))}
-        </div>
+      <div className="container columns">
+        {imgNames.map(imgName => (
+          <picture key={imgName}>
+            <img
+              src={`/images/${imgName}`}
+              className=".img"
+            />
+          </picture>
+        ))}
       </div>
     </>
   )
