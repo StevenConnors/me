@@ -8,7 +8,7 @@ export default function MainComponent({ imgNames }) {
         <title>yuji tanaka</title>
       </Head>
 
-      <h1> yuji tanaka </h1>
+      <h1>佑治</h1>
 
       <div className={`${styles.container} ${styles.columns}`}>
         {imgNames.map(imgName => (
