@@ -22,7 +22,7 @@
 	column-width: 50%
 }
 
-@media only screen and (min-width:480px) and (max-width:1024px) {
+/* @media only screen and (min-width:480px) and (max-width:1024px) {
 	.columns {
 		-moz-column-count: 2;
 		column-count: 2;
@@ -44,4 +44,4 @@
 		-moz-column-width: 100%;
 		column-width: 100%
 	}
-}
+} */
