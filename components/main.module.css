@@ -4,14 +4,23 @@
 }
 
 .columns {
-	columns: 2;
+	columns: 3;
 	padding: 5px;
 
 }
 
+@media only screen and (min-width:479px) and (max-width:768px) {
+	.container {
+		padding: 5px;
+	}
+	.columns {
+		columns: 2;
+	}
+}
+
 @media only screen and (max-width:479px) {
 	.container {
-		padding: 8px;
+		padding: 2px;
 	}
 	.columns {
 		columns: 1;
