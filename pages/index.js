@@ -1,6 +1,6 @@
 import Head from 'next/head'
 import MainComponent from '../components/main'
-import { getImages } from '../lib/posts'
+import { getImages } from '../lib/staticDataFetcher'
 
 export async function getStaticProps() {
   const imgNames = getImages()
