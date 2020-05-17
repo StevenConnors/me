@@ -1,4 +1,5 @@
 import Head from 'next/head'
+import Link from 'next/link'
 import styles from './main.module.css'
 
 export default function MainComponent({ imgNames }) {
@@ -12,12 +13,14 @@ export default function MainComponent({ imgNames }) {
 
       <div className={`${styles.container} ${styles.columns}`}>
         {imgNames.map(imgName => (
-          <picture key={imgName}>
-            <img
-              src={`/images/${imgName}`}
-              className={styles.img}
-            />
-          </picture>
+          <Link href={`/img/${imgName}`}>  
+            <picture key={imgName}>
+              <img
+                src={`/images/${imgName}`}
+                className={styles.img}
+              />
+            </picture>
+          </Link>
         ))}
       </div>
     </>
