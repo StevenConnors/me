@@ -5,6 +5,8 @@
 
 .columns {
 	columns: 2;
+	padding: 5px;
+
 }
 
 @media only screen and (max-width:479px) {
@@ -21,4 +23,13 @@
 	height: auto;
   margin-bottom: 15px;
   display: flex;
+}
+
+.imgDetailed {
+	width: 80%;
+  max-height: 100%;
+	max-width: 100%;
+	display: block;
+  margin-left: auto;
+  margin-right: auto;
 }
