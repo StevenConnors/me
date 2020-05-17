@@ -30,15 +30,12 @@ export default function ImageInfo({ imageDescription}) {
   const router = useRouter()
   const { filename } = router.query
 
-  console.log("filename", filename);
-  console.log("his.props", imageDescription);
-
   return (
     <>
       <Head>
         <title>yuji tanaka</title>
       </Head>
-      
+
       <Link href="/">  
         <h1>佑治</h1>
       </Link>
