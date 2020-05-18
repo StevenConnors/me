@@ -1,15 +1,12 @@
 import Head from 'next/head'
 import Link from 'next/link'
 import styles from './main.module.css'
+import Header from "./header"
 
 export default function MainComponent({ imgNames }) {
   return (
     <>
-      <Head>
-        <title>yuji tanaka</title>
-      </Head>
-
-      <h1>佑治</h1>
+      <Header />
 
       <div className={`${styles.container} ${styles.columns}`}>
         {imgNames.map(imgName => (

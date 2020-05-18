@@ -1,12 +1,12 @@
 .container {
 	margin: 0 auto;
 	padding-top: 20px;
+	margin-top: 20px;
 }
 
 .columns {
 	columns: 3;
 	padding: 5px;
-
 }
 
 @media only screen and (min-width:479px) and (max-width:768px) {
