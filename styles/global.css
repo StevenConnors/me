@@ -9,6 +9,12 @@ body {
 	padding: 8px 48px
 }
 
+@media only screen and (max-width:768px) {
+	body {
+		padding: 10px;
+	}
+}
+
 h1 {
 	font-family: liberation sans unicode, liberation grande, sans-serif;
 	letter-spacing: .1em;
