@@ -1,12 +1,12 @@
 import { useRouter } from 'next/router'
-import styles from '../../components/main.module.css'
+import styles from '../../components/imageGallery.module.css'
 import Head from 'next/head'
 import Link from 'next/link'
-import { getImageDescription, getImages } from "../../lib/staticDataFetcher"
+import { getImageDescription, getAllImageNames } from "../../lib/staticDataFetcher"
 
 // Define for the router what the valid [filename]s are. We use the value from /public/images for valid filenames.
 export async function getStaticPaths() {
-  const paths = getImages().map(imgName => ({
+  const paths = getAllImageNames().map(imgName => ({
     params: { filename: imgName },
   }))
 
@@ -19,6 +19,7 @@ export async function getStaticPaths() {
 
 export async function getStaticProps({ params }) {
   const imageDescription = getImageDescription(params.filename)
+
   return {
     props: {
       imageDescription
@@ -47,7 +48,13 @@ export default function ImageInfo({ imageDescription}) {
           className={styles.imgDetailed}
         />
 
-        <p>{imageDescription.fileContents}</p>
+        <p>{imageDescription.content}</p>
+
+        {imageDescription.tags.map(tag => (
+          <Link href={`/tags/${tag}`} key={tag}>  
+            {tag}
+          </Link>
+        ))}
 
       </div>
     </>

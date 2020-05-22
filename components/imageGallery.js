@@ -1,13 +1,9 @@
-import Head from 'next/head'
 import Link from 'next/link'
-import styles from './main.module.css'
-import Header from "./header"
+import styles from './imageGallery.module.css'
 
-export default function MainComponent({ imgNames }) {
+export default function ImageGallery({ imgNames }) {
   return (
     <>
-      <Header />
-
       <div className={`${styles.container} ${styles.columns}`}>
         {imgNames.map(imgName => (
           <Link href={`/img/${imgName}`} key={imgName}>  

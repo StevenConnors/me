@@ -1,9 +1,9 @@
-import Head from 'next/head'
-import MainComponent from '../components/main'
-import { getImages } from '../lib/staticDataFetcher'
+import ImageGallery from '../components/imageGallery'
+import { getAllImageNames } from '../lib/staticDataFetcher'
+import Header from '../components/header'
 
 export async function getStaticProps() {
-  const imgNames = getImages()
+  const imgNames = getAllImageNames()
   return {
     props: {
       imgNames
@@ -14,7 +14,9 @@ export async function getStaticProps() {
 export default function Home({ imgNames }) {
   return (
     <>
-      <MainComponent imgNames={imgNames}></MainComponent>
+      <Header />
+
+      <ImageGallery imgNames={imgNames} />
     </>
   )
 }

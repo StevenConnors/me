@@ -18,9 +18,8 @@ export default function Header() {
       </Link>
       
       <a className={styles.link} href="https://www.linkedin.com/in/steven-connors/">
-        <span  >英語</span>
+        <span>英語</span>
       </a>
-
     </>
   )
 }
