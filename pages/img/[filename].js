@@ -1,10 +1,11 @@
 import { useRouter } from 'next/router'
 import styles from '../../components/imageGallery.module.css'
-import Head from 'next/head'
-import Link from 'next/link'
 import { getImageDescription, getAllImageNames } from "../../lib/staticDataFetcher"
+import Tag from '../../components/tag'
+import Header from '../../components/header'
 
-// Define for the router what the valid [filename]s are. We use the value from /public/images for valid filenames.
+// Define for the router what the valid [filename]s are. 
+// We use the value from /public/images for valid filenames.
 export async function getStaticPaths() {
   const paths = getAllImageNames().map(imgName => ({
     params: { filename: imgName },
@@ -16,31 +17,22 @@ export async function getStaticPaths() {
   };
 }
 
-
+// Obtain the props to render.
 export async function getStaticProps({ params }) {
   const imageDescription = getImageDescription(params.filename)
-
   return {
     props: {
       imageDescription
     }
-  }
+  } 
 }
 
 export default function ImageInfo({ imageDescription}) {
   const router = useRouter()
   const { filename } = router.query
-
   return (
     <>
-      <Head>
-        <title>yuji tanaka</title>
-      </Head>
-
-      <Link href="/">  
-        <h1>佑治</h1>
-      </Link>
-
+      <Header />
 
       <div className={`${styles.container} ${styles.columns}`}>
         <img
@@ -49,14 +41,12 @@ export default function ImageInfo({ imageDescription}) {
         />
 
         <p>{imageDescription.content}</p>
-
-        {imageDescription.tags.map(tag => (
-          <Link href={`/tags/${tag}`} key={tag}>  
-            {tag}
-          </Link>
-        ))}
-
       </div>
+
+      {/* Render tags */}
+      {imageDescription.tags.map(tag => (
+          <Tag tag={tag} />
+      ))}
     </>
   )
 }

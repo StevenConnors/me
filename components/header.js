@@ -16,6 +16,10 @@ export default function Header() {
       <Link href="/about">
         <span className={styles.link}>about</span>
       </Link>
+
+      <Link href="/tags/aesthetic">
+        <span className={styles.link}>aesthetic</span>
+      </Link>
       
       <a className={styles.link} href="https://www.linkedin.com/in/steven-connors/">
         <span>英語</span>
