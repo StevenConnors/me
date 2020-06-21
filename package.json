@@ -16,6 +16,6 @@
   "devDependencies": {
     "exif": "^0.6.0",
     "exif-cli": "0.0.2",
-    "gray-matter": "^4.0.2",
+    "gray-matter": "^4.0.2"
   }
 }
