@@ -8,7 +8,7 @@ export default function About() {
       <Header />
       
       <div>
-        About this - its just a place where I store my photos.
+        The name 佑治 means to heal the person to your right. I hope I can be that person.
       </div>
     </>
   )
