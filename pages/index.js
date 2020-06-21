@@ -4,6 +4,9 @@ import Header from '../components/header'
 
 export async function getStaticProps() {
   const imgNames = getAllImageNames()
+
+  console.log(imgNames);
+  
   return {
     props: {
       imgNames
