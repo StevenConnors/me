@@ -20,6 +20,10 @@ export default function Header() {
       <Link href="/tags/aesthetic">
         <span className={styles.link}>aesthetic</span>
       </Link>
+
+      <Link href="/books">
+        <span className={styles.link}>books</span>
+      </Link>
       
       <a className={styles.link} href="https://www.linkedin.com/in/steven-connors/">
         <span>英語</span>
