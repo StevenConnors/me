@@ -1,5 +1,3 @@
-import Head from 'next/head'
-import Link from 'next/link'
 import Header from '../components/header'
 
 const amazonLinkStyle = {
@@ -10,8 +8,6 @@ const amazonLinkStyle = {
   textDecoration: "none",
 }
 
-// style="border:none !important; margin:0px !important;" 
-
 export default function About() {
   return (
     <>
@@ -21,7 +17,6 @@ export default function About() {
         I've been trying to reduce the instant dopamin spike I get from reading too much short articles, and instead have been trying to read more books. Here's my list, in no particular order.
       </p>
       I get commissions for purchases made through links in this post. Thanks for the support, hope you don't mind. 
-
 
       <div>
         <h4> software </h4>

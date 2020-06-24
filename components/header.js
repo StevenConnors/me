@@ -17,8 +17,8 @@ export default function Header() {
         <span className={styles.link}>about</span>
       </Link>
 
-      <Link href="/tags/aesthetic">
-        <span className={styles.link}>aesthetic</span>
+      <Link href="/photos">
+        <span className={styles.link}>photos</span>
       </Link>
 
       <Link href="/books">
