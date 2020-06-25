@@ -1,10 +1,43 @@
 // import { useRouter } from 'next/router'
 // import styles from '../../components/imageGallery.module.css'
-// import { getImageDescription, getAllImageNames } from "../../lib/staticDataFetcher"
+import { getAllImageSuffixes, getImageDescription } from "../../lib/staticDataFetcher"
 // import Tag from '../../components/tag'
-// import Header from '../../components/header'
-
 import Header from '../../components/header'
+
+/*
+TODOs: getStaticPaths:
+- Need to get the list of photo file names as I uploaded, in the form (IMG_2145)
+- '/dwsenj1bp/image/upload/v1593042822/yuji/aesthetic/IMG_1999_gr4ske.jpg',
+- On the individual image page, we should give a higher resolution than q_30
+- Get the approriate imageDescription  .md file for the text.
+- Render the tags
+ */
+
+// Define for the router what the valid [filename]s are. 
+export async function getStaticPaths() {
+  const imgNames = await getAllImageSuffixes();
+  console.log("IMGHAN", imgNames);
+  
+  const paths = imgNames.map(imgName => ({
+    params: { filename: imgName },
+  }))
+
+  return {
+    paths: paths,
+    fallback: false 
+  };
+}
+
+// Obtain the props to render.
+export async function getStaticProps({ params }) {
+  const imageDescription = getImageDescription(params.filename)
+  return {
+    props: {
+      imageDescription
+    }
+  } 
+}
+
 
 export default function About() {
   return (
@@ -18,28 +51,6 @@ export default function About() {
   )
 }
 
-// // Define for the router what the valid [filename]s are. 
-// // We use the value from /public/images for valid filenames.
-// export async function getStaticPaths() {
-//   const paths = getAllImageNames().map(imgName => ({
-//     params: { filename: imgName },
-//   }))
-
-//   return {
-//     paths: paths,
-//     fallback: false 
-//   };
-// }
-
-// // Obtain the props to render.
-// export async function getStaticProps({ params }) {
-//   const imageDescription = getImageDescription(params.filename)
-//   return {
-//     props: {
-//       imageDescription
-//     }
-//   } 
-// }
 
 // export default function ImageInfo({ imageDescription}) {
 //   const router = useRouter()
@@ -66,4 +77,3 @@ export default function About() {
 //     </>
 //   )
 // }
-
