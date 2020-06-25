@@ -16,6 +16,7 @@
   "devDependencies": {
     "cloudinary": "^1.22.0",
     "dotenv": "^8.2.0",
+    "fs": "0.0.1-security",
     "gray-matter": "^4.0.2"
   }
 }
