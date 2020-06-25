@@ -1,23 +1,11 @@
 import ImageGallery from '../components/imageGallery'
-import { getAestheticImageUrls } from '../lib/staticDataFetcher'
+import { getAestheticImageUrlsForThumbnails } from '../lib/staticDataFetcher'
 import Header from '../components/header'
 
 export async function getStaticProps() {
-  const cloudinaryUrls = await getAestheticImageUrls();
-  const urls = cloudinaryUrls.map(element => {
-    return element.url.substring('http://res.cloudinary.com'.length);
-  });
-  console.log(urls);
-
-
-// https://res.cloudinary.com/dwsenj1bp/image/upload/q_10/v1593042912/yuji/aesthetic/IMG_5628_c428jq.jpg 
-// Low quality url : q_10
-// https://res.cloudinary.com/dwsenj1bp/image/upload/v1593042912/yuji/aesthetic/IMG_5628_c428jq.jpg
-// normal quality url
-
   return {
     props: {
-      urls,
+      urls: await getAestheticImageUrlsForThumbnails(),
     }
   }
 }
@@ -27,6 +15,7 @@ export default function Home({ urls }) {
     <>
       <Header />
 
+      <br></br>
       Welcome, here's some photos I like.
 
       <ImageGallery urls={urls} />
