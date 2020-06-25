@@ -9,7 +9,7 @@ export default function ImageGallery({ imgNames, urls }) {
             <Link href={`/img/${url}`} key={url}>  
               <picture key={url}>
                 <img
-                  src={`${process.env.assetPrefix} + ${url}`}
+                  src={`${process.env.assetPrefix}${url}`}
                   className={styles.img}
                   loading="lazy" 
                 />
