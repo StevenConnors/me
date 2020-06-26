@@ -1,0 +1,12 @@
+.amazonLink {
+  margin-left: 10px;
+  color: black;
+  cursor: pointer;
+  text-decoration: none;
+}
+.amazonLink:visited {
+  color: black;
+}
+.amazonLink:hover {
+  color: #009900;
+}

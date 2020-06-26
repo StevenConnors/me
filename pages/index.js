@@ -16,7 +16,6 @@ export default function Home({ imgNameToThumbNail }) {
       <Header />
 
       <br></br>
-      Welcome, here's some photos I like.
 
       <ImageGallery imgNameToThumbNail={imgNameToThumbNail} />
     </>
