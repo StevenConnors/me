@@ -1,16 +1,16 @@
 import ImageGallery from '../components/imageGallery'
-import { getAestheticImageUrlsForThumbnails } from '../lib/staticDataFetcher'
+import { AESTHETIC_PHOTOS_FOLDER, getImageNameToThumbNailUrl } from '../lib/staticDataFetcher'
 import Header from '../components/header'
 
 export async function getStaticProps() {
   return {
     props: {
-      urls: await getAestheticImageUrlsForThumbnails(),
+      imgNameToThumbNail: await getImageNameToThumbNailUrl(AESTHETIC_PHOTOS_FOLDER),
     }
   }
 }
 
-export default function Home({ urls }) {
+export default function Home({ imgNameToThumbNail }) {
   return (
     <>
       <Header />
@@ -18,7 +18,7 @@ export default function Home({ urls }) {
       <br></br>
       Welcome, here's some photos I like.
 
-      <ImageGallery urls={urls} />
+      <ImageGallery imgNameToThumbNail={imgNameToThumbNail} />
     </>
   )
 }

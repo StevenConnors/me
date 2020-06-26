@@ -1,15 +1,15 @@
 import Link from 'next/link'
 import styles from './imageGallery.module.css'
 
-export default function ImageGallery({ imgNames, urls }) {
+export default function ImageGallery({ imgNameToThumbNail }) {
   return (
     <>
       <div className={`${styles.container} ${styles.columns}`}>
-        {urls.map(url => (
-            <Link href={`/img/${url}`} key={url}>  
-              <picture key={url}>
+        {imgNameToThumbNail.map((imgNameToUrl, i) => (
+            <Link href={`/img/${imgNameToUrl.imgName}`} key={imgNameToUrl.thumbNailUrl}> 
+              <picture key={imgNameToUrl.thumbNailUrl}>
                 <img
-                  src={`${process.env.assetPrefix}${url}`}
+                  src={`${process.env.assetPrefix}${imgNameToUrl.thumbNailUrl}`}
                   className={styles.img}
                   loading="lazy" 
                 />
