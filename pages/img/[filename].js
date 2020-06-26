@@ -41,7 +41,6 @@ export async function getStaticProps({ params }) {
 }
 
 export default function ImageInfo({ imageDescription, fullImageUrl }) {
-  console.log(imageDescription);
   return (
     <>
       <Header />
