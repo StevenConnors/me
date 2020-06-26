@@ -1,21 +1,21 @@
 import ImageGallery from '../components/imageGallery'
-import { getAllImageUrlsForThumbnails } from '../lib/staticDataFetcher'
+import { ALL_PHOTOS_FOLDER } from '../lib/staticDataFetcher'
 import Header from '../components/header'
 
 export async function getStaticProps() {
   return {
     props: {
-      urls: await getAllImageUrlsForThumbnails(),
+      imgNameToThumbNail: await getImageNameToThumbNailUrl(ALL_PHOTOS_FOLDER),
     }
   }
 }
 
-export default function allPhotos({ urls }) {
+export default function allPhotos({ imgNameToThumbNail }) {
   return (
     <>
       <Header />
 
-      <ImageGallery urls={urls} />
+      <ImageGallery imgNameToThumbNail={imgNameToThumbNail} />
     </>
   )
 }
