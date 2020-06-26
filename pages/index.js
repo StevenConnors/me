@@ -1,6 +1,6 @@
 import ImageGallery from '../components/imageGallery'
-import { AESTHETIC_PHOTOS_FOLDER, getImageNameToThumbNailUrl } from '../lib/staticDataFetcher'
 import Header from '../components/header'
+import { AESTHETIC_PHOTOS_FOLDER, getImageNameToThumbNailUrl } from '../lib/staticDataFetcher'
 
 export async function getStaticProps() {
   return {
