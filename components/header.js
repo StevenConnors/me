@@ -24,10 +24,6 @@ export default function Header() {
       <Link href="/books">
         <span className={styles.link}>books</span>
       </Link>
-      
-      <a className={styles.link} href="https://www.linkedin.com/in/steven-connors/">
-        <span>professional</span>
-      </a>
     </>
   )
 }
