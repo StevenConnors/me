@@ -8,6 +8,7 @@ export default function ImageGalleryByEvent({ events }) {
         return (
           <>
             <h2>{event.eventDescription.title}</h2>
+            <h4>{event.eventDate}</h4>
             <p>{event.eventDescription.content}</p>
 
               <div className={`${styles.container} ${styles.columns}`}>
