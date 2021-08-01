@@ -1,23 +1,30 @@
-import ImageGallery from '../components/imageGallery'
+import ImageGalleryByEvent from '../components/imgGalleryByEvent'
 import Header from '../components/header'
-import { AESTHETIC_PHOTOS_FOLDER, getImageNameToThumbNailUrl } from '../lib/staticDataFetcher'
+import { BY_EVENTS_DIR, getPhotosByEvents, getEventDescription} from '../lib/staticDataFetcher'
 
 export async function getStaticProps() {
+
+  getEventDescription()
+
+
   return {
     props: {
-      imgNameToThumbNail: await getImageNameToThumbNailUrl(AESTHETIC_PHOTOS_FOLDER),
+        events: await getPhotosByEvents(BY_EVENTS_DIR),
     }
   }
 }
 
-export default function Home({ imgNameToThumbNail }) {
+export default function Home({ events }) {
   return (
     <>
       <Header />
 
       <br></br>
+      <br></br>
+      my random access memory
+      <br></br>
 
-      <ImageGallery imgNameToThumbNail={imgNameToThumbNail} />
+      <ImageGalleryByEvent events={events} />
     </>
   )
 }
