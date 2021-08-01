@@ -16,14 +16,6 @@ export default function Header() {
       <Link href="/about">
         <span className={styles.link}>about</span>
       </Link>
-
-      <Link href="/photos">
-        <span className={styles.link}>photos</span>
-      </Link>
-
-      <Link href="/books">
-        <span className={styles.link}>books</span>
-      </Link>
     </>
   )
 }
