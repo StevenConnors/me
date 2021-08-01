@@ -9,7 +9,7 @@ export async function getStaticProps() {
 
   return {
     props: {
-      events: await getPhotosByEvents(BY_EVENTS_DIR),
+        events: await getPhotosByEvents(BY_EVENTS_DIR),
     }
   }
 }
