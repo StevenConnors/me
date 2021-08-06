@@ -20,10 +20,7 @@ export default function ByEvents({ events }) {
       <Header />
 
       <br></br>
-      <br></br>
-      my random access memory
-      <br></br>
-
+      
       <ImageGalleryByEvent events={events} />
     </>
   )
