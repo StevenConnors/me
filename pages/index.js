@@ -20,9 +20,6 @@ export default function Home({ events }) {
       <Header />
 
       <br></br>
-      <br></br>
-      my random access memory
-      <br></br>
 
       <ImageGalleryByEvent events={events} />
     </>
