@@ -56,7 +56,7 @@ export default function ImageInfo({ imageDescription, fullImageUrl }) {
 
       {/* Render tags */}
       {imageDescription.tags.map(tag => (
-          <Tag tag={tag} />
+          <Tag key={tag} tag={tag} />
       ))}
 
     {/* <iframe width="425" height="350" frameborder="0" scrolling="no" marginheight="0" marginwidth="0" src="https://www.openstreetmap.org/export/embed.html?bbox=-79.97377395629884%2C40.413365349070865%2C-79.91197586059572%2C40.475680726483795&amp;layer=mapnik&amp;marker=40.444530259240274%2C-79.94287490844727"></iframe><br/><small><a href="https://www.openstreetmap.org/?mlat=40.4445&amp;mlon=-79.9429#map=13/40.4445/-79.9429">View Larger Map</a></small> */}

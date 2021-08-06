@@ -9,7 +9,7 @@ export default function About() {
       <br></br>
 
       <div>
-        The name 佑治 means "heal the person to your right". Whoever you may be, I hope I can be that person for you.
+        The name 佑治 means  &#39;heal the person to your right&#39;. Whoever you may be, I hope I can be that person for you.
       </div>
     </>
   )
