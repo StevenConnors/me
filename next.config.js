@@ -9,15 +9,12 @@ module.exports = {
     CLOUDINARY_API_SECRET: "oZOXsiWgAcuYNqkYkV1PzmdKbAI",
     assetPrefix: isProd ? 'https://res.cloudinary.com' : 'https://res.cloudinary.com',
   },
-  // webpack: (config, { isServer }) => {
-  //   // Fixes npm packages that depend on `fs` module
-  //   if (!isServer) {
-  //     config.node = {
-  //       fs: 'empty'
-  //     }
-  //   }
-  //   return config
-  // },
-  webpack5: false,
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      config.resolve.fallback.fs = false;
+    }
+    return config;
+  },
+  // webpack5: false,
   crossOrigin: 'anonymous',
 }
