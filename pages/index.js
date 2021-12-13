@@ -1,4 +1,4 @@
-import ImageGalleryByEvent from '../components/imgGalleryByEvent'
+import Essay from '../components/essay'
 import Header from '../components/header'
 import { BY_EVENTS_DIR, getPhotosByEvents, getEventDescription} from '../lib/staticDataFetcher'
 
@@ -21,7 +21,7 @@ export default function Home({ events }) {
 
       <br></br>
 
-      <ImageGalleryByEvent events={events} />
+      <Essay />
     </>
   )
 }
