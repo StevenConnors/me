@@ -15,9 +15,8 @@ export default function Essay() {
         <br></br>
 
         <br></br>
-        Let me share my past year with you.
+        Let me share my past year with you<Link href="/photos">.</Link>
         <br></br>
-
 
 
 {/* 
