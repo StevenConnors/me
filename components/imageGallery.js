@@ -6,7 +6,7 @@ export default function ImageGallery({ imgNameToThumbNail }) {
     <>
       <div className={`${styles.container} ${styles.columns}`}>
         {imgNameToThumbNail.map((imgNameToUrl, i) => (
-            <Link href={`/img/${imgNameToUrl.imgName}`} key={imgNameToUrl.thumbNailUrl}> 
+            <Link href={`/img/${imgNameToUrl.imgName}`} key={imgNameToUrl.thumbNailUrl} passHref> 
               <picture key={imgNameToUrl.thumbNailUrl}>
                 <img
                   src={`${process.env.assetPrefix}${imgNameToUrl.thumbNailUrl}`}

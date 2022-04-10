@@ -9,11 +9,11 @@ export default function Header() {
         <title>yuji tanaka</title>
       </Head>
       
-      <Link href="/">  
+      <Link href="/" passHref>  
         <h1 className={styles.titleText}>佑治</h1>
       </Link>
 
-      <Link href="/about">
+      <Link href="/about" passHref>
         <span className={styles.link}>about</span>
       </Link>
     </>
