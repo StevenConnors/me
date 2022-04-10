@@ -1,7 +1,8 @@
-
+/** @type {import('next').NextConfig} */
 const isProd = process.env.NODE_ENV === 'production'
 
-module.exports = {
+const nextConfig = {
+  reactStrictMode: true,
   env: {
     customKey: 'my-value',
     CLOUDINARY_CLOUD_NAME: "dwsenj1bp",
@@ -17,3 +18,5 @@ module.exports = {
   },
   crossOrigin: 'anonymous',
 }
+
+module.exports = nextConfig
