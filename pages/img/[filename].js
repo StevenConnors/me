@@ -12,6 +12,9 @@ TODOs: getStaticPaths:
 - Render the tags
  */
 
+
+export const ISE_DIR = "yuji/ise";
+
 // Define for the router what the valid [filename]s are. 
 export async function getStaticPaths() {
   const imgNames = await getAllImageSuffixes();  
@@ -60,7 +63,7 @@ export default function ImageInfo({ imageDescription, fullImageUrl }) {
 
 
 export async function getAllImageSuffixes() {
-    let cloudinaryUrls = await getImageUrls(ALL_PHOTOS_FOLDER);
+    let cloudinaryUrls = await getImageUrls(ISE_DIR);
     const urls = cloudinaryUrls.map(imgJson => {
       let filename = imgJson.filename;
       let imgSuffix = filename.substring(0, filename.lastIndexOf("_"));
@@ -71,13 +74,16 @@ export async function getAllImageSuffixes() {
   }
   
   export async function getImageUrlFromSuffix(suf) {
-    let cloudinaryUrls = await getImageUrls(ALL_PHOTOS_FOLDER);
+    let cloudinaryUrls = await getImageUrls(ISE_DIR);
     return cloudinaryUrls
       .filter(imgJson => imgJson.secure_url.indexOf(suf) > -1)
       .map(removeUrlPrefix)
   }
   
 
+  function removeUrlPrefix(imgJson) {
+    return imgJson.secure_url.substring('https://res.cloudinary.com'.length);
+  }
 
 export async function getImageUrls(folder) {
     cloudinary.config({
