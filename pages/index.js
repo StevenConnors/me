@@ -2,10 +2,12 @@ import Header from '../components/header'
 import ImageGallery from '../components/imageGallery'
 import cloudinary from "cloudinary";
 
-export async function getStaticProps() {
+export async function getServerSideProps() {
+  let urls = await getImageNameToThumbNailUrl(ISE_DIR);
+  
   return {
     props: {
-        imgNameToThumbNail: await getImageNameToThumbNailUrl(ISE_DIR),
+        imgNameToThumbNail: urls,
     }
   }
 }
