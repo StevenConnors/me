@@ -5,25 +5,25 @@ import ImageGallery from '../components/imageGallery'
 import clientPromise from '../lib/mongodb'
 
 export default function Home({ isConnected, images }) {
+  if (isConnected) {
+    console.log("connected to MongoDB");
+  } else {
+    console.log("not connected to MongoDB");
+  }
+
   return (
     <>
       <Header />
 
-        {isConnected ? (
-          <h2 className="subtitle">You are connected to MongoDB</h2>
-        ) : (
-          <h2 className="subtitle">
-            You are NOT connected to MongoDB. Check the <code>README.md</code>{' '}
-            for instructions.
-          </h2>
-        )}
+      <br></br>
+      <br></br>
 
       <ImageGallery images={images} />
     </>
   )
 }
 
-export async function getServerSideProps(context) {
+export async function getStaticProps(context) {
   try {
     await clientPromise
     // `await clientPromise` will use the default database passed in the MONGODB_URI
@@ -39,9 +39,12 @@ export async function getServerSideProps(context) {
     const db = client.db('test');
     const col = db.collection("col");
 
-    const res = await col
-      .find({})
-      .toArray();
+    const imageCursor = await col.find({}).limit(50);
+    let res = [];
+    await imageCursor.forEach((img) => {
+      res.push(img);
+    });
+
     return {
       props: { 
         isConnected: true,

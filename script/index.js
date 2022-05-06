@@ -36,15 +36,14 @@ await client.connect();
 const db = client.db('test');
 const col = db.collection('col');
 
-fs.readdir("/Users/stevenconnors/Downloads/ise", (err, files) => {
+fs.readdir("/Users/stevenconnors/Downloads/isecompressed", (err, files) => {
     files.forEach(file => {
-      console.log(file);
+      if (file.includes("jpg")) {
+        console.log(file);
 
-      if (file.includes("jpeg")) {
 
-        fs.readFile("/Users/stevenconnors/Downloads/ise/" + file, function(err, imageData) {
+        fs.readFile("/Users/stevenconnors/Downloads/isecompressed/" + file, function(err, imageData) {
             if (!err) {
-                
                 //when saving an object with an image's byte array
                 var imageBson = {};
                 //var imageData = fs.readFileSync(imageFile.path);
@@ -58,7 +57,7 @@ fs.readdir("/Users/stevenconnors/Downloads/ise", (err, files) => {
                     }
                 });
 
-                console.log("imageBson: " + JSON.stringify(imageBson));
+                // console.log("imageBson: " + JSON.stringify(imageBson));
             }
         });
       }
