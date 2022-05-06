@@ -1,18 +1,19 @@
 .link {
-  margin-left: 10px;
-  cursor: pointer;
-  text-decoration: none;
-}
-.link:visited {
-  color: black;
-}
-.link:hover {
-  color: #009900;
-}
-
-.titleText { 
-  cursor:pointer;
-}
-.titleText:hover {
-  color: #009900;
-}
+    margin-left: 10px;
+    cursor: pointer;
+    text-decoration: none;
+  }
+  .link:visited {
+    color: black;
+  }
+  .link:hover {
+    color: #009900;
+  }
+  
+  .titleText { 
+    cursor:pointer;
+  }
+  .titleText:hover {
+    color: #009900;
+  }
+  
