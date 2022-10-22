@@ -1,63 +1,16 @@
-
-   
 import Header from '../components/header'
-import ImageGallery from '../components/imageGallery'
-import clientPromise from '../lib/mongodb'
 
-export default function Home({ isConnected, images }) {
-  if (isConnected) {
-    console.log("connected to MongoDB");
-  } else {
-    console.log("not connected to MongoDB");
-  }
-
+export default function About() {
   return (
     <>
       <Header />
-
+      
       <br></br>
       <br></br>
 
-      <ImageGallery images={images} />
+      <div>
+        The name 佑治 means  &#39;heal the person to your right&#39;. Whoever you may be, I hope I can be that person for you.
+      </div>
     </>
   )
-}
-
-export async function getStaticProps(context) {
-  try {
-    await clientPromise
-    // `await clientPromise` will use the default database passed in the MONGODB_URI
-    // However you can use another database (e.g. myDatabase) by replacing the `await clientPromise` with the following code:
-    //
-    // `const client = await clientPromise`
-    // `const db = client.db("myDatabase")`
-    //
-    // Then you can execute queries against your database like so:
-    // db.find({}) or any of the MongoDB Node Driver commands
-
-    const client = await clientPromise;
-    const db = client.db('test');
-    const col = db.collection("col");
-
-    const imageCursor = await col.find({}).limit(50);
-    let res = [];
-    await imageCursor.forEach((img) => {
-      res.push(img);
-    });
-
-    return {
-      props: { 
-        isConnected: true,
-        images: JSON.parse(JSON.stringify(res))
-      },
-    }
-  } catch (e) {
-    console.error(e)
-    return {
-      props: { 
-        isConnected: false,
-        res: []
-      },
-    }
-  }
 }
