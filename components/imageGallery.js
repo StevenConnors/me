@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import styles from './imageGallery.module.css'
+import Image from 'next/image'
 
 export default function ImageGallery({ images }) {
   return (
@@ -7,14 +8,12 @@ export default function ImageGallery({ images }) {
       <div className={`${styles.container} ${styles.columns}`}>
         {images.map(imgDoc => (
           <Link href={`/img/${imgDoc.title}`} key={imgDoc.title}>  
-            <picture key={imgDoc.title}>
-              <img
+              <Image
+              width={imgDoc.width} height={imgDoc.height}
                 className={styles.img}
                 loading="lazy" 
-                src={`data:image/jpeg;base64,${imgDoc.image}`}
-                // src={`/images/${imgDoc}`}
+                src={imgDoc.image}
               />
-            </picture>
           </Link>
         ))}
       </div>

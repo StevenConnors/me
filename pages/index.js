@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import Head from 'next/head'
 import Image from 'next/image'
 import Header from '../components/header'
+import ImageGallery from '../components/imageGallery';
 
 export default function About({images}) {
   return (
@@ -15,22 +16,7 @@ export default function About({images}) {
         The name 佑治 means  &#39;heal the person to your right&#39;. Whoever you may be, I hope I can be that person for you.
       </div>
 
-      <ul >
-          {images.map(image => {
-            return (
-              <li key={image.id}>
-                <a href={image.link} rel="noreferrer">
-                  <div>
-                    <Image width={image.width} height={image.height} src={image.image} alt="" />
-                  </div>
-                  <h3 >
-                    { image.title }
-                  </h3>
-                </a>
-              </li>
-            )
-          })}
-        </ul>
+      <ImageGallery images={images}></ImageGallery>
     </>
   )
 }
@@ -43,7 +29,6 @@ export async function getStaticProps() {
   }).then(r => r.json());
 
   console.log({results});
-
   
   const { resources } = results;
 
