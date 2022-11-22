@@ -1,10 +1,40 @@
-import { useState, useEffect } from 'react';
-import Head from 'next/head'
-import Image from 'next/image'
+import { search, mapImageResources } from '../lib/cloudinary';
 import Header from '../components/header'
 import ImageGallery from '../components/imageGallery';
+import {useState} from 'react'
 
-export default function About({images}) {
+export default function About({defaultImages, defaultNextCursor}) {
+
+  const [images, setImages] = useState(defaultImages);
+  const [nextCursor, setNextCursor] = useState(defaultNextCursor)
+
+
+  async function handleOnLoadMore(e) {
+    e.preventDefault();
+  
+    const results = await fetch('/api/search', {
+      method: 'POST',
+      body: JSON.stringify({
+        expression: `folder=""`,
+        nextCursor: nextCursor,
+      })
+    }).then(r => r.json());
+  
+    const { resources, next_cursor } = results;
+  
+    console.log("nexPge", next_cursor);
+    
+    const images = mapImageResources(resources);
+    
+    setImages(prev => {
+      return [
+        ...prev,
+        ...images
+      ]
+    });
+    setNextCursor(next_cursor);    
+  }  
+
   return (
     <>
       <Header />
@@ -17,6 +47,8 @@ export default function About({images}) {
       </div>
 
       <ImageGallery images={images}></ImageGallery>
+
+      <div onClick={handleOnLoadMore}>Load More Results</div>
     </>
   )
 }
@@ -27,25 +59,14 @@ export async function getStaticProps() {
       Authorization: `Basic ${Buffer.from(process.env.CLOUDINARY_API_KEY + ':' + process.env.CLOUDINARY_API_SECRET).toString('base64')}`
     }
   }).then(r => r.json());
-
-  console.log({results});
   
-  const { resources } = results;
-
-  const images = resources.map(resource => {
-    const { width, height } = resource;
-    return {
-      id: resource.asset_id,
-      title: resource.public_id,
-      image: resource.secure_url,
-      width,
-      height
-    }
-  });
+  const { resources, next_cursor } = results;
+  const images = mapImageResources(resources);
 
   return {
     props: {
-      images
+      defaultImages: images,
+      defaultNextCursor: next_cursor
     }
   }
 }
