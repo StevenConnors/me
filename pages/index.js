@@ -16,7 +16,7 @@ export default function About({defaultImages, defaultNextCursor}) {
       method: 'POST',
       body: JSON.stringify({
         expression: `folder=""`,
-        nextCursor: nextCursor,
+        nextCursor: nextCursor,  
       })
     }).then(r => r.json());
   
@@ -26,6 +26,25 @@ export default function About({defaultImages, defaultNextCursor}) {
     
     const images = mapImageResources(resources);
     
+    images.map(imgDoc => {
+      let url = imgDoc.image;
+      
+      if (url.indexOf("q_50") > 0) {
+        return;
+      }
+  
+      let index = url.indexOf("image/upload");
+  
+      let prefix = url.substr(0, index + "image/upload/".length);
+      let q = "q_50/"
+      let rest = url.substr(index+ "image/upload/".length)
+  
+      imgDoc.image = prefix + q + rest;
+    })
+  
+    console.log({images});
+  
+
     setImages(prev => {
       return [
         ...prev,
