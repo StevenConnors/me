@@ -21,11 +21,10 @@ export default function About({defaultImages, defaultNextCursor}) {
     }).then(r => r.json());
   
     const { resources, next_cursor } = results;
-  
-    console.log("nexPge", next_cursor);
-    
+      
     const images = mapImageResources(resources);
     
+    // Injecting the q_50 string to decrease the quality of the photo from cloudinary
     images.map(imgDoc => {
       let url = imgDoc.image;
       
@@ -34,16 +33,12 @@ export default function About({defaultImages, defaultNextCursor}) {
       }
   
       let index = url.indexOf("image/upload");
-  
       let prefix = url.substr(0, index + "image/upload/".length);
       let q = "q_50/"
       let rest = url.substr(index+ "image/upload/".length)
   
       imgDoc.image = prefix + q + rest;
     })
-  
-    console.log({images});
-  
 
     setImages(prev => {
       return [
