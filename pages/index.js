@@ -8,15 +8,15 @@ export default function About({defaultImages, defaultNextCursor}) {
   const [images, setImages] = useState(defaultImages);
   const [nextCursor, setNextCursor] = useState(defaultNextCursor)
 
-
   async function handleOnLoadMore(e) {
     e.preventDefault();
   
     const results = await fetch('/api/search', {
       method: 'POST',
       body: JSON.stringify({
-        expression: `folder=""`,
+        expression: `folder="c1fd31ee5a88243c9b5e192a5b9bb82bfd"`,
         nextCursor: nextCursor,  
+        max_results: 30,
       })
     }).then(r => r.json());
   
@@ -68,10 +68,10 @@ export default function About({defaultImages, defaultNextCursor}) {
 }
 
 export async function getStaticProps() {
-  const results = await fetch(`https://api.cloudinary.com/v1_1/${process.env.CLOUDINARY_CLOUD_NAME}/resources/image`, {
+  const results = await fetch(`https://api.cloudinary.com/v1_1/${process.env.CLOUDINARY_CLOUD_NAME}/resources/image?max_results=30&folder="c1fd31ee5a88243c9b5e192a5b9bb82bfd`, {
     headers: {
-      Authorization: `Basic ${Buffer.from(process.env.CLOUDINARY_API_KEY + ':' + process.env.CLOUDINARY_API_SECRET).toString('base64')}`
-    }
+      Authorization: `Basic ${Buffer.from(process.env.CLOUDINARY_API_KEY + ':' + process.env.CLOUDINARY_API_SECRET).toString('base64')}`,
+    },
   }).then(r => r.json());
   
   const { resources, next_cursor } = results;

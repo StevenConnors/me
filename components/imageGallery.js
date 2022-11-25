@@ -7,18 +7,21 @@ export default function ImageGallery({ images }) {
     return (<></>);
   }
 
+  
   return (
     <>
       <div className={`${styles.container} ${styles.columns}`}>
         {images.map((imgDoc, index) => (
-          <Image
-            key={imgDoc.title}
-            width={imgDoc.width} 
-            height={imgDoc.height}
-            className={styles.imge}
-            src={imgDoc.image}
-            alt={index}
-          />
+          <Link href={`/images/${imgDoc.title}`}> 
+            <Image
+              key={imgDoc.title}
+              width={imgDoc.width} 
+              height={imgDoc.height}
+              className={styles.imge}
+              src={imgDoc.image}
+              alt={index}
+            />
+          </Link>
         ))}
       </div>
     </>
