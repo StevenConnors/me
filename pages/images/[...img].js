@@ -4,7 +4,7 @@ const Post = () => {
   const router = useRouter()
   const { img } = router.query
 
-  return <p>Post: {img[0]}</p>
+  return <p>Post: {img}</p>
 }
 
 export default Post
