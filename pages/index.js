@@ -1,4 +1,4 @@
-import { search, mapImageResources } from '../lib/cloudinary';
+import { mapImageResources } from '../lib/cloudinary';
 import Header from '../components/header'
 import ImageGallery from '../components/imageGallery';
 import {useState} from 'react'
@@ -34,7 +34,7 @@ export default function About({defaultImages, defaultNextCursor}) {
   
       let index = url.indexOf("image/upload");
       let prefix = url.substr(0, index + "image/upload/".length);
-      let q = "q_50/"
+      let q = "w_1000/q_50/"
       let rest = url.substr(index+ "image/upload/".length)
   
       imgDoc.image = prefix + q + rest;
@@ -74,8 +74,25 @@ export async function getStaticProps() {
     },
   }).then(r => r.json());
   
-  const { resources, next_cursor } = results;
+  let { resources, next_cursor } = results;
   const images = mapImageResources(resources);
+
+  // Injecting the q_50 string to decrease the quality of the photo from cloudinary
+  // and the width to limit the max width
+  images.map(imgDoc => {
+    let url = imgDoc.image;
+    
+    if (url.indexOf("q_50") > 0) {
+      return;
+    }
+
+    let index = url.indexOf("image/upload");
+    let prefix = url.substr(0, index + "image/upload/".length);
+    let q = "w_1000/q_50/"
+    let rest = url.substr(index+ "image/upload/".length)
+
+    imgDoc.image = prefix + q + rest;
+  })
 
   return {
     props: {

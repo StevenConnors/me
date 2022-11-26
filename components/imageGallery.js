@@ -6,13 +6,11 @@ export default function ImageGallery({ images }) {
   if (images === undefined) {
     return (<></>);
   }
-
-  
   return (
     <>
       <div className={`${styles.container} ${styles.columns}`}>
         {images.map((imgDoc, index) => (
-          <Link href={`/images/${imgDoc.title}`}> 
+          <Link href={`/images/${imgDoc.title}`} key={imgDoc.title}> 
             <Image
               key={imgDoc.title}
               width={imgDoc.width} 
