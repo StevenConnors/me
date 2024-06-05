@@ -9,12 +9,12 @@ export default function About() {
         <title>yuji tanaka</title>
       </Head>
       
-      <Link href="/new-page" passHref>  
+      <Link href="/ai" passHref>  
         <h1 className={styles.titleText}>佑治</h1>
       </Link>
 
       <div>
-        The name 佑治 means 'heal the person to your right'. Whoever you may be, I hope I can be that person for you.
+        The name 佑治 means &#39;heal the person to your right&#39;. Whoever you may be, I hope I can be that person for you.
       </div>
 
     </>
