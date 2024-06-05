@@ -39,7 +39,7 @@ const col = db.collection('col');
 fs.readdir("/Users/stevenconnors/Downloads/isecompressed", (err, files) => {
     files.forEach(file => {
       if (file.includes("jpg")) {
-        console.log(file);
+        // console.log(file);
 
 
         fs.readFile("/Users/stevenconnors/Downloads/isecompressed/" + file, function(err, imageData) {
