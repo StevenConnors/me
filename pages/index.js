@@ -97,7 +97,7 @@ export async function getStaticProps() {
   return {
     props: {
       defaultImages: images,
-      defaultNextCursor: next_cursor
+      defaultNextCursor: next_cursor || null  // Ensure defaultNextCursor is never undefined
     }
   }
 }

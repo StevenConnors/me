@@ -3,8 +3,9 @@ import styles from './imageGallery.module.css'
 import Image from 'next/image'
 
 export default function ImageGallery({ images }) {
-  if (images === undefined) {
-    return (<></>);
+  console.log("images come like this:", images)
+  if (images.length === 0) {
+    return (<div style={{ textAlign: 'center' }}>No photos to display</div>);
   }
   return (
     <>
