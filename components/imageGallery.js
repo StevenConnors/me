@@ -3,7 +3,7 @@ import styles from './imageGallery.module.css'
 import Image from 'next/image'
 
 export default function ImageGallery({ images }) {
-  console.log("images come like this:", images)
+  // console.log("images come like this:", images)
   if (images.length === 0) {
     return (<div style={{ textAlign: 'center' }}>No photos to display</div>);
   }
@@ -11,9 +11,9 @@ export default function ImageGallery({ images }) {
     <>
       <div className={`${styles.container} ${styles.columns}`}>
         {images.map((imgDoc, index) => (
-          <Link href={`/images/${imgDoc.title}`} key={imgDoc.title} passHref>
+          <Link href={`/images/${imgDoc.title}`} key={imgDoc.title+index} passHref>
             <Image
-              key={imgDoc.title}
+              key={imgDoc.title+index}
               width={imgDoc.width} 
               height={imgDoc.height}
               className={styles.imge}
