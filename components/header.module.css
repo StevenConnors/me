@@ -17,3 +17,29 @@
     color: #009900;
   }
   
+  .fullName {
+    display: inline; /* Show full name by default */
+  }
+
+  .shortName {
+    display: none; /* Hide shortened name by default */
+}
+
+  @media only screen and (min-width:479px) and (max-width:768px) {
+    .shortName {
+      display: inline; /* Show on small screens */
+    }
+    .fullName {
+      display: none; /* Hide full name on small screens */
+    }
+  }
+  
+  @media only screen and (max-width:479px) {
+    .shortName {
+      display: inline; /* Show on small screens */
+    }
+    .fullName {
+      display: none; /* Hide full name on small screens */
+    }
+  }
+  

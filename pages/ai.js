@@ -20,7 +20,7 @@ export default function NewPage() {
     { name: "Hawaii, 04/2022", images: references.slice(0,10)},
     { name: "Tokyo, 03/2023", images: references.slice(10,20)},
     { name: "Paris, 05/2023", images: references.slice(20,30)},
-    { name: "埼玉、令和４年５月", images: references.slice(30,40)},
+    { name: "埼玉, 令和４年５月", images: references.slice(30,40)},
     { name: "Sydney, 01/2023", images: references.slice(40,50)},
     { name: "Cairo, 02/2023", images: references.slice(50,60)},
     { name: "London, July 2023", images: references.slice(2, 22) },
@@ -28,7 +28,7 @@ export default function NewPage() {
     { name: "Sydney, January 2023", images: references.slice(40,50)},
     { name: "Cairo, February 2023", images: references.slice(50,60)},
     { name: "London, July 2023", images: references.slice(2, 22) },
-    { name: "Berlin, August 2023", images: references.slice(12, 32) }
+    { name: "Berlin, August 2023", images: references.slice(12, 32) } 
   ];
 
   return (
@@ -53,10 +53,12 @@ export default function NewPage() {
               onMouseLeave={(e) => e.target.style.color = 'lightgrey'}
               onClick={() => setSelectedLocationIndex(index === selectedLocationIndex ? null : index)}
             >
-              {location.name}
+              <span className={styles.fullName}>{location.name}</span>
+              <span className={styles.shortName}>{location.name.split(',')[0]}</span> {/* Shortened name */}
+              
               {selectedLocationIndex === index && (
                 <div style={{ width: '100%' }}>
-                  <ImageGallery images={location.images} />
+                  <ImageGallery images={location.images} className="ai-gallery" />
                 </div>
               )}
             </div>
