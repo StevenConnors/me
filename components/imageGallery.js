@@ -11,7 +11,7 @@ export default function ImageGallery({ images }) {
     <>
       <div className={`${styles.container} ${styles.columns}`}>
         {images.map((imgDoc, index) => (
-          <Link href={`/images/${imgDoc.title}`} key={imgDoc.title}> 
+          <Link href={`/images/${imgDoc.title}`} key={imgDoc.title} passHref>
             <Image
               key={imgDoc.title}
               width={imgDoc.width} 
