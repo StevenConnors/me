@@ -8,18 +8,28 @@ import { mapImageResources } from '../lib/cloudinary';
 
 
 const locations = [
+    { name: "Piedmont, 04/2024"},
+    { name: "Helsinki, 04/2024"},
+    { name: "埼玉, 令和四年五月"},
+    { name: "San Francisco, 04/2024"},
+    { name: "New York, 03/2024"},
+    { name: "Montreal, 02/2024"},
     { name: "Ain Sokhna, 03/2020"},
     { name: "Brooklyn, 03/2023"},
-    { name: "Cario, 05/2023"},
-    { name: "埼玉, 令和４年５月"},
+    { name: "Cairo, 05/2023"},
     { name: "Jackson Hole, August 2023"} 
   ];
 
   const locationToFolderId = [
+    { name: "Piedmont, 04/2024", folderId: "yuji/photosByDateAndLocation/2024_04_Piedmont"},
+    { name: "Helsinki, 04/2024", folderId: "yuji/photosByDateAndLocation/2024_04_Helsinki"},
+    { name: "埼玉, 令和四年五月", folderId: "yuji/photosByDateAndLocation/2024_04_Tokyo"},
+    { name: "San Francisco, 04/2024", folderId: "yuji/photosByDateAndLocation/2024_04_SanFrancisco"},
+    { name: "New York, 03/2024", folderId: "yuji/photosByDateAndLocation/2024_03_NewYork"},
+    { name: "Montreal, 02/2024", folderId: "yuji/photosByDateAndLocation/2024_02_Montreal"},
     { name: "Ain Sokhna, 03/2020", folderId: "yuji/byEvent/Ain_Sokhna_Egypt"},
     { name: "Brooklyn, 03/2023", folderId: "yuji/byEvent/Brooklyn_NY"},
-    { name: "Cario, 05/2023", folderId: "yuji/byEvent/Cairo_Egypt"},
-    { name: "埼玉, 令和４年５月", folderId: "yuji/byEvent/Saitama_JP"},
+    { name: "Cairo, 05/2023", folderId: "yuji/byEvent/Cairo_Egypt"},
     { name: "Jackson Hole, August 2023", folderId: "yuji/byEvent/JacksonHole_WY" } 
   ];
 
@@ -44,7 +54,7 @@ export default function NewPage({ defaultImages }) {
         method: 'POST',
         body: JSON.stringify({
             expression: expr,
-            max_results: 10,
+            max_results: 25,
         })
     }).then(r => r.json());
 
