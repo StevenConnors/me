@@ -2,7 +2,7 @@ import Link from 'next/link'
 import styles from './imageGallery.module.css'
 import Image from 'next/image'
 import GalleryGrid from './GalleryGrid';
-import GalleryGrouped from './GalleryGrouped';
+import GalleryGrouped from './GalleryGrouped.js';
 
 export default function ImageGallery({ images, viewType = 'grid' }) {
   // console.log("images come like this:", images)
