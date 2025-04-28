@@ -11,15 +11,18 @@ export default function ImageGallery({ images }) {
     <>
       <div className={`${styles.container} ${styles.columns}`}>
         {images.map((imgDoc, index) => (
-          <Link href={`/images/${imgDoc.title}`} key={imgDoc.title+index} passHref>
-            <Image
-              key={imgDoc.title+index}
-              width={imgDoc.width} 
-              height={imgDoc.height}
-              className={styles.imge}
-              src={imgDoc.image}
-              alt={index}
-            />
+          <Link href={`/images/${imgDoc.title}`} key={imgDoc.id || imgDoc.title+index} passHref>
+            <div className={styles.imageWrapper}>
+              <Image
+                key={imgDoc.id || imgDoc.title+index}
+                width={imgDoc.width}
+                height={imgDoc.height}
+                className={styles.image}
+                src={imgDoc.image}
+                alt={imgDoc.title || `Image ${index + 1}`}
+                layout="responsive"
+              />
+            </div>
           </Link>
         ))}
       </div>
