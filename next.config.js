@@ -1,8 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  outputFileTracing: false,
   staticPageGenerationTimeout: 300,
+  transpilePackages: ['react-tweet'],
   images: {
     domains: ['res.cloudinary.com'],
     // loader: 'cloudinary',
