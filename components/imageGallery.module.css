@@ -5,7 +5,12 @@
 }
 
 .columns {
+	/* display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: 24px; */
 	columns: 3;
+	column-gap: 24px;
+
 }
 
 .image {

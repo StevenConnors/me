@@ -1,4 +1,5 @@
 import { mapImageResources } from '../lib/cloudinary';
+import { CLOUDINARY_IMAGE_FOLDER_ID } from '../config';
 import Header from '../components/header'
 import ImageGallery from '../components/imageGallery';
 import {useState} from 'react'
@@ -18,7 +19,7 @@ export default function About({defaultImages, defaultNextCursor}) {
       const results = await fetch('/api/search', {
         method: 'POST',
         body: JSON.stringify({
-          expression: `folder="c1fd31ee5a88243c9b5e192a5b9bb82bfd"`,
+          expression: `folder="${CLOUDINARY_IMAGE_FOLDER_ID}"`,
           nextCursor: nextCursor,  
           max_results: 30,
         })
@@ -57,7 +58,7 @@ export default function About({defaultImages, defaultNextCursor}) {
 }
 
 export async function getStaticProps() {
-  const results = await fetch(`https://api.cloudinary.com/v1_1/${process.env.CLOUDINARY_CLOUD_NAME}/resources/image?max_results=30&folder="c1fd31ee5a88243c9b5e192a5b9bb82bfd`, {
+  const results = await fetch(`https://api.cloudinary.com/v1_1/${process.env.CLOUDINARY_CLOUD_NAME}/resources/image?max_results=30&folder="${CLOUDINARY_IMAGE_FOLDER_ID}`, {
     headers: {
       Authorization: `Basic ${Buffer.from(process.env.CLOUDINARY_API_KEY + ':' + process.env.CLOUDINARY_API_SECRET).toString('base64')}`,
     },
