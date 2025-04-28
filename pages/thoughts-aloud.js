@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Tweet } from 'react-tweet';
 import Header from '../components/header';
+import styles from '../styles/ThoughtsAloud.module.css';
 const PAGE_LIMIT = 50;
 
 // Helper to format date as YYYY/MM/DD HH:mm:ss (24hr)
@@ -70,23 +71,23 @@ export default function ThoughtsAloud() {
     <>
     <Header />
 
-    <main className="ta-main">
-      <h1 className="ta-title">thoughts out loud</h1>
+    <main className={styles['ta-main']}>
+      <h1 className={styles['ta-title']}>thoughts out loud</h1>
       {thoughts.map(thought => (
         <article
           key={thought._id}
-          className="ta-article"
+          className={styles['ta-article']}
           onMouseEnter={e => {
-            e.currentTarget.classList.add('hovered');
+            e.currentTarget.classList.add(styles.hovered);
           }}
           onMouseLeave={e => {
-            e.currentTarget.classList.remove('hovered');
+            e.currentTarget.classList.remove(styles.hovered);
           }}
         >
-          <div className="ta-date">
+          <div className={styles['ta-date']}>
             {formatDate(thought.createdAt)}
           </div>
-          <div className="ta-content">
+          <div className={styles['ta-content']}>
             {/* Custom logic: if the text contains a bare YouTube URL, render it as an embed, otherwise use ReactMarkdown as before */}
             {(() => {
               // Helper: Find all YouTube URLs in the text
@@ -157,7 +158,7 @@ export default function ThoughtsAloud() {
                       key={j}
                       components={{
                         blockquote: ({ children }) => (
-                          <blockquote className="ta-blockquote">
+                          <blockquote className={styles['ta-blockquote']}>
                             {children}
                           </blockquote>
                         ),
@@ -166,7 +167,7 @@ export default function ThoughtsAloud() {
                             const embedUrl = getYouTubeEmbedUrl(href);
                             if (embedUrl) {
                               return (
-                                <div className="ta-iframe-wrap">
+                                <div className={styles['ta-iframe-wrap']}>
                                   <iframe
                                     src={embedUrl}
                                     title="YouTube video player"
@@ -193,97 +194,6 @@ export default function ThoughtsAloud() {
       ))}
       {loading && <div>Loading…</div>}
       <div ref={loader} />
-      <style jsx>{`
-        .ta-main {
-          max-width: 48rem;
-          margin: 0 auto;
-          padding: 2rem 1rem;
-          font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-          color: #121212;
-          background: #fff;
-        }
-        .ta-title {
-          font-weight: 200;
-          font-size: 1.5rem;
-          margin-bottom: 2rem;
-        }
-        .ta-article {
-          margin-bottom: 2rem;
-          opacity: 0.95;
-          transition: background 0.2s, box-shadow 0.2s;
-          display: flex;
-          align-items: flex-start;
-          gap: 1.5rem;
-          border-radius: 0.5rem;
-          box-shadow: none;
-          background: transparent;
-          cursor: pointer;
-        }
-        .ta-article.hovered {
-          background: #f5f7fa;
-          box-shadow: 0 2px 8px 0 rgba(0,0,0,0.04);
-        }
-        .ta-date {
-          min-width: 8.5rem;
-          max-width: 10rem;
-          font-size: 0.9rem;
-          color: #888;
-          text-align: right;
-          flex-shrink: 0;
-          align-self: baseline;
-          line-height: 1.4;
-          word-break: break-word;
-        }
-        .ta-content {
-          font-size: 1.1rem;
-          line-height: 1.6;
-          flex: 1;
-          word-break: break-word;
-          white-space: pre-line;
-        }
-        .ta-blockquote {
-          border-left: 4px solid #ccc;
-          margin: 1em 0;
-          padding: 0.5em 1em;
-          color: #555;
-          background: #f9f9f9;
-        }
-        .ta-iframe-wrap {
-          margin: 1rem 0;
-          position: relative;
-          width: 100%;
-          padding-bottom: 56.25%; /* 16:9 aspect ratio */
-          height: 0;
-        }
-        .ta-iframe-wrap iframe {
-          position: absolute;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
-          border: 0;
-        }
-        @media (max-width: 600px) {
-          .ta-main {
-            padding: 1rem 0.25rem;
-          }
-          .ta-article {
-            flex-direction: column;
-            gap: 0.5rem;
-            padding: 0.5rem 0.25rem;
-          }
-          .ta-date {
-            min-width: 0;
-            max-width: 100%;
-            text-align: left;
-            font-size: 0.95rem;
-            margin-bottom: 0.25rem;
-          }
-          .ta-content {
-            font-size: 1rem;
-          }
-        }
-      `}</style>
     </main>
   </>);
 } 

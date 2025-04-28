@@ -1,6 +1,11 @@
-- verify infinite scrolling
-- fix quote height 
-done embed tweets
-verify - mobile responsiveness
+verify:
+VERIFY - mobile responsiveness
+VERIFY infinite scrolling
+
+
+not mvp:
 - embed images
---- future, work on ios app first
+- fix quote height 
+
+done:
+DONE embed tweets

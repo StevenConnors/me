@@ -9,17 +9,19 @@ export default function Header() {
         <title>yuji tanaka</title>
       </Head>
       
-      <Link href="/" passHref style={{ textDecoration: 'none' }}>  
-        <h1 className={styles.titleText}>佑治</h1>
-      </Link>
+      <div className={styles.headerRow}>
+        <Link href="/" passHref style={{ textDecoration: 'none' }}>  
+          <h1 className={styles.titleText}>佑治</h1>
+        </Link>
 
-      <Link href="/thoughts-aloud" passHref style={{ textDecoration: 'none' }}>
-        <div className={styles.titleText}>thoughts aloud</div>
-      </Link>
+        <Link href="/thoughts-aloud" passHref style={{ textDecoration: 'none' }}>
+          <div className={styles.titleText}>thoughts aloud</div>
+        </Link>
 
-      <Link href="/" passHref style={{ textDecoration: 'none' }}>
-        <div className={styles.titleText}>photos</div>
-      </Link>
+        <Link href="/" passHref style={{ textDecoration: 'none' }}>
+          <div className={styles.titleText}>photos</div>
+        </Link>
+      </div>
 
     </>
   )
