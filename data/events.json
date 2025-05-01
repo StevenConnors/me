@@ -1,0 +1,20 @@
+[
+  {
+    "id": "helsinki-2023",
+    "title": "Helsinki, 2023",
+    "folder": "c1fd31ee5a88243c9b5e192a5b9bb82bfd",
+    "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus lacinia odio vitae vestibulum vestibulum."
+  },
+  {
+    "id": "oslo-2022",
+    "title": "Oslo, 2022",
+    "folder": "travel/oslo-2022",
+    "text": "Cras suscipit, quam vitae dapibus facilisis, magna mi feugiat eros, ut consectetur purus leo in mauris."
+  },
+  {
+    "id": "stockholm-2021",
+    "title": "Stockholm, 2021",
+    "folder": "travel/stockholm-2021",
+    "text": "Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam."
+  }
+] 

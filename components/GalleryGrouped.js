@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 
-export default function GalleryGrouped({ images }) {
+export default function GalleryGrouped({ images, title = 'Photo Carousel', text = 'Browse through a curated selection of photos. Use the arrows or keyboard to navigate. Each image represents a unique moment or event.' }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFading, setIsFading] = useState(false);
   const FADE_DURATION = 150; // ms
@@ -135,10 +135,8 @@ export default function GalleryGrouped({ images }) {
           marginLeft: '0.5rem',
         }}
       >
-        <h3 style={{ marginTop: 0 }}>Photo Carousel</h3>
-        <p>
-          Browse through a curated selection of photos. Use the arrows or keyboard to navigate. Each image represents a unique moment or event.
-        </p>
+        <h3 style={{ marginTop: 0 }}>{title}</h3>
+        <p>{text}</p>
       </div>
       <style jsx>{`
         .carousel-image-area {
