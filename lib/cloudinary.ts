@@ -1,4 +1,17 @@
 import { CLOUDINARY_QUALITY_TRANSFORM } from '../config';
+import type { ImageLoader } from 'next/image';
+
+export const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+
+export const cloudinaryLoader: ImageLoader = ({ src, width, quality }) => {
+  const q = quality || 'auto';
+  return `https://res.cloudinary.com/${cloudName}/image/upload/f_auto,q_${q},c_fill,w_${width}/${src}`;
+};
+
+export function cldVideoMp4(publicId, opts = {}) {
+  const w = opts?.w ? `,c_limit,w_${opts.w}` : '';
+  return `https://res.cloudinary.com/${cloudName}/video/upload/f_auto,q_auto${w}/${publicId}.mp4`;
+}
 
 export async function search(options = {}) {
     const params = {
@@ -11,7 +24,7 @@ export async function search(options = {}) {
 
     const paramString = Object.keys(params).map(key => `${key}=${encodeURIComponent(params[key])}`).join('&');
 
-    const url = `https://api.cloudinary.com/v1_1/${process.env.CLOUDINARY_CLOUD_NAME}/resources/search?${paramString}`;
+    const url = `https://api.cloudinary.com/v1_1/${cloudName}/resources/search?${paramString}`;
     
     console.log("cloudinary serach url : ", url);
 
@@ -62,7 +75,7 @@ export async function byFolder(options = {}) {
 
   const paramString = Object.keys(params).map(key => `${key}=${encodeURIComponent(params[key])}`).join('&');
 
-  const url = `https://api.cloudinary.com/v1_1/${process.env.CLOUDINARY_CLOUD_NAME}/resources/image?${paramString}`;
+  const url = `https://api.cloudinary.com/v1_1/${cloudName}/resources/image?${paramString}`;
   
   console.log("cloudinary serach url : ", url);
 

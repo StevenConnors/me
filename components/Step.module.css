@@ -1,0 +1,54 @@
+.step {
+  padding: 3rem 0; /* py-12 equivalent */
+  max-width: none;
+  line-height: 1.625; /* leading-relaxed equivalent */
+  
+  /* Customizable font properties */
+  font-family: 'Georgia', 'Times New Roman', serif; /* More readable serif font */
+  font-size: 1.125rem; /* text-lg equivalent - 18px */
+  font-weight: 400;
+  color: #374151; /* Slightly softer than pure black */
+}
+
+.stepLast {
+  padding-bottom: 8rem; /* pb-32 equivalent */
+}
+
+/* Responsive font sizing */
+@media (max-width: 768px) {
+  .step {
+    font-size: 1rem; /* Smaller on mobile */
+    padding: 2rem 0;
+  }
+  
+  .stepLast {
+    padding-bottom: 4rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .step {
+    font-size: 1.25rem; /* Larger on desktop */
+  }
+}
+
+/* Typography adjustments for better readability */
+.step h1,
+.step h2,
+.step h3,
+.step h4,
+.step h5,
+.step h6 {
+  font-family: inherit;
+  line-height: 1.3;
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+}
+
+.step p {
+  margin-bottom: 1.5rem;
+}
+
+.step p:last-child {
+  margin-bottom: 0;
+}
