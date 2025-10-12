@@ -8,17 +8,43 @@ export async function GET(request: NextRequest) {
     const cursor = searchParams.get('cursor');
     const limit = parseInt(searchParams.get('limit') || '20');
     
+    // Debug environment variables
+    console.log('API Environment check:', {
+      cloudName: process.env.CLOUDINARY_CLOUD_NAME,
+      hasApiKey: !!process.env.CLOUDINARY_API_KEY,
+      hasApiSecret: !!process.env.CLOUDINARY_API_SECRET,
+      folderId: CLOUDINARY_IMAGE_FOLDER_ID
+    });
+    
+    if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+      console.error('Missing Cloudinary environment variables');
+      return NextResponse.json({ 
+        error: 'Missing Cloudinary configuration',
+        images: [], 
+        nextCursor: null, 
+        hasMore: false 
+      }, { status: 500 });
+    }
+    
     let url = `https://api.cloudinary.com/v1_1/${process.env.CLOUDINARY_CLOUD_NAME}/resources/image?max_results=${limit}&folder="${CLOUDINARY_IMAGE_FOLDER_ID}`;
     
     if (cursor) {
       url += `&next_cursor=${cursor}`;
     }
     
+    console.log('Cloudinary API URL:', url);
+    
     const results = await fetch(url, {
       headers: {
         Authorization: `Basic ${Buffer.from(process.env.CLOUDINARY_API_KEY + ':' + process.env.CLOUDINARY_API_SECRET).toString('base64')}`,
       },
     }).then(r => r.json());
+    
+    console.log('Cloudinary API response:', { 
+      resourceCount: results.resources?.length || 0,
+      hasNextCursor: !!results.next_cursor,
+      error: results.error
+    });
     
     const { resources, next_cursor } = results;
     const images = mapImageResources(resources);
@@ -30,6 +56,11 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('Error fetching images:', error);
-    return NextResponse.json({ images: [], nextCursor: null, hasMore: false }, { status: 500 });
+    return NextResponse.json({ 
+      error: error instanceof Error ? error.message : 'Unknown error',
+      images: [], 
+      nextCursor: null, 
+      hasMore: false 
+    }, { status: 500 });
   }
 }

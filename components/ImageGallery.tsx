@@ -20,6 +20,7 @@ interface ImageGalleryResponse {
   images: ImageData[];
   nextCursor: string | null;
   hasMore: boolean;
+  error?: string;
 }
 
 export default function ImageGallery() {
@@ -61,8 +62,13 @@ export default function ImageGallery() {
       console.log('Received data:', { 
         imageCount: data.images.length, 
         hasMore: data.hasMore, 
-        nextCursor: data.nextCursor 
+        nextCursor: data.nextCursor,
+        error: (data as any).error
       });
+      
+      if ('error' in data) {
+        throw new Error((data as any).error);
+      }
       
       if (append) {
         setImages(prev => [...prev, ...data.images]);
