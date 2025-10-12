@@ -20,9 +20,31 @@ interface ThoughtInput {
 
 export async function GET(request: NextRequest) {
   try {
+    // Debug MongoDB connection
+    console.log('MongoDB Environment check:', {
+      hasMongoUri: !!process.env.MONGODB_URI,
+      mongoUriLength: process.env.MONGODB_URI?.length,
+      hasDbUserPw: !!process.env.MDB_USER_PW,
+      nodeEnv: process.env.NODE_ENV,
+      vercelEnv: process.env.VERCEL_ENV
+    });
+    
+    if (!process.env.MONGODB_URI) {
+      console.error('MONGODB_URI environment variable is not set');
+      return NextResponse.json({ 
+        error: 'Database configuration missing',
+        data: [],
+        nextCursor: null
+      }, { status: 500 });
+    }
+    
+    console.log('Attempting to connect to MongoDB...');
     const client = await getClient();
+    console.log('MongoDB connected successfully');
+    
     const db = client.db();
     const collection = db.collection('thoughts');
+    console.log('Collection accessed, querying thoughts...');
 
     const { searchParams } = new URL(request.url);
     const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100);
@@ -39,6 +61,8 @@ export async function GET(request: NextRequest) {
       .limit(limit)
       .toArray();
       
+    console.log(`Found ${thoughts.length} thoughts`);
+    
     const nextCursor = thoughts.length === limit ? thoughts[thoughts.length - 1].createdAt.toISOString() : null;
     
     return NextResponse.json({
