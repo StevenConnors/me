@@ -19,6 +19,7 @@
   .step {
     font-size: 1rem; /* Smaller on mobile */
     padding: 2rem 0;
+    line-height: 1.7; /* Better line height for mobile reading */
   }
   
   .stepLast {

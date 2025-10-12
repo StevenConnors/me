@@ -1,3 +1,0 @@
-- need to think about mobile layout
-- need to redo main page as its not rendering anymore
--- main page should probably be the header + a list of links / large text to each of my travel pages.

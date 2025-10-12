@@ -5,9 +5,14 @@ import { cloudinaryLoader, cldVideoMp4 } from '../lib/cloudinary';
 import { useStory } from './Story';
 
 export default function MediaPanel() {
-  const { steps, active } = useStory();
+  const { steps, active, isMobile } = useStory();
   const current = steps[active] ?? steps[0];
   const next = steps[active + 1];
+  
+  // Don't render on mobile since media is inline
+  if (isMobile) {
+    return null;
+  }
 
   // Log currently rendering photo
   useEffect(() => {

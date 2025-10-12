@@ -9,6 +9,7 @@ type Ctx = {
   steps: StepInfo[];
   active: number;
   registerStep: (ref: RefObject<HTMLElement>, info: StepInfo) => void;
+  isMobile: boolean;
 };
 
 const StoryCtx = createContext<Ctx>(null as any);
@@ -17,6 +18,7 @@ export const useStory = () => useContext(StoryCtx);
 export default function Story({ children, ifDebug = false }: { children: React.ReactNode; ifDebug?: boolean }) {
   const [steps, setSteps] = useState<StepInfo[]>([]);
   const [active, setActive] = useState(0);
+  const [isMobile, setIsMobile] = useState(false);
   const refs = useRef<RefObject<HTMLElement>[]>([]);
   const observerRef = useRef<IntersectionObserver | null>(null);
   const lastScrollTop = useRef<number>(0);
@@ -47,6 +49,18 @@ export default function Story({ children, ifDebug = false }: { children: React.R
         console.log('Step already registered:', info.media);
       }
     }
+  }, []);
+
+  // Mobile detection effect
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024); // lg breakpoint
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
   // Scroll logging effect with fallback step detection
@@ -204,23 +218,16 @@ export default function Story({ children, ifDebug = false }: { children: React.R
     };
   }, [steps]);
 
-  const ctx = useMemo(() => ({ steps, active, registerStep }), [steps, active, registerStep]);
+  const ctx = useMemo(() => ({ steps, active, registerStep, isMobile }), [steps, active, registerStep, isMobile]);
 
   return (
     <StoryCtx.Provider value={ctx}>
       <Header />
       
-      <div className="min-h-screen flex flex-col">
-        <div className="flex-1 flex">
-          {/* Left sidebar with step indicators - fixed positioned */}
-          <div className="w-[60px] flex flex-col">
-            <div className="sticky top-1/2 transform -translate-y-1/2">
-              <StepIndicators steps={steps} active={active} />
-            </div>
-          </div>
-          
-          {/* Text content - scrollable */}
-          <aside className="flex-1 px-4 pr-[568px]">
+      {isMobile ? (
+        // Mobile layout: vertical stack with inline media
+        <div className="min-h-screen flex flex-col">
+          <div className="flex-1 px-4">
             {/* Step counter - only show if debug flag is enabled */}
             {ifDebug && (
               <div className="sticky top-0 z-10 mb-4 text-sm text-gray-600 bg-white/90 backdrop-blur-sm px-2 py-1 rounded">
@@ -228,19 +235,47 @@ export default function Story({ children, ifDebug = false }: { children: React.R
               </div>
             )}
             <div className="pb-24">{children}</div>
-          </aside>
-          
-          {/* Media panel - fixed to viewport */}
-          <div className="w-[500px] h-[calc(100vh-80px)] flex items-center justify-center fixed top-[80px] right-[48px] z-10 bg-gray-100">
-            <MediaPanel />
           </div>
+          
+          {/* Footer spanning full width */}
+          <footer className="py-2 text-center text-gray-500 text-sm bg-white">
+            <p>taken by yuji</p>
+          </footer>
         </div>
-        
-        {/* Footer spanning full width */}
-        <footer className="py-2 text-center text-gray-500 text-sm bg-white">
-          <p>taken by yuji</p>
-        </footer>
-      </div>
+      ) : (
+        // Desktop layout: original design
+        <div className="min-h-screen flex flex-col">
+          <div className="flex-1 flex">
+            {/* Left sidebar with step indicators - fixed positioned */}
+            <div className="w-[60px] flex flex-col">
+              <div className="sticky top-1/2 transform -translate-y-1/2">
+                <StepIndicators steps={steps} active={active} />
+              </div>
+            </div>
+            
+            {/* Text content - scrollable */}
+            <aside className="flex-1 px-4 pr-[568px]">
+              {/* Step counter - only show if debug flag is enabled */}
+              {ifDebug && (
+                <div className="sticky top-0 z-10 mb-4 text-sm text-gray-600 bg-white/90 backdrop-blur-sm px-2 py-1 rounded">
+                  Step {active + 1} of {steps.length}
+                </div>
+              )}
+              <div className="pb-24">{children}</div>
+            </aside>
+            
+            {/* Media panel - fixed to viewport */}
+            <div className="w-[500px] h-[calc(100vh-80px)] flex items-center justify-center fixed top-[80px] right-[48px] z-10 bg-gray-100">
+              <MediaPanel />
+            </div>
+          </div>
+          
+          {/* Footer spanning full width */}
+          <footer className="py-2 text-center text-gray-500 text-sm bg-white">
+            <p>taken by yuji</p>
+          </footer>
+        </div>
+      )}
     </StoryCtx.Provider>
   );
 }
