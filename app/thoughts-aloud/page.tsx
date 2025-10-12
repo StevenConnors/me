@@ -1,23 +1,31 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+'use client';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Tweet } from 'react-tweet';
-import Header from '../components/header';
-import styles from '../styles/ThoughtsAloud.module.css';
+import Header from '../../components/header';
+import styles from '../../styles/ThoughtsAloud.module.css';
+
 const PAGE_LIMIT = 50;
 
+interface Thought {
+  _id: string;
+  text: string;
+  createdAt: string;
+}
+
 // Helper to format date as YYYY/MM/DD HH:mm:ss (24hr)
-function formatDate(dateString) {
+function formatDate(dateString: string): string {
   const d = new Date(dateString);
-  const pad = n => n.toString().padStart(2, '0');
+  const pad = (n: number) => n.toString().padStart(2, '0');
   return `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
 // Helper: Detect YouTube links
-function isYouTube(url) {
+function isYouTube(url: string): boolean {
   return /^https?:\/\/(www\.)?(youtube\.com|youtu\.be)\//.test(url);
 }
 
-function getYouTubeEmbedUrl(url) {
+function getYouTubeEmbedUrl(url: string): string | null {
   // Extract video ID and return embed URL
   const match = url.match(
     /(?:youtube\.com\/watch\?v=|youtu\.be\/)([A-Za-z0-9_-]{11})/
@@ -26,26 +34,49 @@ function getYouTubeEmbedUrl(url) {
 }
 
 export default function ThoughtsAloud() {
-  const [thoughts, setThoughts] = useState([]);
-  const [nextCursor, setNextCursor] = useState(null);
+  const [thoughts, setThoughts] = useState<Thought[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
-  const loader = useRef();
+  const loader = useRef<HTMLDivElement>(null);
 
-  const fetchThoughts = useCallback(async (cursor = null) => {
+  const fetchThoughts = useCallback(async (cursor: string | null = null) => {
     setLoading(true);
-    const params = new URLSearchParams({ limit: PAGE_LIMIT });
-    if (cursor) params.append('cursor', cursor);
-    const res = await fetch(`/api/thoughts?${params.toString()}`);
-    const data = await res.json();
-    setThoughts(prev => {
-      const ids = new Set(prev.map(t => t._id));
-      const newThoughts = data.data.filter(t => !ids.has(t._id));
-      return [...prev, ...newThoughts];
-    });
-    setNextCursor(data.nextCursor);
-    setHasMore(!!data.nextCursor);
-    setLoading(false);
+    try {
+      const params = new URLSearchParams({ limit: PAGE_LIMIT.toString() });
+      if (cursor) params.append('cursor', cursor);
+      const res = await fetch(`/api/thoughts?${params.toString()}`);
+      
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+      
+      const text = await res.text();
+      if (!text) {
+        throw new Error('Empty response from server');
+      }
+      
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (parseError) {
+        console.error('Failed to parse JSON:', text);
+        throw new Error('Invalid JSON response from server');
+      }
+      
+      setThoughts(prev => {
+        const ids = new Set(prev.map((t: Thought) => t._id));
+        const newThoughts = data.data.filter((t: Thought) => !ids.has(t._id));
+        return [...prev, ...newThoughts];
+      });
+      setNextCursor(data.nextCursor);
+      setHasMore(!!data.nextCursor);
+    } catch (error) {
+      console.error('Error fetching thoughts:', error);
+      // You might want to show an error message to the user here
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -96,9 +127,9 @@ export default function ThoughtsAloud() {
               const TWITTER_REGEX = /^https?:\/\/twitter\.com\/[^/]+\/status\/(\d+)(?:\?[^\s]*)?$/m;
               // Split text into lines for Twitter detection
               const lines = thought.text.split(/\r?\n/);
-              const parts = [];
+              const parts: (string | React.JSX.Element)[] = [];
               let buffer = '';
-              lines.forEach((line, idx) => {
+              lines.forEach((line: string, idx: number) => {
                 const trimmed = line.trim();
                 const twitterMatch = trimmed.match(TWITTER_REGEX);
                 if (twitterMatch) {
@@ -122,11 +153,11 @@ export default function ThoughtsAloud() {
                 parts.push(buffer);
               }
               // Now, for each part, handle YouTube embeds and markdown
-              return parts.map((part, i) => {
+              return parts.map((part: string | React.JSX.Element, i: number) => {
                 if (typeof part !== 'string') return part;
                 // YouTube logic (as before)
                 const YT_REGEX = /https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([A-Za-z0-9_-]{11})/g;
-                const ytParts = [];
+                const ytParts: (string | React.JSX.Element)[] = [];
                 let lastIndex = 0;
                 let match;
                 while ((match = YT_REGEX.exec(part)) !== null) {
@@ -152,7 +183,7 @@ export default function ThoughtsAloud() {
                 if (lastIndex < part.length) {
                   ytParts.push(part.slice(lastIndex));
                 }
-                return ytParts.map((ytPart, j) =>
+                return ytParts.map((ytPart: string | React.JSX.Element, j: number) =>
                   typeof ytPart === 'string' ? (
                     <ReactMarkdown
                       key={j}
@@ -162,8 +193,8 @@ export default function ThoughtsAloud() {
                             {children}
                           </blockquote>
                         ),
-                        a: ({ href, children }) => {
-                          if (isYouTube(href)) {
+                        a: ({ href, children }: { href?: string; children?: React.ReactNode }) => {
+                          if (href && isYouTube(href)) {
                             const embedUrl = getYouTubeEmbedUrl(href);
                             if (embedUrl) {
                               return (
@@ -196,4 +227,4 @@ export default function ThoughtsAloud() {
       <div ref={loader} />
     </main>
   </>);
-} 
+}
