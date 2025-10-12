@@ -11,9 +11,13 @@ export async function GET(request: NextRequest) {
     // Debug environment variables
     console.log('API Environment check:', {
       cloudName: process.env.CLOUDINARY_CLOUD_NAME,
+      cloudNameLength: process.env.CLOUDINARY_CLOUD_NAME?.length,
       hasApiKey: !!process.env.CLOUDINARY_API_KEY,
+      apiKeyLength: process.env.CLOUDINARY_API_KEY?.length,
       hasApiSecret: !!process.env.CLOUDINARY_API_SECRET,
-      folderId: CLOUDINARY_IMAGE_FOLDER_ID
+      apiSecretLength: process.env.CLOUDINARY_API_SECRET?.length,
+      folderId: CLOUDINARY_IMAGE_FOLDER_ID,
+      allEnvVars: Object.keys(process.env).filter(key => key.includes('CLOUDINARY'))
     });
     
     if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
