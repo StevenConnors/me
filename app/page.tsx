@@ -65,7 +65,7 @@ export default function Home() {
       <br></br>
 
       <div>
-        <h2>And here's some one off photos</h2>
+        <h2>And here&apos;s some one off photos</h2>
         <ImageGallery />
       </div>
     </>

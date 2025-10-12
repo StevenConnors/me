@@ -9,11 +9,6 @@ export default function MediaPanel() {
   const current = steps[active] ?? steps[0];
   const next = steps[active + 1];
   
-  // Don't render on mobile since media is inline
-  if (isMobile) {
-    return null;
-  }
-
   // Log currently rendering photo
   useEffect(() => {
     if (current) {
@@ -28,6 +23,11 @@ export default function MediaPanel() {
       img.src = cloudinaryLoader({ src: next.media, width: 1600, quality: 80 });
     }
   }, [next]);
+  
+  // Don't render on mobile since media is inline
+  if (isMobile) {
+    return null;
+  }
 
   return (
     <div className="relative w-full h-full overflow-hidden bg-black flex items-center justify-center">

@@ -9,9 +9,9 @@ import { MDXRemote } from 'next-mdx-remote/rsc';
 import { promises as fsPromises } from 'fs';
 
 interface PhotoPageProps {
-  params: {
+  params: Promise<{
     slug: string;
-  };
+  }>;
 }
 
 interface ImageData {
@@ -41,10 +41,10 @@ async function getImageData(slug: string): Promise<ImageData | null> {
     const images = mapImageResources(resources);
     
     console.log('getImageData - found images:', images.length);
-    console.log('getImageData - first few titles:', images.slice(0, 3).map(img => img.title));
+    console.log('getImageData - first few titles:', images.slice(0, 3).map((img: ImageData) => img.title));
     
     // Find the image that matches the slug
-    const image = images.find(img => img.title === slug);
+    const image = images.find((img: ImageData) => img.title === slug);
     console.log('getImageData - found matching image:', image);
     
     return image || null;
@@ -200,7 +200,7 @@ export async function generateStaticParams() {
     const { resources } = results;
     const images = mapImageResources(resources);
     
-    return images.map((image) => ({
+    return images.map((image: ImageData) => ({
       slug: image.title,
     }));
   } catch (error) {

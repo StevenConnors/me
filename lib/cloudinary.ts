@@ -8,13 +8,13 @@ export const cloudinaryLoader: ImageLoader = ({ src, width, quality }) => {
   return `https://res.cloudinary.com/${cloudName}/image/upload/f_auto,q_${q},c_fill,w_${width}/${src}`;
 };
 
-export function cldVideoMp4(publicId, opts = {}) {
+export function cldVideoMp4(publicId: string, opts: { w?: number } = {}) {
   const w = opts?.w ? `,c_limit,w_${opts.w}` : '';
   return `https://res.cloudinary.com/${cloudName}/video/upload/f_auto,q_auto${w}/${publicId}.mp4`;
 }
 
-export async function search(options = {}) {
-    const params = {
+export async function search(options: any = {}) {
+    const params: any = {
       ...options
     }
     if ( options.nextCursor ) {
@@ -36,7 +36,7 @@ export async function search(options = {}) {
     return results;
   }
 
-export function getTransformedImageUrl(url) {
+export function getTransformedImageUrl(url: string) {
   if (url.includes("q_50")) return url;
   const index = url.indexOf("image/upload");
   if (index === -1) return url;
@@ -45,11 +45,11 @@ export function getTransformedImageUrl(url) {
   return prefix + CLOUDINARY_QUALITY_TRANSFORM + rest;
 }
 
-export function mapImageResources(resources) {
+export function mapImageResources(resources: any[]) {
     if (!resources) {
         return [];
     }
-    return resources.map(resource => {
+    return resources.map((resource: any) => {
       const { width, height, asset_id, public_id, secure_url } = resource;
       // Placeholder for future event/trip info
       return {
@@ -64,8 +64,8 @@ export function mapImageResources(resources) {
     });
 }
 
-export async function byFolder(options = {}) {
-  const params = {
+export async function byFolder(options: any = {}) {
+  const params: any = {
     ...options
   }
   if ( options.nextCursor ) {

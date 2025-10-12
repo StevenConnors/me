@@ -12,6 +12,7 @@ export default function MyLink({ href, children, className, style }: MyLinkProps
   return (
     <Link 
       href={href}
+      passHref
       style={{ textDecoration: 'none' }}
     >
       <div 

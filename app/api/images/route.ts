@@ -1,8 +1,8 @@
 import { mapImageResources } from '../../../lib/cloudinary';
 import { CLOUDINARY_IMAGE_FOLDER_ID } from '../../../config';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
-export async function GET(request) {
+export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const cursor = searchParams.get('cursor');
