@@ -15,7 +15,7 @@ export function Step({ media, kind = 'image', children }: Props) {
     if (ref.current) {
       registerStep(ref as React.RefObject<HTMLElement>, { media, kind });
     }
-  }, [media, kind, registerStep]);
+  }, [media, kind]); // Remove registerStep from dependencies to prevent re-registration
   
   // Check if this is the last step
   const isLastStep = steps.length > 0 && steps[steps.length - 1]?.media === media;

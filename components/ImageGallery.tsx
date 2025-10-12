@@ -51,6 +51,11 @@ export default function ImageGallery() {
       params.append('limit', '20');
       
       const response = await fetch(`/api/images?${params}`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const data: ImageGalleryResponse = await response.json();
       
       console.log('Received data:', { 
@@ -72,7 +77,8 @@ export default function ImageGallery() {
       setNextCursor(data.nextCursor);
       setHasMore(data.hasMore);
     } catch (err) {
-      setError('Failed to load images');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load images';
+      setError(errorMessage);
       console.error('Error fetching images:', err);
     } finally {
       isLoadingRef.current = false;
@@ -115,6 +121,11 @@ export default function ImageGallery() {
 
   // Initial load
   useEffect(() => {
+    // Debug environment variables
+    console.log('Environment check:', {
+      cloudName: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
+      hasCloudName: !!process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
+    });
     fetchImages();
   }, [fetchImages]);
 
@@ -171,6 +182,13 @@ export default function ImageGallery() {
                   placeholder="blur"
                   blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k="
                   loader={cloudinaryLoader}
+                  onError={(e) => {
+                    console.error('Image failed to load:', imgDoc.image, e);
+                    // Fallback to direct Cloudinary URL if loader fails
+                    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || 'demo';
+                    const fallbackSrc = `https://res.cloudinary.com/${cloudName}/image/upload/f_auto,q_auto,c_fill,w_800/${imgDoc.image}`;
+                    e.currentTarget.src = fallbackSrc;
+                  }}
                 />
               </div>
             </Link>

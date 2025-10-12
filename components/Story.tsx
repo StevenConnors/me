@@ -36,6 +36,12 @@ export default function Story({ children, ifDebug = false }: { children: React.R
       if (!existingStep) {
         refs.current.push(ref);
         setSteps((s) => {
+          // Prevent duplicate steps by checking if this media already exists
+          const existingMediaStep = s.find(step => step.media === info.media);
+          if (existingMediaStep) {
+            console.log('Step already exists in state:', info.media);
+            return s;
+          }
           const newSteps = [...s, info];
           console.log('Registered step:', info.media, 'Total steps:', newSteps.length);
           return newSteps;
@@ -51,17 +57,29 @@ export default function Story({ children, ifDebug = false }: { children: React.R
     }
   }, []);
 
-  // Mobile detection effect
+  // Mobile detection effect with debouncing
   useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+    
     const checkMobile = () => {
-      setIsMobile(window.innerWidth < 1024); // lg breakpoint
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        const newIsMobile = window.innerWidth < 1024; // lg breakpoint
+        if (newIsMobile !== isMobile) {
+          console.log('Mobile state changed:', { from: isMobile, to: newIsMobile });
+          setIsMobile(newIsMobile);
+        }
+      }, 150); // Debounce resize events
     };
     
     checkMobile();
     window.addEventListener('resize', checkMobile);
     
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+      clearTimeout(timeoutId);
+    };
+  }, [isMobile]);
 
   // Prevent step re-registration during resize by stabilizing the steps array
   const stableSteps = useMemo(() => steps, [steps.length]);
