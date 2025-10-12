@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import styles from './imageGallery.module.css';
+import { cloudinaryLoader } from '../lib/cloudinary';
 
 export default function GalleryGrid({ images }) {
   return (
@@ -15,6 +16,7 @@ export default function GalleryGrid({ images }) {
               fill
               style={{ objectFit: 'cover', borderRadius: '4px' }}
               sizes="(max-width: 768px) 100vw, 33vw"
+              loader={cloudinaryLoader}
             />
           </div>
         </Link>

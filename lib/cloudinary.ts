@@ -55,7 +55,7 @@ export function mapImageResources(resources) {
       return {
         id: asset_id,
         title: public_id,
-        image: getTransformedImageUrl(secure_url),
+        image: public_id, // Use public_id so cloudinaryLoader can handle transformation
         width,
         height,
         event: null, // to be filled in future

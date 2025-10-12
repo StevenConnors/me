@@ -2,6 +2,7 @@
 import { createContext, useContext, useMemo, useRef, useState, useEffect, RefObject, useCallback } from 'react';
 import MediaPanel from './MediaPanel';
 import StepIndicators from './StepIndicators';
+import Header from './header';
 
 type StepInfo = { media: string; kind: 'image' | 'video' };
 type Ctx = {
@@ -18,7 +19,6 @@ export default function Story({ children, ifDebug = false }: { children: React.R
   const [active, setActive] = useState(0);
   const refs = useRef<RefObject<HTMLElement>[]>([]);
   const observerRef = useRef<IntersectionObserver | null>(null);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const lastScrollTop = useRef<number>(0);
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const stepChangeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -51,13 +51,10 @@ export default function Story({ children, ifDebug = false }: { children: React.R
 
   // Scroll logging effect with fallback step detection
   useEffect(() => {
-    const container = scrollContainerRef.current;
-    if (!container) return;
-
     const handleScroll = () => {
-      const scrollTop = container.scrollTop;
-      const scrollHeight = container.scrollHeight;
-      const clientHeight = container.clientHeight;
+      const scrollTop = window.scrollY;
+      const scrollHeight = document.documentElement.scrollHeight;
+      const clientHeight = window.innerHeight;
       const scrollPercent = (scrollTop / (scrollHeight - clientHeight)) * 100;
       
       console.log('Scroll Event:', {
@@ -103,10 +100,10 @@ export default function Story({ children, ifDebug = false }: { children: React.R
       }, 150);
     };
 
-    container.addEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', handleScroll);
     
     return () => {
-      container.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('scroll', handleScroll);
       if (scrollTimeoutRef.current) {
         clearTimeout(scrollTimeoutRef.current);
       }
@@ -114,8 +111,6 @@ export default function Story({ children, ifDebug = false }: { children: React.R
   }, [active, steps.length]);
 
   useEffect(() => {
-    if (!scrollContainerRef.current) return;
-
     observerRef.current = new IntersectionObserver((entries) => {
       const allEntries = [];
       const validEntries = [];
@@ -135,15 +130,15 @@ export default function Story({ children, ifDebug = false }: { children: React.R
         
         allEntries.push(entry);
         
-        // Only consider entries with significant visibility (50%+)
-        if (e.intersectionRatio >= 0.5) {
+        // Only consider entries with significant visibility (30%+ for better detection)
+        if (e.intersectionRatio >= 0.3) {
           validEntries.push(entry);
         }
       }
       
       // Log all intersection entries for debugging
       console.log('Intersection Observer - All entries:', allEntries);
-      console.log('Intersection Observer - Valid entries (≥50%):', validEntries);
+      console.log('Intersection Observer - Valid entries (≥30%):', validEntries);
       
       if (validEntries.length > 0) {
         // Find the entry with the highest intersection ratio
@@ -188,8 +183,7 @@ export default function Story({ children, ifDebug = false }: { children: React.R
         }
       }
     }, { 
-      root: scrollContainerRef.current, 
-      rootMargin: '-30% 0px -30% 0px', 
+      rootMargin: '-20% 0px -20% 0px', 
       threshold: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1] 
     });
 
@@ -208,18 +202,25 @@ export default function Story({ children, ifDebug = false }: { children: React.R
         clearTimeout(stepChangeTimeoutRef.current);
       }
     };
-  }, [scrollContainerRef.current, steps]);
+  }, [steps]);
 
   const ctx = useMemo(() => ({ steps, active, registerStep }), [steps, active, registerStep]);
 
   return (
     <StoryCtx.Provider value={ctx}>
+      <Header />
+      
       <div className="min-h-screen flex flex-col">
-        <div className="mx-auto max-w-7xl px-4 grid grid-cols-[60px_minmax(400px,1fr)_minmax(400px,1fr)] gap-10 h-screen">
-          {/* Vertical step indicators */}
-          <StepIndicators steps={steps} active={active} />
+        <div className="flex-1 flex">
+          {/* Left sidebar with step indicators - fixed positioned */}
+          <div className="w-[60px] flex flex-col">
+            <div className="sticky top-1/2 transform -translate-y-1/2">
+              <StepIndicators steps={steps} active={active} />
+            </div>
+          </div>
           
-          <aside className="relative h-full overflow-y-auto scrollbar-hide" ref={scrollContainerRef}>
+          {/* Text content - scrollable */}
+          <aside className="flex-1 px-4 pr-[568px]">
             {/* Step counter - only show if debug flag is enabled */}
             {ifDebug && (
               <div className="sticky top-0 z-10 mb-4 text-sm text-gray-600 bg-white/90 backdrop-blur-sm px-2 py-1 rounded">
@@ -229,14 +230,14 @@ export default function Story({ children, ifDebug = false }: { children: React.R
             <div className="pb-24">{children}</div>
           </aside>
           
-          {/* Media panel */}
-          <div className="h-screen flex items-center justify-center">
+          {/* Media panel - fixed to viewport */}
+          <div className="w-[500px] h-[calc(100vh-80px)] flex items-center justify-center fixed top-[80px] right-[48px] z-10 bg-gray-100">
             <MediaPanel />
           </div>
         </div>
         
-        {/* Footer spanning full width across both columns */}
-        <footer className="w-full py-2 text-center text-gray-500 text-sm">
+        {/* Footer spanning full width */}
+        <footer className="py-2 text-center text-gray-500 text-sm bg-white">
           <p>taken by yuji</p>
         </footer>
       </div>

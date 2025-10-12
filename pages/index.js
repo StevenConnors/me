@@ -3,39 +3,12 @@ import { CLOUDINARY_IMAGE_FOLDER_ID } from '../config';
 import Header from '../components/header'
 import ImageGallery from '../components/imageGallery';
 import {useState} from 'react'
+import Link from 'next/link'
+import fs from 'fs'
+import path from 'path'
 
-export default function About({defaultImages, defaultNextCursor}) {
-
+export default function About({defaultImages, stories}) {
   const [images, setImages] = useState(defaultImages);
-  const [nextCursor, setNextCursor] = useState(defaultNextCursor)
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-
-  async function handleOnLoadMore(e) {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
-    try {
-      const results = await fetch('/api/search', {
-        method: 'POST',
-        body: JSON.stringify({
-          expression: `folder="${CLOUDINARY_IMAGE_FOLDER_ID}"`,
-          nextCursor: nextCursor,  
-          max_results: 30,
-        })
-      }).then(r => r.json());
-    
-      const { resources, next_cursor } = results;
-      const images = mapImageResources(resources);
-      setImages(prev => ([...prev, ...images]));
-      setNextCursor(next_cursor);
-    } catch (err) {
-      setError('Failed to load more images.');
-    } finally {
-      setLoading(false);
-    }
-  }  
-
   return (
     <>
       <Header />
@@ -47,17 +20,65 @@ export default function About({defaultImages, defaultNextCursor}) {
         The name 佑治 means  &#39;heal the person to your right&#39;. Whoever you may be, I hope I can be that person for you.
       </div>
 
-      <ImageGallery images={images}></ImageGallery>
+      <div>
+        <h2>Travel Stories</h2>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginTop: '2rem' }}>
+          {stories.map((story) => (
+            <Link 
+              key={story.slug} 
+              href={`/stories/${story.slug}`}
+              style={{ textDecoration: 'none' }}
+            >
+              <div 
+                style={{ 
+                  cursor: 'pointer',
+                  color: 'black',
+                  fontSize: '1.5rem',
+                  fontWeight: '300',
+                  letterSpacing: '0.05em'
+                }}
+                onMouseEnter={(e) => e.target.style.color = '#009900'}
+                onMouseLeave={(e) => e.target.style.color = 'black'}
+              >
+                {story.title}
+              </div>
+            </Link>
+          ))}
+        </div>
+      </div>
 
-      {error && <div style={{ color: 'red' }}>{error}</div>}
-      <div onClick={handleOnLoadMore} style={{ cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.5 : 1 }}>
-        {loading ? 'Loading...' : 'Load More Results'}
+      <br></br>
+      <br></br>
+
+      <div>
+        <h2>And here's some one off photos</h2>
+        <ImageGallery images={images}></ImageGallery>
       </div>
     </>
   )
 }
 
 export async function getStaticProps() {
+  // Get stories from content/stories directory
+  const storiesDirectory = path.join(process.cwd(), 'content/stories');
+  const storyFiles = fs.readdirSync(storiesDirectory);
+  
+  const stories = storyFiles
+    .filter(file => file.endsWith('.mdx'))
+    .map(file => {
+      const slug = file.replace('.mdx', '');
+      // Read the first line to get the title (assuming it's in h1 format)
+      const filePath = path.join(storiesDirectory, file);
+      const content = fs.readFileSync(filePath, 'utf8');
+      const titleMatch = content.match(/<h1[^>]*>(.*?)<\/h1>/);
+      const title = titleMatch ? titleMatch[1] : slug;
+      
+      return {
+        slug,
+        title
+      };
+    });
+
   const results = await fetch(`https://api.cloudinary.com/v1_1/${process.env.CLOUDINARY_CLOUD_NAME}/resources/image?max_results=30&folder="${CLOUDINARY_IMAGE_FOLDER_ID}`, {
     headers: {
       Authorization: `Basic ${Buffer.from(process.env.CLOUDINARY_API_KEY + ':' + process.env.CLOUDINARY_API_SECRET).toString('base64')}`,
@@ -70,7 +91,8 @@ export async function getStaticProps() {
   return {
     props: {
       defaultImages: images,
-      defaultNextCursor: next_cursor || null  // Ensure defaultNextCursor is never undefined
+      defaultNextCursor: next_cursor || null,  // Ensure defaultNextCursor is never undefined
+      stories
     }
   }
 }
