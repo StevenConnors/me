@@ -5,7 +5,8 @@ export const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
 
 export const cloudinaryLoader: ImageLoader = ({ src, width, quality }) => {
   const q = quality || 'auto';
-  return `https://res.cloudinary.com/${cloudName}/image/upload/f_auto,q_${q},c_fill,w_${width}/${src}`;
+  const w = width || 800; // Default width for gallery images
+  return `https://res.cloudinary.com/${cloudName}/image/upload/f_auto,q_${q},c_fill,w_${w}/${src}`;
 };
 
 export function cldVideoMp4(publicId: string, opts: { w?: number } = {}) {

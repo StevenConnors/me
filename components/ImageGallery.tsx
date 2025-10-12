@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import styles from './imageGallery.module.css';
+import { cloudinaryLoader } from '../lib/cloudinary';
 
 interface ImageData {
   id: string;
@@ -160,7 +161,7 @@ export default function ImageGallery() {
                 }}
               >
                 <Image
-                  src={`https://res.cloudinary.com/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload/f_auto,q_auto,c_fill,w_800/${imgDoc.image}`}
+                  src={imgDoc.image}
                   alt={imgDoc.title || `Image ${index + 1}`}
                   fill
                   style={{ objectFit: 'cover', borderRadius: '4px' }}
@@ -169,6 +170,7 @@ export default function ImageGallery() {
                   loading={index < 6 ? 'eager' : 'lazy'}
                   placeholder="blur"
                   blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k="
+                  loader={cloudinaryLoader}
                 />
               </div>
             </Link>

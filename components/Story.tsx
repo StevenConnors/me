@@ -63,6 +63,9 @@ export default function Story({ children, ifDebug = false }: { children: React.R
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  // Prevent step re-registration during resize by stabilizing the steps array
+  const stableSteps = useMemo(() => steps, [steps.length]);
+
   // Scroll logging effect with fallback step detection
   useEffect(() => {
     const handleScroll = () => {
@@ -137,7 +140,7 @@ export default function Story({ children, ifDebug = false }: { children: React.R
         const entry = {
           idx,
           ratio: e.intersectionRatio,
-          media: steps[idx]?.media,
+          media: stableSteps[idx]?.media,
           boundingRect: e.boundingClientRect,
           intersectionRect: e.intersectionRect
         };
@@ -216,7 +219,7 @@ export default function Story({ children, ifDebug = false }: { children: React.R
         clearTimeout(stepChangeTimeoutRef.current);
       }
     };
-  }, [steps]);
+  }, [stableSteps]);
 
   const ctx = useMemo(() => ({ steps, active, registerStep, isMobile }), [steps, active, registerStep, isMobile]);
 
