@@ -1,7 +1,7 @@
 'use client';
 import Header from '../components/header'
-import ImageGallery from '../components/imageGallery';
-import Link from 'next/link'
+import ImageGallery from '../components/ImageGallery';
+import MyLink from '../components/MyLink';
 import { useState, useEffect } from 'react'
 
 interface Story {
@@ -9,14 +9,7 @@ interface Story {
   title: string;
 }
 
-interface Image {
-  id: string;
-  title: string;
-  image: string;
-}
-
 export default function Home() {
-  const [images, setImages] = useState<Image[]>([]);
   const [stories, setStories] = useState<Story[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -27,11 +20,6 @@ export default function Home() {
         const storiesRes = await fetch('/api/stories');
         const storiesData = await storiesRes.json();
         setStories(storiesData);
-
-        // Fetch images from Cloudinary via API route
-        const imagesRes = await fetch('/api/images');
-        const imagesData = await imagesRes.json();
-        setImages(imagesData);
       } catch (error) {
         console.error('Error fetching data:', error);
       } finally {
@@ -66,25 +54,9 @@ export default function Home() {
         <h2>Travel Stories</h2>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginTop: '2rem' }}>
           {stories.map((story) => (
-            <Link 
-              key={story.slug} 
-              href={`/stories/${story.slug}`}
-              style={{ textDecoration: 'none' }}
-            >
-              <div 
-                style={{ 
-                  cursor: 'pointer',
-                  color: 'black',
-                  fontSize: '1.5rem',
-                  fontWeight: '300',
-                  letterSpacing: '0.05em'
-                }}
-                onMouseEnter={(e) => (e.target as HTMLElement).style.color = '#009900'}
-                onMouseLeave={(e) => (e.target as HTMLElement).style.color = 'black'}
-              >
-                {story.title}
-              </div>
-            </Link>
+            <MyLink key={story.slug} href={`/stories/${story.slug}`}>
+              {story.title}
+            </MyLink>
           ))}
         </div>
       </div>
@@ -94,7 +66,7 @@ export default function Home() {
 
       <div>
         <h2>And here's some one off photos</h2>
-        <ImageGallery images={images}></ImageGallery>
+        <ImageGallery />
       </div>
     </>
   )
