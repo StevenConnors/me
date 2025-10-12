@@ -12,7 +12,6 @@ const nextConfig = {
   staticPageGenerationTimeout: 300,
   transpilePackages: ['react-tweet'],
   images: {
-    loader: 'custom',
     remotePatterns: [{ protocol: 'https', hostname: 'res.cloudinary.com' }],
   },
   experimental: { mdxRs: true },

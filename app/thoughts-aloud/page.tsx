@@ -1,3 +1,4 @@
+'use client';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Tweet } from 'react-tweet';
@@ -196,4 +197,4 @@ export default function ThoughtsAloud() {
       <div ref={loader} />
     </main>
   </>);
-} 
+}
