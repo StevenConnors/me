@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
 import Header from '../../../components/header';
+import BackToGalleryLink from '../../../components/BackToGalleryLink';
 import { mapImageResources } from '../../../lib/cloudinary';
 import { CLOUDINARY_IMAGE_FOLDER_ID } from '../../../config';
 import fs from 'fs';
@@ -162,23 +163,9 @@ export default async function PhotoPage({ params }: PhotoPageProps) {
           
           {/* Back to Gallery Link */}
           <div style={{ textAlign: 'center', marginTop: '2rem' }}>
-            <a 
-              href="/gallery"
-              style={{
-                display: 'inline-block',
-                padding: '0.75rem 1.5rem',
-                backgroundColor: '#007bff',
-                color: 'white',
-                textDecoration: 'none',
-                borderRadius: '4px',
-                fontSize: '0.9rem',
-                transition: 'background-color 0.2s'
-              }}
-              onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#0056b3'}
-              onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#007bff'}
-            >
+            <BackToGalleryLink href="/gallery">
               ← Back to Gallery
-            </a>
+            </BackToGalleryLink>
           </div>
         </div>
       </div>
