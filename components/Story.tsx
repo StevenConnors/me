@@ -25,6 +25,7 @@ export default function Story({ children, ifDebug = false }: { children: React.R
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const stepChangeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastActiveStep = useRef<number>(0);
+  const lastStepChangeTime = useRef<number>(0);
 
   const registerStep = useCallback((ref: RefObject<HTMLElement>, info: StepInfo) => {
     if (ref.current && !refs.current.includes(ref)) {
@@ -183,7 +184,7 @@ export default function Story({ children, ifDebug = false }: { children: React.R
         
         // Only change if the new step is significantly better than current
         const currentStepRatio = allEntries.find(e => e.idx === lastActiveStep.current)?.ratio || 0;
-        const shouldChange = best.ratio > currentStepRatio + 0.2; // 20% hysteresis
+        const shouldChange = best.ratio > currentStepRatio + 0.4; // Increased to 40% hysteresis to prevent rapid switching
         
         console.log('Intersection Observer - Analysis:', {
           best: { idx: best.idx, ratio: best.ratio, media: best.media },
@@ -193,12 +194,26 @@ export default function Story({ children, ifDebug = false }: { children: React.R
         });
         
         if (shouldChange && best.idx !== lastActiveStep.current) {
+          const now = Date.now();
+          const timeSinceLastChange = now - lastStepChangeTime.current;
+          
+          // Prevent rapid step changes - minimum 500ms between changes
+          if (timeSinceLastChange < 500) {
+            console.log('Intersection Observer - Step change blocked (too soon):', {
+              from: lastActiveStep.current,
+              to: best.idx,
+              timeSinceLastChange,
+              media: best.media
+            });
+            return;
+          }
+          
           console.log('Intersection Observer - Proposed step change:', {
             from: lastActiveStep.current,
             to: best.idx,
             ratio: best.ratio,
             media: best.media,
-            timestamp: Date.now()
+            timestamp: now
           });
           
           // Debounce step changes to prevent flickering
@@ -213,13 +228,14 @@ export default function Story({ children, ifDebug = false }: { children: React.R
               media: best.media
             });
             lastActiveStep.current = best.idx;
+            lastStepChangeTime.current = Date.now();
             setActive(best.idx);
-          }, 100); // Reduced to 100ms debounce
+          }, 300); // Increased to 300ms debounce to prevent rapid switching
         }
       }
     }, { 
-      rootMargin: '-20% 0px -20% 0px', 
-      threshold: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1] 
+      rootMargin: '-30% 0px -30% 0px', // Increased margins to require more visibility before triggering
+      threshold: [0.2, 0.4, 0.6, 0.8, 1] // Reduced threshold granularity to prevent rapid changes
     });
 
     // Re-observe all existing elements

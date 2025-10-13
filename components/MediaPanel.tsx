@@ -56,7 +56,9 @@ function Crossfade({ info }: { info: { media: string; kind: 'image' | 'video' } 
             className="max-w-full max-h-full transition-opacity duration-300 ease-in-out"
             style={{ 
               objectFit: 'contain', 
-              objectPosition: 'center'
+              objectPosition: 'center',
+              width: 'auto',
+              height: 'auto'
             }}
           />
         </div>
