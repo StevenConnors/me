@@ -4,7 +4,7 @@ import MediaPanel from './MediaPanel';
 import StepIndicators from './StepIndicators';
 import Header from './header';
 
-type StepInfo = { media: string; kind: 'image' | 'video' };
+type StepInfo = { media: string; kind: 'image' | 'video'; comment?: string };
 type Ctx = {
   steps: StepInfo[];
   active: number;

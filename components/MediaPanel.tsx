@@ -30,8 +30,18 @@ export default function MediaPanel() {
   }
 
   return (
-    <div className="relative w-full h-full overflow-hidden bg-black flex items-center justify-center">
-      <Crossfade key={current?.media} info={current} />
+    <div className="relative w-full h-full overflow-hidden bg-black flex flex-col">
+      <div className="flex-1 flex items-center justify-center">
+        <Crossfade key={current?.media} info={current} />
+      </div>
+      {/* Photo comment for desktop */}
+      {current?.comment && (
+        <div className="absolute bottom-0 left-0 right-0 bg-black/80 backdrop-blur-sm p-4">
+          <p className="text-sm text-gray-300 text-center leading-relaxed">
+            {current.comment}
+          </p>
+        </div>
+      )}
     </div>
   );
 }
