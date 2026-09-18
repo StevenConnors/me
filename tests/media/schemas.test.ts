@@ -6,6 +6,7 @@ import {
   MediaPlacementSchema,
   UploadSessionSchema,
 } from '../../lib/media/schemas';
+import { ProviderUploadResultSchema } from '../../lib/media/providers/MediaProvider';
 
 const placement = {
   mediaAssetId: '66e4cc6e7fd5e6ad3db7ba10',
@@ -84,6 +85,7 @@ describe('media schemas', () => {
       width: 4000,
       height: 3000,
       bytes: 2_500_000,
+      checksum: null,
       tags: ['journal'],
       captureDate: '2026-09-17',
       status: 'ready',
@@ -92,7 +94,28 @@ describe('media schemas', () => {
     });
 
     expect(result.providerAssetId).toBe('immutable-provider-id');
+    expect(result.checksum).toBeUndefined();
     expect('url' in result).toBe(false);
+  });
+
+  it('normalizes a null provider checksum at the upload boundary', () => {
+    const result = ProviderUploadResultSchema.parse({
+      providerAssetId: 'immutable-provider-id',
+      providerPublicId: 'journey-editor/photo',
+      resourceType: 'image',
+      deliveryType: 'upload',
+      version: 1_789_741_943,
+      originalFilename: 'photo.png',
+      format: 'png',
+      width: 1600,
+      height: 1200,
+      bytes: 230_000,
+      checksum: null,
+      tags: ['upload-session-client-key-123'],
+      signature: 'provider-response-signature',
+    });
+
+    expect(result.checksum).toBeUndefined();
   });
 
   it('requires coherent upload-session lifecycle fields', () => {

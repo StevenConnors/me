@@ -61,7 +61,7 @@ export const ProviderAssetSchema = z
     width: z.number().int().positive(),
     height: z.number().int().positive(),
     bytes: z.number().int().nonnegative(),
-    checksum: nonEmptyString.optional(),
+    checksum: z.union([nonEmptyString, z.null().transform(() => undefined)]).optional(),
     tags: z.array(nonEmptyString).default([]),
   })
   .strict();
@@ -113,7 +113,7 @@ export const ProviderUploadResultSchema = z
     width: z.number().int().positive(),
     height: z.number().int().positive(),
     bytes: z.number().int().nonnegative(),
-    checksum: nonEmptyString.optional(),
+    checksum: z.union([nonEmptyString, z.null().transform(() => undefined)]).optional(),
     tags: z.array(nonEmptyString).default([]),
     signature: nonEmptyString,
   })

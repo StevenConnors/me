@@ -148,7 +148,7 @@ export class MediaRepository {
       width: providerAsset.width,
       height: providerAsset.height,
       bytes: providerAsset.bytes,
-      checksum: providerAsset.checksum,
+      ...(providerAsset.checksum ? { checksum: providerAsset.checksum } : {}),
       tags: providerAsset.tags,
       status: 'ready',
       createdAt: now,

@@ -90,4 +90,27 @@ describe('MediaRepository', () => {
       mediaAssetId: first._id,
     });
   });
+
+  it('omits a missing provider checksum from the persisted media record', async () => {
+    const media = new MemoryMediaAssets();
+    const sessions = new MemoryUploadSessions();
+    const repository = new MediaRepository(
+      media as unknown as Collection<MediaAsset>,
+      sessions as unknown as Collection<UploadSession>,
+    );
+    const key = 'upload_without_checksum';
+    const assetWithoutChecksum = { ...providerAsset };
+    delete assetWithoutChecksum.checksum;
+
+    await repository.createOrReuseUploadSession({
+      filename: 'photo.jpg',
+      mimeType: 'image/jpeg',
+      bytes: 230_000,
+      idempotencyKey: key,
+    });
+    const result = await repository.finalizeUpload(key, assetWithoutChecksum);
+
+    expect(result.checksum).toBeUndefined();
+    expect(Object.prototype.hasOwnProperty.call(media.records[0], 'checksum')).toBe(false);
+  });
 });

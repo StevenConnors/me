@@ -147,7 +147,7 @@ export const MediaAssetSchema = z
     width: z.number().int().positive(),
     height: z.number().int().positive(),
     bytes: z.number().int().nonnegative(),
-    checksum: nonEmptyString.optional(),
+    checksum: z.union([nonEmptyString, z.null().transform(() => undefined)]).optional(),
     title: z.string().trim().max(500).optional(),
     caption: z.string().trim().max(2_000).optional(),
     altText: z.string().trim().max(1_000).optional(),

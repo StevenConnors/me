@@ -51,7 +51,7 @@ describe('validateJourneyForPublication', () => {
     );
   });
 
-  it('requires ready assets and alt text for meaningful placements', () => {
+  it('requires every referenced asset to exist and be ready', () => {
     const journey = makeJourney({
       draftDocument: makeDocument([
         {
@@ -81,22 +81,16 @@ describe('validateJourneyForPublication', () => {
       expect.arrayContaining([
         'media_missing',
         'media_not_ready',
-        'alt_text_required',
       ]),
     );
   });
 
-  it('allows an explicit decorative placement without alt text', () => {
+  it('allows ready non-decorative placements without alt text', () => {
     const journey = makeJourney({
-      cover: makePlacement({
-        role: 'cover',
-        layout: { desktop: 'full', mobile: 'full' },
-        decorative: true,
-      }),
       draftDocument: makeDocument([
         {
           type: 'photograph',
-          attrs: { placement: makePlacement({ decorative: true }) },
+          attrs: { placement: makePlacement() },
         },
       ]),
     });

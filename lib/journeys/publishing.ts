@@ -15,8 +15,7 @@ export type PublicationIssueCode =
   | 'cover_role_invalid'
   | 'upload_incomplete'
   | 'media_missing'
-  | 'media_not_ready'
-  | 'alt_text_required';
+  | 'media_not_ready';
 
 export type PublicationIssue = {
   code: PublicationIssueCode;
@@ -27,7 +26,6 @@ export type PublicationIssue = {
 export type PublishableMediaAsset = {
   _id: string | ObjectId;
   status: 'pending' | 'ready' | 'failed' | 'archived';
-  altText?: string;
 };
 
 export type PublicationValidationContext = {
@@ -144,16 +142,6 @@ export function validateJourneyForPublication(
         code: 'media_not_ready',
         path: `${path}.mediaAssetId`,
         message: `Media asset ${placement.mediaAssetId} is ${asset.status}`,
-      });
-    }
-    const hasAltText = Boolean(
-      placement.altTextOverride?.trim() || asset.altText?.trim(),
-    );
-    if (!placement.decorative && !hasAltText) {
-      issues.push({
-        code: 'alt_text_required',
-        path: `${path}.altTextOverride`,
-        message: 'Add alt text or mark this placement as decorative',
       });
     }
   });

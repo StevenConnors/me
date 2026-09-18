@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 import { JourneyVisualEditor, type EditorMedia } from '@/components/editor/JourneyVisualEditor';
 import styles from '@/app/admin/admin.module.css';
@@ -58,6 +58,7 @@ export function JourneyWorkspace({ initialJourney, media }: { initialJourney: Ed
           title: next.title,
           slug: next.slug,
           summary: next.summary || null,
+          cover: next.cover ?? null,
           draftDocument: next.draftDocument,
         }),
       });
@@ -147,7 +148,7 @@ export function JourneyWorkspace({ initialJourney, media }: { initialJourney: Ed
             <option value="">Choose a cover from the media library…</option>
             {media.map((asset) => <option key={asset.id} value={asset.id}>{asset.title}</option>)}
           </select>
-          <span className={styles.fieldHint}>Set image alt text in the media library before publishing.</span>
+          <span className={styles.fieldHint}>Add image alt text in the media library to improve accessibility.</span>
         </div>
         <div className={styles.formFooter}>
           <span className={styles.status} data-state={saveState}>{saveLabel[saveState]}</span>
