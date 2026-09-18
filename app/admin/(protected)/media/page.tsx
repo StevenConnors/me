@@ -1,5 +1,7 @@
 import { MediaUploadPanel } from './MediaUploadPanel';
+import { MediaMetadataForm } from './MediaMetadataForm';
 import styles from '@/app/admin/admin.module.css';
+import { getCloudinaryMediaProvider } from '@/lib/media/provider';
 import { MediaRepository } from '@/lib/media/repository';
 
 export default async function MediaPage() {
@@ -11,6 +13,8 @@ export default async function MediaPage() {
     console.error('Unable to render media library', error);
     loadError = true;
   }
+  let provider: ReturnType<typeof getCloudinaryMediaProvider> | null = null;
+  try { provider = getCloudinaryMediaProvider(); } catch { provider = null; }
 
   return (
     <>
@@ -26,12 +30,14 @@ export default async function MediaPage() {
         <section className={styles.journeyList} aria-label="Media library">
           {media.map((asset) => (
             <article className={styles.journeyCard} key={asset._id}>
+              {provider && asset.resourceType === 'image' ? <img className={styles.mediaThumbnail} src={provider.buildImageUrl({ providerPublicId: asset.providerPublicId, version: asset.version, width: 480, sourceWidth: asset.width, sourceHeight: asset.height })} alt="" /> : null}
               <strong className={styles.journeyCardTitle}>{asset.title || asset.originalFilename}</strong>
               <span className={styles.journeyCardFooter}>
                 <span>{asset.width}×{asset.height} · {asset.format.toUpperCase()}</span>
                 <span className={styles.badge}>{asset.status}</span>
                 <span>{asset.tags.length ? asset.tags.join(', ') : 'untagged'}</span>
               </span>
+              <MediaMetadataForm media={{ id: asset._id, title: asset.title, altText: asset.altText, caption: asset.caption, tags: asset.tags }} />
             </article>
           ))}
         </section>

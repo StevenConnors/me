@@ -117,6 +117,7 @@
 .journeyCardTitle { display: block; font: 400 28px/1 Georgia, 'Times New Roman', serif; letter-spacing: -.03em; }
 .journeyCardTitle[data-empty='true'] { color: #8a8175; font-style: italic; }
 .journeyCardFooter { display: flex; justify-content: space-between; gap: 12px; margin-top: 16px; color: #7e7569; }
+.mediaThumbnail { display: block; width: min(280px, 100%); max-height: 210px; margin: -4px 0 18px; object-fit: cover; background: #e8e1d6; }
 .badge { display: inline-block; padding: 4px 6px; border: 1px solid #d7d0c4; color: #625b50; font: 10px/1 ui-monospace, SFMono-Regular, Menlo, monospace; text-transform: uppercase; }
 .empty { color: #625b50; line-height: 1.5; }
 .error { border-color: #c77e70; color: #833627; }
@@ -128,6 +129,8 @@
 .field textarea { min-height: 118px; resize: vertical; }
 .field input:focus, .field textarea:focus, .field select:focus { outline: 2px solid #b56a58; outline-offset: 1px; border-color: #b56a58; }
 .fieldHint { color: #7e7569; font-size: 12px; line-height: 1.4; }
+.mediaMetadata { display: grid; gap: 16px; margin-top: 22px; padding-top: 22px; border-top: 1px solid #e0d8cd; }
+.mediaMetadata .field textarea { min-height: 72px; }
 .formFooter { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-top: 4px; }
 .actionGroup { display: flex; align-items: center; gap: 16px; }
 .status { color: #7e7569; }
