@@ -178,6 +178,7 @@ export function JourneyWorkspace({ initialJourney, media }: { initialJourney: Ed
         </div>
         <button className={styles.button} type="button" disabled={publishState.state === 'publishing' || saveState === 'conflict'} onClick={() => void publish()}>{publishState.state === 'publishing' ? 'Publishing…' : journey.status === 'published' ? 'Publish update' : 'Publish journey'}</button>
         {publishState.message && <p className={styles.publishMessage} data-state={publishState.state}>{publishState.message}</p>}
+        {publishState.state === 'published' && <Link className={styles.quietButton} href={`/stories/${journey.slug}`} target="_blank" rel="noreferrer">View public journey ↗</Link>}
         {publishState.issues?.length ? <ul className={styles.publishIssues}>{publishState.issues.map((issue, index) => <li key={`${issue.message}-${index}`}>{issue.message}</li>)}</ul> : null}
       </section>
       {saveState === 'conflict' && <p className={styles.notice}>Your local document is still in this browser. Copy it before reloading if you need to preserve the unsaved version.</p>}

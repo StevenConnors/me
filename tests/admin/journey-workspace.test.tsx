@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -18,6 +18,7 @@ import { JourneyWorkspace } from '@/app/admin/(protected)/journeys/[journeyId]/e
 
 describe('JourneyWorkspace', () => {
   afterEach(() => {
+    cleanup();
     vi.useRealTimers();
     vi.unstubAllGlobals();
   });
@@ -81,5 +82,48 @@ describe('JourneyWorkspace', () => {
         layout: { desktop: 'full', mobile: 'full' },
       },
     });
+  });
+
+  it('shows the public story URL after publishing', async () => {
+    const savedJourney = {
+      _id: 'journey-1',
+      title: 'A journey',
+      slug: 'a-journey',
+      summary: 'A short summary',
+      status: 'draft' as const,
+      editVersion: 1,
+      draftDocument: EMPTY_JOURNEY_DOCUMENT,
+    };
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ journey: savedJourney }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          journey: { ...savedJourney, status: 'published', editVersion: 2 },
+        }),
+      });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(
+      <JourneyWorkspace
+        initialJourney={{
+          ...savedJourney,
+          editVersion: 0,
+        }}
+        media={[]}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Publish journey' }));
+
+    const publicLink = await screen.findByRole('link', { name: 'View public journey ↗' });
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(publicLink).toHaveAttribute('href', '/stories/a-journey');
+    expect(publicLink).toHaveAttribute('target', '_blank');
   });
 });
