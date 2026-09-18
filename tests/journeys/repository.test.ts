@@ -99,3 +99,19 @@ describe('JourneyRepository.updateDraft', () => {
     expect(updated.summary).toBeUndefined();
   });
 });
+
+describe('JourneyRepository.publish', () => {
+  it('atomically points a matching draft at its immutable public revision', async () => {
+    const original = makeJourney({ editVersion: 2 });
+    const { repository } = repositoryFor(original);
+    const revisionId = new ObjectId();
+    const now = new Date('2026-09-18T03:00:00.000Z');
+
+    const published = await repository.publish(original._id, 2, revisionId, { now });
+
+    expect(published.status).toBe('published');
+    expect(published.publishedRevisionId).toEqual(revisionId);
+    expect(published.publishedAt).toEqual(now);
+    expect(published.firstPublishedAt).toEqual(now);
+  });
+});
