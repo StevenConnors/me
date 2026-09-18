@@ -3,31 +3,9 @@
 import { useRef, useState } from 'react';
 
 import styles from '@/app/admin/admin.module.css';
+import { uploadMedia } from '@/lib/client/upload-media';
 
 type UploadState = 'idle' | 'authorizing' | 'uploading' | 'finalizing' | 'complete' | 'error';
-
-type CloudinaryAuthorization = {
-  uploadUrl: string;
-  parameters: Record<string, string | number | boolean>;
-};
-
-function toProviderResult(result: Record<string, unknown>) {
-  return {
-    providerAssetId: result.asset_id,
-    providerPublicId: result.public_id,
-    resourceType: result.resource_type,
-    deliveryType: result.type,
-    version: result.version,
-    originalFilename: result.original_filename ?? result.public_id,
-    format: result.format,
-    width: result.width,
-    height: result.height,
-    bytes: result.bytes,
-    checksum: result.etag,
-    tags: result.tags ?? [],
-    signature: result.signature,
-  };
-}
 
 export function MediaUploadPanel() {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -35,45 +13,15 @@ export function MediaUploadPanel() {
   const [message, setMessage] = useState('');
 
   async function upload(file: File) {
-    const idempotencyKey = crypto.randomUUID().replace(/-/g, '');
     setState('authorizing');
     setMessage(`Preparing ${file.name}…`);
     try {
-      const authorizationResponse = await fetch('/api/admin/media/upload-authorizations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          filename: file.name,
-          mimeType: file.type,
-          bytes: file.size,
-          idempotencyKey,
-          resourceType: 'image',
-        }),
+      await uploadMedia(file, {
+        onPhase: (phase) => {
+          setState(phase);
+          setMessage(phase === 'uploading' ? `Uploading ${file.name}…` : 'Saving media details…');
+        },
       });
-      const authorizationPayload = await authorizationResponse.json();
-      if (!authorizationResponse.ok) throw new Error(authorizationPayload.error?.message ?? 'Upload could not be prepared');
-      const authorization = authorizationPayload.authorization as CloudinaryAuthorization;
-
-      setState('uploading');
-      setMessage(`Uploading ${file.name}…`);
-      const formData = new FormData();
-      for (const [key, value] of Object.entries(authorization.parameters)) {
-        formData.append(key, String(value));
-      }
-      formData.append('file', file);
-      const providerResponse = await fetch(authorization.uploadUrl, { method: 'POST', body: formData });
-      const providerPayload = await providerResponse.json();
-      if (!providerResponse.ok) throw new Error(providerPayload.error?.message ?? 'Cloudinary rejected the file');
-
-      setState('finalizing');
-      setMessage('Saving media details…');
-      const finalizationResponse = await fetch('/api/admin/media/finalize', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idempotencyKey, result: toProviderResult(providerPayload) }),
-      });
-      const finalizationPayload = await finalizationResponse.json();
-      if (!finalizationResponse.ok) throw new Error(finalizationPayload.error?.message ?? 'The upload needs finalizing again');
 
       setState('complete');
       setMessage(`${file.name} is ready in the media library.`);
