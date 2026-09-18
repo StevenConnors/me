@@ -1,0 +1,178 @@
+.page {
+  width: calc(100% + 20px);
+  min-height: 100vh;
+  margin: -10px;
+  overflow-x: hidden;
+}
+
+.page * { box-sizing: border-box; }
+.page a { color: inherit; text-decoration: none; }
+.page img { display: block; width: 100%; }
+
+/* Concept 01: The Right-Hand Margin */
+.marginPage {
+  --paper: #f3efe5;
+  --ink: #171714;
+  --blue: #285c87;
+  --red: #b54232;
+  position: relative;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: Georgia, 'Times New Roman', serif;
+  padding: 0 42px 90px 22px;
+}
+
+.marginPage::before,
+.fieldPage::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: .18;
+  z-index: 10;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 140 140' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.11'/%3E%3C/svg%3E");
+}
+
+.redThread {
+  position: fixed;
+  top: 0;
+  right: 26px;
+  width: 1px;
+  height: 100vh;
+  background: var(--red);
+  z-index: 3;
+}
+
+.marginHeader {
+  height: 68px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #c8c1b2;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 9px;
+  letter-spacing: .14em;
+}
+
+.marginHeader .kanji { font-family: 'Hiragino Mincho ProN', YuMincho, serif; font-size: 27px; letter-spacing: 0; }
+.marginHeader span { max-width: 130px; overflow: hidden; white-space: nowrap; }
+
+.sideNav {
+  position: fixed;
+  right: -37px;
+  top: 210px;
+  z-index: 4;
+  display: flex;
+  gap: 24px;
+  transform: rotate(90deg);
+  transform-origin: center;
+  font: 9px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.marginIntro { position: relative; min-height: 625px; padding-top: 92px; }
+.eyebrow, .sectionLabel { font: 10px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .16em; }
+.marginIntro h1 { margin: 29px 0 27px; font-family: 'Iowan Old Style', Baskerville, Georgia, serif; font-size: clamp(39px, 11.4vw, 58px); line-height: .98; font-weight: 400; letter-spacing: -.045em; }
+.marginIntro h1 em { color: var(--blue); font-style: italic; }
+.introTail { margin: 0; font-size: 17px; line-height: 1.45; }
+.hereNote { position: absolute; right: 1px; top: 410px; color: var(--red); font: italic 12px Georgia, serif; transform: rotate(-7deg); }
+
+.marginHero { position: relative; margin: 0 0 102px -22px; width: calc(100% + 24px); }
+.marginHero img { height: 420px; object-fit: cover; object-position: 68% center; }
+.marginHero figcaption { position: absolute; right: -18px; bottom: 2px; transform: rotate(-90deg) translateX(100%); transform-origin: right bottom; color: var(--paper); font: 9px/1 ui-monospace, monospace; letter-spacing: .14em; }
+
+.marginStories { padding-top: 14px; border-top: 1px solid #c8c1b2; }
+.marginStory { position: relative; display: block; min-height: 310px; padding: 47px 0 35px; border-bottom: 1px solid #c8c1b2; }
+.storyNumber { position: absolute; right: 3px; top: 16px; color: #bfd0dc; font-size: 82px; line-height: 1; }
+.storyType, .readMark { position: relative; z-index: 1; font: 9px/1 ui-monospace, monospace; letter-spacing: .13em; }
+.marginStory strong { position: relative; z-index: 1; display: block; margin-top: 27px; font-size: 47px; font-weight: 400; line-height: .92; letter-spacing: -.04em; }
+.readMark { display: block; margin-top: 42px; color: var(--red); }
+
+/* Concept 02: Field Notes */
+.fieldPage {
+  --paper: #ece6d9;
+  --ink: #25211c;
+  --muted: #6f685e;
+  --rust: #9c4938;
+  position: relative;
+  background: var(--paper);
+  color: var(--ink);
+  padding: 0 24px 100px 20px;
+  font-family: 'Iowan Old Style', Baskerville, Georgia, serif;
+}
+
+.fieldPage::after { content: ''; position: fixed; z-index: 4; top: 0; bottom: 0; right: 24px; width: 2px; background: var(--rust); opacity: .9; }
+.fieldHeader { height: 53px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #5f584d; padding-right: 14px; font: 8px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .13em; }
+.fieldHeader span:last-child { writing-mode: vertical-rl; position: absolute; right: 6px; top: 65px; }
+.fieldMasthead { padding: 28px 16px 66px 0; }
+.fieldMasthead h1 { margin: 0 0 33px; font: 400 84px/.92 'Hiragino Mincho ProN', YuMincho, serif; letter-spacing: -.06em; }
+.fieldMasthead nav { display: grid; border-top: 1px solid #5f584d; }
+.fieldMasthead nav a { display: grid; grid-template-columns: 42px 1fr; padding: 13px 0; border-bottom: 1px solid #5f584d; font-size: 17px; }
+.fieldMasthead nav span { font: 10px/1.7 ui-monospace, monospace; color: var(--rust); }
+.fieldMission { position: relative; padding: 36px 20px 84px 0; border-top: 1px solid #5f584d; }
+.fieldMission > p { margin: 0 0 33px; font: 9px/1 ui-monospace, monospace; letter-spacing: .15em; }
+.fieldMission h2 { margin: 0 0 28px; font-size: 41px; font-weight: 400; line-height: .98; letter-spacing: -.045em; }
+.fieldMission h2 em { position: relative; color: var(--rust); font-weight: 400; }
+.fieldMission h2 em::after { content: ''; position: absolute; left: 0; right: -33px; bottom: 0; height: 1px; background: var(--rust); }
+.fieldMission > span { display: block; max-width: 290px; color: var(--muted); font-size: 17px; line-height: 1.5; }
+
+.contactSheet { padding: 19px 0 85px; border-top: 3px double #5f584d; }
+.contactSheet header { display: flex; justify-content: space-between; align-items: flex-start; padding-right: 13px; margin-bottom: 30px; }
+.contactSheet header strong, .contactSheet header span { display: block; font: 9px/1.4 ui-monospace, monospace; letter-spacing: .12em; }
+.contactSheet header span { color: var(--muted); text-transform: lowercase; letter-spacing: .03em; }
+.contactSheet header b { color: var(--rust); font-size: 57px; line-height: .8; font-weight: 400; }
+.contactSheet figure { margin: 0 14px 28px 0; }
+.contactSheet img { filter: saturate(.88) contrast(.95); border: 6px solid #f5f0e7; }
+.contactSheet figcaption { margin-top: 7px; font: 8px/1 ui-monospace, monospace; letter-spacing: .15em; }
+.mapFrame img { height: 180px; object-fit: cover; }
+.contactSheet .artFrame { width: 68%; margin-left: 27%; }
+.artFrame img { height: 260px; object-fit: cover; }
+.contactSheet .skyFrame { margin-right: -24px; }
+.skyFrame img { height: 220px; object-fit: cover; object-position: 70%; }
+.fieldEntries { border-top: 1px solid #5f584d; }
+.fieldEntries > p { font: 9px/1 ui-monospace, monospace; letter-spacing: .13em; margin: 16px 0 27px; }
+.fieldEntries a { display: grid; grid-template-columns: 36px 1fr 20px; align-items: baseline; gap: 4px; padding: 22px 0; border-top: 1px solid #aaa092; }
+.fieldEntries span { font: 9px/1 ui-monospace, monospace; color: var(--rust); }
+.fieldEntries strong { font-size: 25px; font-weight: 400; }
+.fieldEntries i { color: var(--rust); font-style: normal; }
+
+/* Concept 03: Afterimage */
+.afterPage { background: #081018; color: #f2eee5; font-family: Arial, Helvetica, sans-serif; }
+.afterHero { position: relative; height: 100svh; min-height: 720px; overflow: hidden; }
+.afterHero > img { position: absolute; inset: 0; height: 100%; object-fit: cover; object-position: 67% center; filter: saturate(.86) contrast(1.06); transform: scale(1.02); }
+.afterShade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(6,13,20,.08) 12%, rgba(6,13,20,.05) 42%, rgba(6,13,20,.9) 96%); }
+.afterHero header { position: absolute; z-index: 2; top: 0; left: 0; right: 0; display: flex; justify-content: space-between; align-items: center; padding: 24px 20px; border-bottom: 1px solid rgba(255,255,255,.33); }
+.afterHero header > a { font: 32px/1 'Hiragino Mincho ProN', YuMincho, serif; }
+.afterHero nav { display: flex; gap: 8px; font-size: 9px; letter-spacing: .14em; }
+.afterHero nav span { opacity: .5; }
+.afterTitle { position: absolute; z-index: 2; left: 20px; right: 25px; bottom: 66px; }
+.afterTitle > p { margin: 0 0 7px; font: 13px/1 'Hiragino Mincho ProN', YuMincho, serif; color: #72b7e8; }
+.afterTitle h1 { margin: 0; font: 400 43px/.95 Georgia, serif; letter-spacing: -.045em; }
+.afterTitle > span { display: block; margin-top: 25px; font: 14px/1.45 Arial, sans-serif; color: rgba(242,238,229,.82); }
+.scrollMark { position: absolute; z-index: 2; right: 14px; bottom: 42px; display: flex; align-items: center; gap: 8px; transform: rotate(-90deg) translateX(100%); transform-origin: right bottom; font-size: 8px; letter-spacing: .14em; }
+.scrollMark i { display: block; width: 46px; height: 1px; background: #72b7e8; }
+.afterInterlude { min-height: 620px; padding: 110px 24px 80px; display: flex; flex-direction: column; justify-content: center; }
+.afterInterlude p { color: #8b9398; font-size: 9px; letter-spacing: .14em; }
+.afterInterlude h2 { margin: 31px 0 0; max-width: 340px; font: 400 42px/1.06 Georgia, serif; letter-spacing: -.035em; }
+.afterInterlude h2 em { color: #72b7e8; font-weight: 400; }
+.reel { padding-bottom: 70px; }
+.reelCard { position: relative; display: block; min-height: 680px; padding: 58px 20px; border-top: 1px solid rgba(255,255,255,.2); overflow: hidden; }
+.reelCard img { height: 480px; object-fit: cover; filter: saturate(.72) brightness(.72); }
+.reelCard span { position: absolute; top: 27px; left: 20px; color: #8b9398; font-size: 9px; letter-spacing: .14em; }
+.reelCard strong { position: absolute; left: 19px; bottom: 83px; font: 400 54px/.88 Georgia, serif; letter-spacing: -.05em; text-shadow: 0 2px 18px rgba(0,0,0,.4); }
+.reelCard i { position: absolute; left: 20px; bottom: 43px; color: #72b7e8; font-size: 9px; font-style: normal; letter-spacing: .14em; }
+
+@media (min-width: 720px) {
+  .page { width: 100%; margin: 0; }
+  .marginPage, .fieldPage { max-width: 760px; margin: 0 auto; }
+  .afterHero, .afterInterlude, .reel { max-width: 980px; margin: 0 auto; }
+  .afterPage { width: 100%; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .marginHero img, .contactSheet img, .reelCard img { transition: transform 350ms ease, filter 350ms ease; }
+  .marginHero:hover img, .contactSheet figure:hover img, .reelCard:hover img { transform: scale(1.015); filter: saturate(1); }
+  .marginStory strong, .fieldEntries strong { transition: transform 240ms ease; }
+  .marginStory:hover strong, .fieldEntries a:hover strong { transform: translateX(7px); }
+}
