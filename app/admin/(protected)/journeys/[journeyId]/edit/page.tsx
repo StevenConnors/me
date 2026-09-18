@@ -47,6 +47,8 @@ export default async function JourneyEditPage({ params }: { params: Promise<{ jo
         title: journey.title,
         slug: journey.slug,
         summary: journey.summary,
+        cover: journey.cover,
+        status: journey.status,
         editVersion: journey.editVersion,
         draftDocument: journey.draftDocument,
       }} media={media} />

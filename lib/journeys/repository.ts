@@ -230,4 +230,42 @@ export class JourneyRepository {
     if (!updated) throw new JourneyNotFoundError(journeyId.toHexString());
     return JourneySchema.parse(updated);
   }
+
+  /**
+   * Points the public journey at an immutable revision. The revision itself is
+   * created by the publishing service after publication validation succeeds.
+   */
+  async publish(
+    id: string | ObjectId,
+    expectedEditVersion: number,
+    publishedRevisionId: string | ObjectId,
+    options: { now?: Date; session?: ClientSession } = {},
+  ): Promise<Journey> {
+    const current = await this.findById(id, { session: options.session });
+    if (!current) throw new JourneyNotFoundError(String(id));
+    if (current.editVersion !== expectedEditVersion) {
+      throw new JourneyConflictError(expectedEditVersion, current.editVersion);
+    }
+
+    const now = options.now ?? new Date();
+    const rawResult = await this.journeys.findOneAndUpdate(
+      { _id: current._id, editVersion: expectedEditVersion },
+      {
+        $set: {
+          status: 'published',
+          publishedRevisionId: toJourneyObjectId(publishedRevisionId),
+          publishedAt: now,
+          firstPublishedAt: current.firstPublishedAt ?? now,
+          updatedAt: now,
+        },
+      } as UpdateFilter<Journey>,
+      { returnDocument: 'after', session: options.session },
+    );
+    const published = unwrapFindOneAndUpdate<WithId<Journey>>(rawResult);
+    if (published) return JourneySchema.parse(published);
+
+    const latest = await this.findById(id, { session: options.session });
+    if (!latest) throw new JourneyNotFoundError(String(id));
+    throw new JourneyConflictError(expectedEditVersion, latest.editVersion);
+  }
 }
