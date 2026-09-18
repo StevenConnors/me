@@ -128,6 +128,37 @@ export class JourneyRepository {
     return result ? JourneySchema.parse(result) : null;
   }
 
+  async list(
+    options: {
+      status?: JourneyStatus;
+      query?: string;
+      limit?: number;
+      session?: ClientSession;
+    } = {},
+  ): Promise<Journey[]> {
+    const filters: Filter<Journey>[] = [];
+    if (options.status) filters.push({ status: options.status });
+
+    const query = options.query?.trim();
+    if (query) {
+      const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const match = new RegExp(escaped, 'i');
+      filters.push({ $or: [{ title: match }, { slug: match }, { summary: match }] } as Filter<Journey>);
+    }
+
+    const filter: Filter<Journey> =
+      filters.length === 0 ? {} : filters.length === 1 ? filters[0] : { $and: filters } as Filter<Journey>;
+
+    const limit = Math.min(Math.max(options.limit ?? 50, 1), 100);
+    const journeys = await this.journeys
+      .find(filter, { session: options.session })
+      .sort({ updatedAt: -1 })
+      .limit(limit)
+      .toArray();
+
+    return journeys.map((journey) => JourneySchema.parse(journey));
+  }
+
   async updateDraft(
     id: string | ObjectId,
     expectedEditVersion: number,
