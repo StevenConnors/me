@@ -1,5 +1,7 @@
 This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
 
+For the local browser-based authoring workflow test, see [the E2E authoring guide](docs/e2e-authoring.md).
+
 ## Getting Started
 
 First, run the development server:

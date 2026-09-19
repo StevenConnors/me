@@ -1,4 +1,6 @@
 import { LegacyStory } from './LegacyStory';
+import { isLegacyStorySlug } from './legacyStorySlugs';
+import { notFound } from 'next/navigation';
 import { JourneyRenderer } from '@/components/journey/JourneyRenderer';
 import type { JourneyMediaAsset } from '@/components/journey/types';
 import { findJourneyRevision } from '@/lib/journeys/revisions';
@@ -8,16 +10,29 @@ import { MediaRepository } from '@/lib/media/repository';
 
 export const dynamic = 'force-dynamic';
 
+function isNotFoundError(error: unknown): boolean {
+  return Boolean(
+    error &&
+      typeof error === 'object' &&
+      'digest' in error &&
+      (error as { digest?: unknown }).digest === 'NEXT_HTTP_ERROR_FALLBACK;404',
+  );
+}
+
 export default async function StoryPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   try {
     const journeyRepository = await JourneyRepository.connect();
     const journey = await journeyRepository.findBySlug(slug);
     if (!journey || journey.status !== 'published' || !journey.publishedRevisionId || !journeyRepository.revisions) {
-      return <LegacyStory slug={slug} />;
+      if (isLegacyStorySlug(slug)) return <LegacyStory slug={slug} />;
+      notFound();
     }
     const revision = await findJourneyRevision(journeyRepository.revisions, journey._id, journey.publishedRevisionId);
-    if (!revision) return <LegacyStory slug={slug} />;
+    if (!revision) {
+      if (isLegacyStorySlug(slug)) return <LegacyStory slug={slug} />;
+      notFound();
+    }
 
     const records = await (await MediaRepository.connect()).list({ limit: 100 });
     let provider: ReturnType<typeof getCloudinaryMediaProvider> | null = null;
@@ -56,7 +71,9 @@ export default async function StoryPage({ params }: { params: Promise<{ slug: st
       </main>
     );
   } catch (error) {
+    if (isNotFoundError(error)) throw error;
     console.error('Unable to load database journey; falling back to the legacy story', error);
-    return <LegacyStory slug={slug} />;
+    if (isLegacyStorySlug(slug)) return <LegacyStory slug={slug} />;
+    notFound();
   }
 }

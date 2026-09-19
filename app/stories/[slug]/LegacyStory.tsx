@@ -1,22 +1,21 @@
 'use client';
 
+import { notFound } from 'next/navigation';
 import { Suspense, use } from 'react';
 
 import Story from '../../../components/Story';
+import { isLegacyStorySlug } from './legacyStorySlugs';
+
+const legacyStoryLoaders = {
+  'dfw-okc': () => import('../../../content/stories/dfw-okc.mdx'),
+  newpoc: () => import('../../../content/stories/newpoc.mdx'),
+  poc: () => import('../../../content/stories/poc.mdx'),
+} as const;
 
 async function getStoryComponent(slug: string) {
-  try {
-    const StoryComponent = (await import(`../../../content/stories/${slug}.mdx`)).default;
-    return <StoryComponent />;
-  } catch (error) {
-    console.error(`Failed to load story: ${slug}`, error);
-    try {
-      const DefaultStory = (await import('../../../content/stories/poc.mdx')).default;
-      return <DefaultStory />;
-    } catch (fallbackError) {
-      return <div>Story not found</div>;
-    }
-  }
+  if (!isLegacyStorySlug(slug)) notFound();
+  const StoryComponent = (await legacyStoryLoaders[slug]()).default;
+  return <StoryComponent />;
 }
 
 function LegacyStoryContent({ slug }: { slug: string }) {

@@ -9,6 +9,10 @@
     "lint": "next lint",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "e2e:db:up": "docker compose -f e2e/mongodb.compose.yml up -d",
+    "e2e:db:down": "docker compose -f e2e/mongodb.compose.yml down -v",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -36,6 +40,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
     "eslint": "8.14.0",

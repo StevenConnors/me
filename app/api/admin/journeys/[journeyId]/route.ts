@@ -73,3 +73,19 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     return apiError('JOURNEY_SAVE_FAILED', 'Unable to save this journey right now', 503);
   }
 }
+
+export async function DELETE(_request: NextRequest, context: RouteContext) {
+  const authorization = await requireAuthorApi();
+  if (authorization.response) return authorization.response;
+
+  try {
+    const { journeyId } = await context.params;
+    await (await JourneyRepository.connect()).deleteById(journeyId);
+    return new NextResponse(null, { status: 204 });
+  } catch (error) {
+    const mapped = mapJourneyError(error);
+    if (mapped) return mapped;
+    console.error('Unable to delete admin journey', error);
+    return apiError('JOURNEY_DELETE_FAILED', 'Unable to delete this journey right now', 503);
+  }
+}

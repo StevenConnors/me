@@ -190,6 +190,22 @@ export class JourneyRepository {
     return Boolean(await this.revisions.findOne(revisionReference, { projection: { _id: 1 } }));
   }
 
+  /**
+   * Permanently removes a journey and its immutable revision history. Media
+   * assets are deliberately retained because they can be shared by journeys.
+   */
+  async deleteById(
+    id: string | ObjectId,
+    options: { session?: ClientSession } = {},
+  ): Promise<void> {
+    const journeyId = toJourneyObjectId(id);
+    const result = await this.journeys.deleteOne({ _id: journeyId }, { session: options.session });
+    if (!result.deletedCount) throw new JourneyNotFoundError(journeyId.toHexString());
+    if (this.revisions) {
+      await this.revisions.deleteMany({ journeyId }, { session: options.session });
+    }
+  }
+
   async updateDraft(
     id: string | ObjectId,
     expectedEditVersion: number,

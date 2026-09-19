@@ -10,6 +10,10 @@ vi.mock('next/link', () => ({
   ),
 }));
 
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
+}));
+
 vi.mock('@/components/editor/JourneyVisualEditor', () => ({
   JourneyVisualEditor: () => <div>Journey editor</div>,
 }));

@@ -350,11 +350,11 @@ export function snapshotJourneyMetadata(
   return JourneyRevisionMetadataSchema.parse({
     slug: journey.slug,
     title: journey.title,
-    summary: journey.summary,
-    cover: journey.cover,
-    experiencedAt: journey.experiencedAt,
+    ...(journey.summary ? { summary: journey.summary } : {}),
+    ...(journey.cover ? { cover: journey.cover } : {}),
+    ...(journey.experiencedAt ? { experiencedAt: journey.experiencedAt } : {}),
     locations: journey.locations,
-    social: journey.social,
+    ...(journey.social ? { social: journey.social } : {}),
   });
 }
 

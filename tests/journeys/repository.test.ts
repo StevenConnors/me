@@ -37,6 +37,14 @@ class MemoryJourneyCollection {
     this.value = next;
     return { value: next };
   }
+
+  async deleteOne(filter: { _id: ObjectId }) {
+    if (!this.value || !filter._id.equals(this.value._id)) {
+      return { acknowledged: true, deletedCount: 0 };
+    }
+    this.value = null;
+    return { acknowledged: true, deletedCount: 1 };
+  }
 }
 
 function repositoryFor(journey: Journey | null) {
@@ -113,6 +121,27 @@ describe('JourneyRepository.publish', () => {
     expect(published.publishedRevisionId).toEqual(revisionId);
     expect(published.publishedAt).toEqual(now);
     expect(published.firstPublishedAt).toEqual(now);
+  });
+});
+
+describe('JourneyRepository.deleteById', () => {
+  it('removes the journey and its immutable revision history', async () => {
+    const original = makeJourney();
+    const { collection, repository } = repositoryFor(original);
+    const deleteMany = vi.fn(async () => ({ acknowledged: true, deletedCount: 2 }));
+    const revisionRepository = new JourneyRepository(
+      collection as unknown as Collection<Journey>,
+      { deleteMany } as unknown as Collection<JourneyRevision>,
+    );
+
+    await revisionRepository.deleteById(original._id);
+
+    expect(collection.value).toBeNull();
+    expect(deleteMany).toHaveBeenCalledWith(
+      { journeyId: original._id },
+      { session: undefined },
+    );
+    await expect(repository.findById(original._id)).resolves.toBeNull();
   });
 });
 

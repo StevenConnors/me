@@ -106,7 +106,7 @@ export class MediaRepository {
       _id: newApplicationMediaId(),
       schemaVersion: 1,
       idempotencyKey: parsedIntent.idempotencyKey,
-      intendedJourneyId: parsedIntent.intendedJourneyId,
+      ...(parsedIntent.intendedJourneyId ? { intendedJourneyId: parsedIntent.intendedJourneyId } : {}),
       status: 'created',
       expectedResourceType: 'image',
       createdAt: now,

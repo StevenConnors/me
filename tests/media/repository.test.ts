@@ -74,6 +74,25 @@ const providerAsset: ProviderAsset = {
 };
 
 describe('MediaRepository', () => {
+  it('omits an absent intended journey ID instead of persisting MongoDB null', async () => {
+    const media = new MemoryMediaAssets();
+    const sessions = new MemoryUploadSessions();
+    const repository = new MediaRepository(
+      media as unknown as Collection<MediaAsset>,
+      sessions as unknown as Collection<UploadSession>,
+    );
+
+    const session = await repository.createOrReuseUploadSession({
+      filename: 'photo.jpg',
+      mimeType: 'image/jpeg',
+      bytes: 230_000,
+      idempotencyKey: 'upload_without_journey',
+    });
+
+    expect(session.intendedJourneyId).toBeUndefined();
+    expect(Object.prototype.hasOwnProperty.call(session, 'intendedJourneyId')).toBe(false);
+  });
+
   it('reuses a finalized media record when finalization is retried', async () => {
     const media = new MemoryMediaAssets();
     const sessions = new MemoryUploadSessions();

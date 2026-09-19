@@ -2,7 +2,7 @@ import { ObjectId, type Collection } from 'mongodb';
 import { describe, expect, it } from 'vitest';
 
 import { createJourneyRevision } from '@/lib/journeys/revisions';
-import type { JourneyRevision } from '@/lib/journeys/schemas';
+import { snapshotJourneyMetadata, type JourneyRevision } from '@/lib/journeys/schemas';
 import { makeJourney } from './fixtures';
 
 class MemoryRevisionCollection {
@@ -23,6 +23,20 @@ class MemoryRevisionCollection {
 }
 
 describe('createJourneyRevision', () => {
+  it('omits optional metadata that MongoDB would otherwise store as null', () => {
+    const snapshot = snapshotJourneyMetadata(makeJourney({
+      summary: undefined,
+      cover: undefined,
+      experiencedAt: undefined,
+      social: undefined,
+    }));
+
+    expect(snapshot).not.toHaveProperty('summary');
+    expect(snapshot).not.toHaveProperty('cover');
+    expect(snapshot).not.toHaveProperty('experiencedAt');
+    expect(snapshot).not.toHaveProperty('social');
+  });
+
   it('allocates a per-journey sequence and snapshots editable metadata', async () => {
     const memory = new MemoryRevisionCollection();
     const revisions = memory as unknown as Collection<JourneyRevision>;

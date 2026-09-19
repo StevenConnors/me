@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import React, { useEffect, useRef, useState } from 'react';
 
 import { JourneyVisualEditor, type EditorMedia } from '@/components/editor/JourneyVisualEditor';
@@ -24,10 +25,13 @@ type SaveResponse = { journey?: EditableJourney; error?: { code?: string; messag
 type PublishState = { state: 'idle' | 'publishing' | 'published' | 'error'; message?: string; issues?: { message: string }[] };
 
 export function JourneyWorkspace({ initialJourney, media }: { initialJourney: EditableJourney; media: EditorMedia[] }) {
+  const router = useRouter();
   const [journey, setJourney] = useState(initialJourney);
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [publishState, setPublishState] = useState<PublishState>({ state: 'idle' });
   const [summaryOmissionConfirmed, setSummaryOmissionConfirmed] = useState(false);
+  const [deleteState, setDeleteState] = useState<'idle' | 'deleting' | 'error'>('idle');
+  const [deleteError, setDeleteError] = useState('');
   const current = useRef(journey);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -47,6 +51,10 @@ export function JourneyWorkspace({ initialJourney, media }: { initialJourney: Ed
   }
 
   async function save(next = current.current): Promise<EditableJourney | null> {
+    if (timer.current) {
+      clearTimeout(timer.current);
+      timer.current = null;
+    }
     if (saveState === 'conflict') return null;
     setSaveState('saving');
     try {
@@ -115,6 +123,25 @@ export function JourneyWorkspace({ initialJourney, media }: { initialJourney: Ed
     }
   }
 
+  async function deleteJourney() {
+    if (!window.confirm('Delete this journey and every published revision? This cannot be undone. Shared media will remain in your library.')) return;
+    setDeleteState('deleting');
+    setDeleteError('');
+    try {
+      const response = await fetch(`/api/admin/journeys/${journey._id}`, { method: 'DELETE' });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        throw new Error(payload?.error?.message ?? 'Unable to delete this journey');
+      }
+      router.push('/admin/journeys');
+      router.refresh();
+    } catch (error) {
+      console.error(error);
+      setDeleteState('error');
+      setDeleteError(error instanceof Error ? error.message : 'Unable to delete this journey');
+    }
+  }
+
   const saveLabel: Record<SaveState, string> = {
     idle: 'Changes save automatically',
     saving: 'Saving…',
@@ -176,10 +203,14 @@ export function JourneyWorkspace({ initialJourney, media }: { initialJourney: Ed
             <label className={styles.checkbox}><input type="checkbox" checked={summaryOmissionConfirmed} onChange={(event) => setSummaryOmissionConfirmed(event.target.checked)} /> This journey intentionally has no summary.</label>
           )}
         </div>
-        <button className={styles.button} type="button" disabled={publishState.state === 'publishing' || saveState === 'conflict'} onClick={() => void publish()}>{publishState.state === 'publishing' ? 'Publishing…' : journey.status === 'published' ? 'Publish update' : 'Publish journey'}</button>
+        <div className={styles.actionGroup}>
+          <button className={styles.quietButton} type="button" disabled={deleteState === 'deleting'} onClick={() => void deleteJourney()}>{deleteState === 'deleting' ? 'Deleting…' : 'Delete journey'}</button>
+          <button className={styles.button} type="button" disabled={publishState.state === 'publishing' || saveState === 'conflict' || deleteState === 'deleting'} onClick={() => void publish()}>{publishState.state === 'publishing' ? 'Publishing…' : journey.status === 'published' ? 'Publish update' : 'Publish journey'}</button>
+        </div>
         {publishState.message && <p className={styles.publishMessage} data-state={publishState.state}>{publishState.message}</p>}
         {publishState.state === 'published' && <Link className={styles.quietButton} href={`/stories/${journey.slug}`} target="_blank" rel="noreferrer">View public journey ↗</Link>}
         {publishState.issues?.length ? <ul className={styles.publishIssues}>{publishState.issues.map((issue, index) => <li key={`${issue.message}-${index}`}>{issue.message}</li>)}</ul> : null}
+        {deleteState === 'error' ? <p className={styles.deleteError} role="alert">{deleteError}</p> : null}
       </section>
       {saveState === 'conflict' && <p className={styles.notice}>Your local document is still in this browser. Copy it before reloading if you need to preserve the unsaved version.</p>}
     </>
