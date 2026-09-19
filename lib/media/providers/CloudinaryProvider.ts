@@ -7,6 +7,8 @@ import {
   ImageDeliveryInputSchema,
   MediaProvider,
   ProviderAsset,
+  ProviderAssetDeletionInput,
+  ProviderAssetDeletionInputSchema,
   ProviderAssetPage,
   ProviderAssetPageSchema,
   ProviderAssetSchema,
@@ -276,6 +278,38 @@ export class CloudinaryProvider implements MediaProvider {
       );
     }
     return mapCloudinaryResource((await response.json()) as CloudinaryResource);
+  }
+
+  async deleteAsset(unparsedInput: ProviderAssetDeletionInput): Promise<void> {
+    const input = ProviderAssetDeletionInputSchema.parse(unparsedInput);
+    const timestamp = Math.floor(this.now().getTime() / 1_000);
+    const signedParameters: Record<string, CloudinaryScalar> = {
+      public_id: input.providerPublicId,
+      timestamp,
+      type: input.deliveryType,
+      invalidate: true,
+    };
+    const body = new URLSearchParams({
+      ...Object.fromEntries(
+        Object.entries(signedParameters).map(([key, value]) => [key, String(value)]),
+      ),
+      api_key: this.apiKey,
+      signature: createSignature(signedParameters, this.apiSecret, this.signatureAlgorithm),
+    });
+    const url = `https://api.cloudinary.com/v1_1/${encodeURIComponent(this.cloudName)}/${input.resourceType}/destroy`;
+    const response = await this.fetcher(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body.toString(),
+    });
+    if (!response.ok) {
+      throw new MediaProviderError('ASSET_DELETION_FAILED', 'Cloudinary asset deletion failed', response.status);
+    }
+
+    const result = (await response.json()) as { result?: unknown };
+    if (result.result !== 'ok' && result.result !== 'not found') {
+      throw new MediaProviderError('ASSET_DELETION_FAILED', 'Cloudinary asset deletion failed');
+    }
   }
 
   async listAssets(cursor?: string): Promise<ProviderAssetPage> {

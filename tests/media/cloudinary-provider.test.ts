@@ -204,6 +204,35 @@ describe('CloudinaryProvider', () => {
     );
   });
 
+  it('deletes an original through Cloudinary’s signed destroy endpoint', async () => {
+    const fetcher = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ result: 'ok' }),
+    }));
+    const provider = new CloudinaryProvider({ ...providerOptions, fetch: fetcher });
+
+    await expect(
+      provider.deleteAsset({
+        providerPublicId: 'journal/photo',
+        resourceType: 'image',
+        deliveryType: 'upload',
+      }),
+    ).resolves.toBeUndefined();
+
+    const expectedSignature = createHash('sha256')
+      .update('invalidate=true&public_id=journal/photo&timestamp=1789693323&type=uploadserver-only-secret')
+      .digest('hex');
+    expect(fetcher).toHaveBeenCalledWith(
+      'https://api.cloudinary.com/v1_1/travel-journal/image/destroy',
+      expect.objectContaining({
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: expect.stringContaining(`signature=${expectedSignature}`),
+      }),
+    );
+  });
+
   it('returns sanitized provider errors without response bodies or credentials', async () => {
     const provider = new CloudinaryProvider({
       ...providerOptions,

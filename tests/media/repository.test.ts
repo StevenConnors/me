@@ -28,6 +28,15 @@ class MemoryMediaAssets {
     }
     return { value: null };
   }
+
+  async deleteOne(filter: Partial<MediaAsset>) {
+    const index = this.records.findIndex((record) =>
+      Object.entries(filter).every(([key, value]) => record[key as keyof MediaAsset] === value),
+    );
+    if (index < 0) return { acknowledged: true, deletedCount: 0 };
+    this.records.splice(index, 1);
+    return { acknowledged: true, deletedCount: 1 };
+  }
 }
 
 class MemoryUploadSessions {
@@ -112,5 +121,26 @@ describe('MediaRepository', () => {
 
     expect(result.checksum).toBeUndefined();
     expect(Object.prototype.hasOwnProperty.call(media.records[0], 'checksum')).toBe(false);
+  });
+
+  it('removes a media record by ID', async () => {
+    const media = new MemoryMediaAssets();
+    const sessions = new MemoryUploadSessions();
+    const repository = new MediaRepository(
+      media as unknown as Collection<MediaAsset>,
+      sessions as unknown as Collection<UploadSession>,
+    );
+    const key = 'delete_media_record';
+    await repository.createOrReuseUploadSession({
+      filename: 'photo.jpg',
+      mimeType: 'image/jpeg',
+      bytes: 230_000,
+      idempotencyKey: key,
+    });
+    const asset = await repository.finalizeUpload(key, providerAsset);
+
+    await repository.deleteById(asset._id);
+
+    expect(media.records).toEqual([]);
   });
 });

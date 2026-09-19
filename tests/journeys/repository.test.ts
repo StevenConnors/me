@@ -1,12 +1,12 @@
 import { ObjectId, type Collection, type UpdateFilter } from 'mongodb';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   JourneyConflictError,
   JourneyNotFoundError,
   JourneyRepository,
 } from '@/lib/journeys/repository';
-import type { Journey } from '@/lib/journeys/schemas';
+import type { Journey, JourneyRevision } from '@/lib/journeys/schemas';
 import { makeJourney } from './fixtures';
 
 class MemoryJourneyCollection {
@@ -113,5 +113,37 @@ describe('JourneyRepository.publish', () => {
     expect(published.publishedRevisionId).toEqual(revisionId);
     expect(published.publishedAt).toEqual(now);
     expect(published.firstPublishedAt).toEqual(now);
+  });
+});
+
+describe('JourneyRepository.isMediaReferenced', () => {
+  it('checks draft and immutable revision placements before an asset can be deleted', async () => {
+    const draftFindOne = vi.fn(async () => null);
+    const revisionFindOne = vi.fn(async () => ({ _id: new ObjectId() }));
+    const repository = new JourneyRepository(
+      { findOne: draftFindOne } as unknown as Collection<Journey>,
+      { findOne: revisionFindOne } as unknown as Collection<JourneyRevision>,
+    );
+
+    await expect(repository.isMediaReferenced('media-record')).resolves.toBe(true);
+
+    expect(draftFindOne).toHaveBeenCalledWith(
+      expect.objectContaining({
+        $or: expect.arrayContaining([
+          { 'cover.mediaAssetId': 'media-record' },
+          { 'draftDocument.content.content.attrs.items.mediaAssetId': 'media-record' },
+        ]),
+      }),
+      { projection: { _id: 1 } },
+    );
+    expect(revisionFindOne).toHaveBeenCalledWith(
+      expect.objectContaining({
+        $or: expect.arrayContaining([
+          { 'metadataSnapshot.cover.mediaAssetId': 'media-record' },
+          { 'document.content.content.attrs.media.mediaAssetId': 'media-record' },
+        ]),
+      }),
+      { projection: { _id: 1 } },
+    );
   });
 });

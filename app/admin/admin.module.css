@@ -136,6 +136,7 @@
 .status { color: #7e7569; }
 .status[data-state='error'] { color: #a13b2b; }
 .status[data-state='saved'] { color: #427553; }
+.deleteError { margin: 0; color: #a13b2b; font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; }
 .notice { max-width: 720px; margin-top: 24px; padding: 15px 17px; border-left: 3px solid #9d4d3d; background: #eee7da; color: #625b50; font-size: 14px; line-height: 1.5; }
 .publishPanel { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 20px 32px; max-width: 720px; margin-top: 38px; padding: 28px; border: 1px solid #d7d0c4; background: #eee7da; }
 .publishPanel .eyebrow { margin-bottom: 10px; }

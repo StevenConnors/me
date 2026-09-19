@@ -18,6 +18,8 @@ export function MediaMetadataForm({ media }: { media: EditableMedia }) {
   const [caption, setCaption] = useState(media.caption ?? '');
   const [tags, setTags] = useState(media.tags.join(', '));
   const [state, setState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [deleteState, setDeleteState] = useState<'idle' | 'deleting' | 'error'>('idle');
+  const [deleteError, setDeleteError] = useState('');
 
   async function save(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -41,6 +43,24 @@ export function MediaMetadataForm({ media }: { media: EditableMedia }) {
     }
   }
 
+  async function remove() {
+    if (!window.confirm('Delete this media permanently? It cannot be restored. Images used by a journey are protected.')) return;
+    setDeleteState('deleting');
+    setDeleteError('');
+    try {
+      const response = await fetch(`/api/admin/media/${media.id}`, { method: 'DELETE' });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        throw new Error(payload?.error?.message ?? 'Unable to delete this media');
+      }
+      window.location.reload();
+    } catch (error) {
+      console.error(error);
+      setDeleteState('error');
+      setDeleteError(error instanceof Error ? error.message : 'Unable to delete this media');
+    }
+  }
+
   return (
     <form className={styles.mediaMetadata} onSubmit={(event) => void save(event)}>
       <div className={styles.field}>
@@ -61,8 +81,12 @@ export function MediaMetadataForm({ media }: { media: EditableMedia }) {
       </div>
       <div className={styles.formFooter}>
         <span className={styles.status} data-state={state === 'error' ? 'error' : state === 'saved' ? 'saved' : undefined}>{state === 'saved' ? 'Saved' : state === 'error' ? 'Could not save' : 'Used by publishing validation'}</span>
-        <button className={styles.button} type="submit" disabled={state === 'saving'}>{state === 'saving' ? 'Saving…' : 'Save media details'}</button>
+        <span className={styles.actionGroup}>
+          <button className={styles.quietButton} type="button" onClick={() => void remove()} disabled={deleteState === 'deleting'}>{deleteState === 'deleting' ? 'Deleting…' : 'Delete media'}</button>
+          <button className={styles.button} type="submit" disabled={state === 'saving' || deleteState === 'deleting'}>{state === 'saving' ? 'Saving…' : 'Save media details'}</button>
+        </span>
       </div>
+      {deleteState === 'error' ? <p className={styles.deleteError} role="alert">{deleteError}</p> : null}
     </form>
   );
 }

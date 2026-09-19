@@ -85,6 +85,11 @@ export class MediaRepository {
     return asset ? MediaAssetSchema.parse(asset) : null;
   }
 
+  async deleteById(mediaId: string): Promise<void> {
+    const result = await this.mediaAssets.deleteOne({ _id: mediaId });
+    if (!result.deletedCount) throw new MediaNotFoundError(mediaId);
+  }
+
   async createOrReuseUploadSession(
     intent: UploadIntent,
     options: { now?: Date; ttlMs?: number } = {},

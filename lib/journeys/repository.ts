@@ -159,6 +159,37 @@ export class JourneyRepository {
     return journeys.map((journey) => JourneySchema.parse(journey));
   }
 
+  /**
+   * A media record must stay available while any draft or immutable published
+   * revision points to it. MongoDB applies dotted paths through Tiptap's node
+   * arrays, so this covers photograph, gallery, and story-step placements.
+   */
+  async isMediaReferenced(mediaId: string): Promise<boolean> {
+    const draftReference = {
+      $or: [
+        { 'cover.mediaAssetId': mediaId },
+        { 'social.image.mediaAssetId': mediaId },
+        { 'draftDocument.content.content.attrs.placement.mediaAssetId': mediaId },
+        { 'draftDocument.content.content.attrs.items.mediaAssetId': mediaId },
+        { 'draftDocument.content.content.attrs.media.mediaAssetId': mediaId },
+      ],
+    } as Filter<Journey>;
+    const draft = await this.journeys.findOne(draftReference, { projection: { _id: 1 } });
+    if (draft) return true;
+    if (!this.revisions) return false;
+
+    const revisionReference = {
+      $or: [
+        { 'metadataSnapshot.cover.mediaAssetId': mediaId },
+        { 'metadataSnapshot.social.image.mediaAssetId': mediaId },
+        { 'document.content.content.attrs.placement.mediaAssetId': mediaId },
+        { 'document.content.content.attrs.items.mediaAssetId': mediaId },
+        { 'document.content.content.attrs.media.mediaAssetId': mediaId },
+      ],
+    } as Filter<JourneyRevision>;
+    return Boolean(await this.revisions.findOne(revisionReference, { projection: { _id: 1 } }));
+  }
+
   async updateDraft(
     id: string | ObjectId,
     expectedEditVersion: number,

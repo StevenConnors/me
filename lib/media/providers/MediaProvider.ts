@@ -68,6 +68,16 @@ export const ProviderAssetSchema = z
 
 export type ProviderAsset = z.infer<typeof ProviderAssetSchema>;
 
+export const ProviderAssetDeletionInputSchema = z
+  .object({
+    providerPublicId: nonEmptyString,
+    resourceType: z.enum(['image', 'video']),
+    deliveryType: nonEmptyString,
+  })
+  .strict();
+
+export type ProviderAssetDeletionInput = z.infer<typeof ProviderAssetDeletionInputSchema>;
+
 export const ProviderAssetPageSchema = z
   .object({
     assets: z.array(ProviderAssetSchema),
@@ -136,6 +146,7 @@ export interface MediaProvider {
   createUploadAuthorization(intent: UploadIntent): Promise<UploadAuthorization>;
   verifyUploadResult(result: ProviderUploadResult): boolean;
   inspectAsset(providerAssetId: string): Promise<ProviderAsset>;
+  deleteAsset(input: ProviderAssetDeletionInput): Promise<void>;
   buildImageUrl(input: ImageDeliveryInput): string;
   buildVideoUrl(input: VideoDeliveryInput): string;
   listAssets(cursor?: string): Promise<ProviderAssetPage>;
