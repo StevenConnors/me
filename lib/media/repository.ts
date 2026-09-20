@@ -5,6 +5,7 @@ import { getMediaCollections } from '@/lib/db/collections';
 import type { ProviderAsset, UploadIntent } from '@/lib/media/providers/MediaProvider';
 import {
   MediaAssetSchema,
+  PhotoSectionBreakSchema,
   UploadSessionSchema,
   type MediaAsset,
   type UploadSession,
@@ -17,6 +18,8 @@ const MediaMetadataPatchSchema = z
     altText: z.string().trim().max(1_000).nullable().optional(),
     tags: z.array(z.string().trim().min(1)).max(100).optional(),
     captureDate: z.string().date().nullable().optional(),
+    showInPhotos: z.boolean().optional(),
+    photoSectionBreak: PhotoSectionBreakSchema.nullable().optional(),
   })
   .strict()
   .refine((patch) => Object.keys(patch).length > 0, 'At least one field must change');
@@ -67,6 +70,21 @@ export class MediaRepository {
     const assets = await this.mediaAssets
       .find(filter)
       .sort(query ? { score: { $meta: 'textScore' }, createdAt: -1 } : { createdAt: -1 })
+      .limit(limit)
+      .toArray();
+    return assets.map((asset) => MediaAssetSchema.parse(asset));
+  }
+
+  /**
+   * The public gallery is deliberately separate from the general media
+   * library. Capture date is an ISO date, so a descending sort puts the most
+   * recent photographs first; uploads without one follow at the end.
+   */
+  async listPhotos(options: { limit?: number } = {}): Promise<MediaAsset[]> {
+    const limit = Math.min(Math.max(options.limit ?? 200, 1), 500);
+    const assets = await this.mediaAssets
+      .find({ status: 'ready', showInPhotos: true, resourceType: 'image' })
+      .sort({ captureDate: -1, createdAt: -1 })
       .limit(limit)
       .toArray();
     return assets.map((asset) => MediaAssetSchema.parse(asset));

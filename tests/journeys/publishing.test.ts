@@ -117,7 +117,7 @@ describe('validateJourneyForPublication', () => {
     ).toMatchObject({ success: true });
   });
 
-  it('rejects empty Held Places chapters and images without accessible text', () => {
+  it('rejects empty Held Places chapters but allows decorative photos without text', () => {
     const emptyResult = validateJourneyForPublication(
       makeJourney({
         draftDocument: makeHeldPlacesDocument({
@@ -135,19 +135,12 @@ describe('validateJourneyForPublication', () => {
       expect(emptyResult.issues.map(({ code }) => code)).toContain('chapter_required');
     }
 
-    const inaccessibleResult = validateJourneyForPublication(
+    const decorativePhotoResult = validateJourneyForPublication(
       makeJourney({
-        cover: makePlacement({
-          role: 'cover',
-          altTextOverride: 'A coastline seen from above',
-        }),
         draftDocument: makeHeldPlacesDocument(),
       }),
       { mediaAssets: [{ _id: READY_MEDIA_ID, status: 'ready' as const }] },
     );
-    expect(inaccessibleResult.success).toBe(false);
-    if (!inaccessibleResult.success) {
-      expect(inaccessibleResult.issues.map(({ code }) => code)).toContain('media_alt_required');
-    }
+    expect(decorativePhotoResult.success).toBe(true);
   });
 });

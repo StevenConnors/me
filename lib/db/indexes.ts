@@ -15,7 +15,9 @@ export async function ensureJourneyIndexes(db?: Db): Promise<void> {
       {
         name: 'unique_active_journey_slug',
         unique: true,
-        partialFilterExpression: { archivedAt: { $exists: false } },
+        partialFilterExpression: {
+          status: { $in: ['draft', 'preview', 'published'] },
+        },
       },
     ),
     journeys.createIndex(
@@ -45,6 +47,10 @@ export async function ensureJourneyIndexes(db?: Db): Promise<void> {
     mediaAssets.createIndex(
       { title: 'text', originalFilename: 'text', caption: 'text', tags: 'text' },
       { name: 'media_search' },
+    ),
+    mediaAssets.createIndex(
+      { showInPhotos: 1, captureDate: -1, createdAt: -1 },
+      { name: 'photos_chronological' },
     ),
     uploadSessions.createIndex(
       { idempotencyKey: 1 },

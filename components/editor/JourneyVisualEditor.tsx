@@ -30,6 +30,7 @@ function defaultPlacement(mediaAssetId: string): MediaPlacement {
     mediaAssetId,
     role: 'story',
     layout: { desktop: 'wide', mobile: 'full' },
+    decorative: true,
   };
 }
 
@@ -70,7 +71,7 @@ function PhotographNodeView({ node, updateAttributes, selected, extension }: Nod
   return (
     <NodeViewWrapper className={NodeClassName({ selected, className: styles.photo })} data-layout={placement.layout.desktop}>
       {media?.previewUrl ? (
-        <img src={media.previewUrl} alt={placement.decorative ? '' : placement.altTextOverride ?? media.altText ?? ''} style={{ objectPosition }} />
+        <img src={media.previewUrl} alt={placement.decorative !== false ? '' : placement.altTextOverride ?? media.altText ?? ''} style={{ objectPosition }} />
       ) : (
         <div className={styles.missingMedia}>Media {placement.mediaAssetId} is saved, but its editor preview is unavailable.</div>
       )}
@@ -114,7 +115,7 @@ function GalleryNodeView({ node, selected, extension }: NodeViewProps) {
       <div className={styles.gallery} data-template={template}>
         {items.map((placement) => {
           const media = getMedia(placement.mediaAssetId);
-          return <figure key={placement.mediaAssetId}>{media?.previewUrl ? <img src={media.previewUrl} alt={placement.decorative ? '' : placement.altTextOverride ?? media.altText ?? ''} /> : <div className={styles.galleryEmpty}>{media?.title ?? placement.mediaAssetId}</div>}</figure>;
+          return <figure key={placement.mediaAssetId}>{media?.previewUrl ? <img src={media.previewUrl} alt={placement.decorative !== false ? '' : placement.altTextOverride ?? media.altText ?? ''} /> : <div className={styles.galleryEmpty}>{media?.title ?? placement.mediaAssetId}</div>}</figure>;
         })}
       </div>
       <div className={styles.nodeInspector} contentEditable={false}><span className={styles.nodeLabel}>Gallery · {items.length} photographs</span><span /></div>

@@ -20,24 +20,6 @@ A journey may be a full essay, a primarily visual sequence, or something in betw
 - Application IDs and open exports protect the archive from provider lock-in.
 - Ongoing cost and operational complexity should remain low.
 
-## 1. Authoring lifecycle
-
-- Add dashboard search and explicit draft, published, and archived filters.
-- Add duplicate, archive, unarchive, and unpublish actions.
-- Build revision-history UI with checkpoints, restore, and rollback to an earlier published revision.
-- Create periodic revision snapshots with a documented retention policy.
-- Improve recovery from network failure beyond the current in-session retry state.
-- Add a private shareable review link only if authenticated preview becomes insufficient.
-- Consider scheduled publication after the normal publish workflow is proven reliable.
-
-## 2. Portability, export, and recovery
-
-- Export each journey as readable Markdown plus a complete versioned JSON document and media manifest.
-- Support full archive export with original-media references or downloaded originals.
-- Add an import/restore path and prove it with a round-trip test.
-- Backfill existing Cloudinary assets into application media records with a resumable dry run and explicit apply step.
-- Document database backup, original-media backup, and complete disaster-recovery procedures.
-- Perform a restore drill before the editor becomes the only long-term authoring path.
 
 ## 3. Media library depth
 
