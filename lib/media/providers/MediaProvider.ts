@@ -12,16 +12,33 @@ export const ACCEPTED_IMAGE_MIME_TYPES = [
   'image/heif',
 ] as const;
 
+export const ACCEPTED_VIDEO_MIME_TYPES = [
+  'video/mp4',
+  'video/quicktime',
+  'video/webm',
+] as const;
+
+export const ACCEPTED_MEDIA_MIME_TYPES = [
+  ...ACCEPTED_IMAGE_MIME_TYPES,
+  ...ACCEPTED_VIDEO_MIME_TYPES,
+] as const;
+
 export const UploadIntentSchema = z
   .object({
     filename: nonEmptyString.max(255),
-    mimeType: z.enum(ACCEPTED_IMAGE_MIME_TYPES),
+    mimeType: z.enum(ACCEPTED_MEDIA_MIME_TYPES),
     bytes: z.number().int().positive(),
     idempotencyKey: z.string().trim().min(8).max(128).regex(/^[A-Za-z0-9_-]+$/),
     intendedJourneyId: nonEmptyString.optional(),
-    resourceType: z.literal('image').default('image'),
+    resourceType: z.enum(['image', 'video']).default('image'),
   })
-  .strict();
+  .strict()
+  .refine(
+    (intent) => intent.resourceType === 'image'
+      ? (ACCEPTED_IMAGE_MIME_TYPES as readonly string[]).includes(intent.mimeType)
+      : (ACCEPTED_VIDEO_MIME_TYPES as readonly string[]).includes(intent.mimeType),
+    { message: 'MIME type must match the requested resource type', path: ['resourceType'] },
+  );
 
 export type UploadIntent = z.input<typeof UploadIntentSchema>;
 export type ValidatedUploadIntent = z.output<typeof UploadIntentSchema>;
@@ -111,6 +128,16 @@ export const VideoDeliveryInputSchema = z
 
 export type VideoDeliveryInput = z.input<typeof VideoDeliveryInputSchema>;
 
+export const VideoPosterInputSchema = z
+  .object({
+    providerPublicId: nonEmptyString,
+    version: z.number().int().nonnegative().optional(),
+    width: z.number().finite().positive(),
+  })
+  .strict();
+
+export type VideoPosterInput = z.infer<typeof VideoPosterInputSchema>;
+
 export const ProviderUploadResultSchema = z
   .object({
     providerAssetId: nonEmptyString,
@@ -149,6 +176,7 @@ export interface MediaProvider {
   deleteAsset(input: ProviderAssetDeletionInput): Promise<void>;
   buildImageUrl(input: ImageDeliveryInput): string;
   buildVideoUrl(input: VideoDeliveryInput): string;
+  buildVideoPosterUrl(input: VideoPosterInput): string;
   listAssets(cursor?: string): Promise<ProviderAssetPage>;
   getOriginalExportReference(providerAssetId: string): Promise<ExportReference>;
 }

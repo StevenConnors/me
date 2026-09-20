@@ -2,7 +2,7 @@ import { ObjectId, type Collection, type Filter, type UpdateFilter } from 'mongo
 import { z } from 'zod';
 
 import { getMediaCollections } from '@/lib/db/collections';
-import type { ProviderAsset, UploadIntent } from '@/lib/media/providers/MediaProvider';
+import { UploadIntentSchema, type ProviderAsset, type UploadIntent } from '@/lib/media/providers/MediaProvider';
 import {
   MediaAssetSchema,
   PhotoSectionBreakSchema,
@@ -38,6 +38,14 @@ export class UploadSessionNotFoundError extends Error {
   readonly code = 'UPLOAD_SESSION_NOT_FOUND';
   constructor(readonly idempotencyKey: string) {
     super(`Upload session ${idempotencyKey} was not found`);
+  }
+}
+
+export class UploadResourceTypeMismatchError extends Error {
+  readonly code = 'UPLOAD_RESOURCE_TYPE_MISMATCH';
+  constructor(readonly expectedResourceType: 'image' | 'video', readonly actualResourceType: 'image' | 'video') {
+    super(`Upload session expected ${expectedResourceType}, received ${actualResourceType}`);
+    this.name = 'UploadResourceTypeMismatchError';
   }
 }
 
@@ -161,10 +169,7 @@ export class MediaRepository {
     intent: UploadIntent,
     options: { now?: Date; ttlMs?: number } = {},
   ): Promise<UploadSession> {
-    const parsedIntent = z.object({
-      idempotencyKey: z.string().trim().min(8).max(128),
-      intendedJourneyId: z.string().trim().min(1).optional(),
-    }).passthrough().parse(intent);
+    const parsedIntent = UploadIntentSchema.parse(intent);
     const existing = await this.uploadSessions.findOne({ idempotencyKey: parsedIntent.idempotencyKey });
     if (existing) return UploadSessionSchema.parse(existing);
 
@@ -175,7 +180,7 @@ export class MediaRepository {
       idempotencyKey: parsedIntent.idempotencyKey,
       ...(parsedIntent.intendedJourneyId ? { intendedJourneyId: parsedIntent.intendedJourneyId } : {}),
       status: 'created',
-      expectedResourceType: 'image',
+      expectedResourceType: parsedIntent.resourceType,
       createdAt: now,
       expiresAt: new Date(now.valueOf() + (options.ttlMs ?? 10 * 60 * 1_000)),
     });
@@ -203,6 +208,9 @@ export class MediaRepository {
     if (parsedSession.status === 'finalized' && parsedSession.mediaAssetId) {
       const existing = await this.findById(parsedSession.mediaAssetId);
       if (existing) return existing;
+    }
+    if (parsedSession.expectedResourceType !== providerAsset.resourceType) {
+      throw new UploadResourceTypeMismatchError(parsedSession.expectedResourceType, providerAsset.resourceType);
     }
 
     const now = options.now ?? new Date();

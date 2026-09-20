@@ -13,10 +13,11 @@ export type PickerMedia = {
   caption?: string;
   altText?: string;
   status: string;
+  resourceType: 'image' | 'video';
 };
 
 function queryUrl(query: string, cursor: string | null) {
-  const params = new URLSearchParams({ limit: '24', resourceType: 'image' });
+  const params = new URLSearchParams({ limit: '24', paged: 'true' });
   if (query.trim()) params.set('q', query.trim());
   if (cursor) params.set('cursor', cursor);
   return `/api/admin/media?${params.toString()}`;
@@ -72,13 +73,13 @@ export function MediaPicker({
   }, [open]);
 
   if (!open) return null;
-  return <div aria-label="Add photos from media library" aria-modal="true" className={styles.dialogBackdrop} role="dialog">
+  return <div aria-label="Add media from library" aria-modal="true" className={styles.dialogBackdrop} role="dialog">
     <section className={styles.pickerDialog}>
-      <header><div><p className={styles.inspectorEyebrow}>Media library</p><h2>Add photos</h2></div><button aria-label="Close media library" onClick={onClose} type="button">×</button></header>
+      <header><div><p className={styles.inspectorEyebrow}>Media library</p><h2>Add media</h2></div><button aria-label="Close media library" onClick={onClose} type="button">×</button></header>
       <form className={styles.pickerSearch} onSubmit={(event) => { event.preventDefault(); void load(null, true); }}>
-        <input aria-label="Search image uploads" onChange={(event) => setQuery(event.target.value)} placeholder="Search filename, title, caption, or tag" value={query} />
+        <input aria-label="Search media uploads" onChange={(event) => setQuery(event.target.value)} placeholder="Search filename, title, caption, or tag" value={query} />
         <button disabled={state === 'loading'} type="submit">Search</button>
-        <label className={styles.uploadLabel}>Upload new<input accept="image/jpeg,image/png,image/webp,image/heic,image/heif" hidden multiple onChange={(event) => { const files = Array.from(event.target.files ?? []); if (files.length) onUpload(files); event.currentTarget.value = ''; }} type="file" /></label>
+        <label className={styles.uploadLabel}>Upload new<input accept="image/jpeg,image/png,image/webp,image/heic,image/heif,video/mp4,video/quicktime,video/webm" hidden multiple onChange={(event) => { const files = Array.from(event.target.files ?? []); if (files.length) onUpload(files); event.currentTarget.value = ''; }} type="file" /></label>
       </form>
       {state === 'error' ? <p className={styles.fieldError}>The media library could not load. <button onClick={() => void load(items.length ? nextCursor : null, !items.length)} type="button">Try again</button></p> : null}
       <div className={styles.pickerItems}>
@@ -91,10 +92,10 @@ export function MediaPicker({
               if (next.has(item._id)) next.delete(item._id); else next.set(item._id, item);
               return next;
             })} type="checkbox" />
-            <span><strong>{item.originalFilename}</strong><small>{item.width}×{item.height}{item.captureDate ? ` · ${item.captureDate}` : ''}{placed ? ' · Already on this page' : ''}</small></span>
+            <span><strong>{item.originalFilename}</strong><small>{item.resourceType === 'video' ? 'Video · ' : ''}{item.width}×{item.height}{item.captureDate ? ` · ${item.captureDate}` : ''}{placed ? ' · Already on this page' : ''}</small></span>
           </label>;
         })}
-        {!items.length && state !== 'loading' ? <p className={styles.emptyPicker}>No matching image uploads.</p> : null}
+        {!items.length && state !== 'loading' ? <p className={styles.emptyPicker}>No matching uploads.</p> : null}
       </div>
       <footer>
         {nextCursor ? <button disabled={state === 'loading'} onClick={() => void load(nextCursor)} type="button">{state === 'loading' ? 'Loading…' : 'Load more'}</button> : <span />}

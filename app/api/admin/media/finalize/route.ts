@@ -5,6 +5,7 @@ import { apiError, requireAuthorApi } from '@/lib/http/admin-api';
 import { getCloudinaryMediaProvider } from '@/lib/media/provider';
 import {
   MediaRepository,
+  UploadResourceTypeMismatchError,
   UploadSessionNotFoundError,
 } from '@/lib/media/repository';
 import { MediaProviderError } from '@/lib/media/providers/CloudinaryProvider';
@@ -39,6 +40,9 @@ export async function POST(request: NextRequest) {
     }
     if (error instanceof UploadSessionNotFoundError) {
       return apiError('UPLOAD_SESSION_NOT_FOUND', 'This upload session has expired; start the upload again', 404);
+    }
+    if (error instanceof UploadResourceTypeMismatchError) {
+      return apiError(error.code, 'The uploaded file type does not match its upload session', 400);
     }
     if (error instanceof MediaProviderError) {
       return apiError(error.code, error.message, 502);

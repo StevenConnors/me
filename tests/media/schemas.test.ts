@@ -7,6 +7,7 @@ import {
   UploadSessionSchema,
 } from '../../lib/media/schemas';
 import { ProviderUploadResultSchema } from '../../lib/media/providers/MediaProvider';
+import { UploadIntentSchema } from '../../lib/media/providers/MediaProvider';
 
 const placement = {
   mediaAssetId: '66e4cc6e7fd5e6ad3db7ba10',
@@ -174,5 +175,14 @@ describe('media schemas', () => {
         expiresAt,
       }).success,
     ).toBe(true);
+  });
+
+  it('accepts supported videos only when MIME type and resource type agree', () => {
+    expect(UploadIntentSchema.safeParse({
+      filename: 'clip.mp4', mimeType: 'video/mp4', bytes: 100, idempotencyKey: 'video-upload-key-123', resourceType: 'video',
+    }).success).toBe(true);
+    expect(UploadIntentSchema.safeParse({
+      filename: 'clip.mp4', mimeType: 'video/mp4', bytes: 100, idempotencyKey: 'video-upload-key-123', resourceType: 'image',
+    }).success).toBe(false);
   });
 });

@@ -87,4 +87,17 @@ describe('uploadMedia', () => {
       },
     });
   });
+
+  it('derives video resource type from the selected file before authorizing', async () => {
+    vi.stubGlobal('crypto', { randomUUID: () => 'videouploadsessionkey123' });
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ authorization: { uploadUrl: 'https://api.cloudinary.com/v1_1/example/video/upload', parameters: {} } }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ asset_id: 'video-id', public_id: 'clip', resource_type: 'video', type: 'upload', version: 1, original_filename: 'clip', format: 'mp4', width: 1600, height: 900, bytes: 100, tags: 'upload-session-videouploadsessionkey123', signature: 'signature' }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ media: { _id: 'video-media', originalFilename: 'clip', width: 1600, height: 900, format: 'mp4', resourceType: 'video', status: 'ready' } }) });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(uploadMedia(new File(['video'], 'clip.mp4', { type: 'video/mp4' }))).resolves.toMatchObject({ resourceType: 'video' });
+    const [, authorizationRequest] = fetchMock.mock.calls[0];
+    expect(JSON.parse(authorizationRequest.body)).toMatchObject({ resourceType: 'video', mimeType: 'video/mp4' });
+  });
 });

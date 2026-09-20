@@ -24,6 +24,7 @@
 .editorTile:hover .selectTile, .editorTile:hover .editTile, .editorTile:focus-within .selectTile, .editorTile:focus-within .editTile, .editorTile[data-selected] .selectTile, .editorTile[data-selected] .editTile { opacity: 1; }
 .selectTile { left: 8px; display: grid; width: 28px; height: 28px; place-items: center; border-radius: 50%; background: #fff; }
 .editTile { right: 8px; padding: 5px 7px; border: 0; background: #1e1d19; color: #fff; font: 11px/1 Arial, sans-serif; cursor: pointer; }
+.videoBadge { position: absolute; right: 8px; bottom: 8px; z-index: 1; padding: 4px 6px; background: rgba(24, 23, 20, .85); color: #fff; font: 10px/1 Arial, sans-serif; letter-spacing: .06em; text-transform: uppercase; }
 .unavailable { display: grid; min-height: 160px; padding: 18px; place-items: center; background: repeating-linear-gradient(-45deg, #e2dfd5, #e2dfd5 10px, #d4d0c4 10px, #d4d0c4 20px); color: #4d483e; font: 13px/1.35 Arial, sans-serif; text-align: center; }
 .sectionEditor { margin-bottom: 16px; }
 .sectionEditor label, .inspector label { display: grid; gap: 5px; margin-bottom: 10px; color: #4d493f; font: 12px/1.2 Arial, sans-serif; }

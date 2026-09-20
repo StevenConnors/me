@@ -1,7 +1,7 @@
 import type { Collection } from 'mongodb';
 import { describe, expect, it } from 'vitest';
 
-import { MediaRepository } from '@/lib/media/repository';
+import { MediaRepository, UploadResourceTypeMismatchError } from '@/lib/media/repository';
 import type { ProviderAsset } from '@/lib/media/providers/MediaProvider';
 import type { MediaAsset, UploadSession } from '@/lib/media/schemas';
 
@@ -161,5 +161,20 @@ describe('MediaRepository', () => {
     await repository.deleteById(asset._id);
 
     expect(media.records).toEqual([]);
+  });
+
+  it('persists and enforces the resource type authorized for an upload session', async () => {
+    const media = new MemoryMediaAssets();
+    const sessions = new MemoryUploadSessions();
+    const repository = new MediaRepository(
+      media as unknown as Collection<MediaAsset>, sessions as unknown as Collection<UploadSession>,
+    );
+    const key = 'video_upload_session';
+    await repository.createOrReuseUploadSession({
+      filename: 'clip.mp4', mimeType: 'video/mp4', bytes: 230_000, idempotencyKey: key, resourceType: 'video',
+    });
+    expect(sessions.records[0].expectedResourceType).toBe('video');
+    await expect(repository.finalizeUpload(key, providerAsset)).rejects.toBeInstanceOf(UploadResourceTypeMismatchError);
+    await expect(repository.finalizeUpload(key, { ...providerAsset, resourceType: 'video', format: 'mp4' })).resolves.toMatchObject({ resourceType: 'video' });
   });
 });

@@ -37,7 +37,12 @@ export default async function PhotosEditorPage() {
         width: 768,
         sourceWidth: asset.width,
         sourceHeight: asset.height,
+      }) : asset.resourceType === 'video' && asset.status === 'ready' ? provider.buildVideoPosterUrl({
+        providerPublicId: asset.providerPublicId,
+        version: asset.version,
+        width: 768,
       }) : undefined,
+      resourceType: asset.resourceType,
     }));
     const serialized = serializePhotosPage(page);
 

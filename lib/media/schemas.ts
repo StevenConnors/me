@@ -204,7 +204,7 @@ export const UploadSessionSchema = z
     idempotencyKey: z.string().trim().min(8).max(128).regex(/^[A-Za-z0-9_-]+$/),
     intendedJourneyId: MediaIdSchema.optional(),
     status: z.enum(['created', 'uploaded', 'finalized', 'failed', 'expired']),
-    expectedResourceType: z.literal('image'),
+    expectedResourceType: z.enum(['image', 'video']),
     providerAssetId: nonEmptyString.optional(),
     mediaAssetId: MediaIdSchema.optional(),
     createdAt: z.date(),

@@ -216,10 +216,10 @@ export class PhotosPageRepository {
       const asset = assetsById.get(block.mediaAssetId);
       if (!asset) {
         issues.push({ blockId: block.id, message: 'The referenced media asset is unavailable' });
-      } else if (asset.status !== 'ready' || asset.resourceType !== 'image') {
+      } else if (asset.status !== 'ready') {
         issues.push({
           blockId: block.id,
-          message: 'The referenced media must be a ready image before publishing',
+          message: 'The referenced media must be ready before publishing',
         });
       }
     });

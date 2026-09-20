@@ -30,6 +30,7 @@ type EditorMedia = {
   caption?: string;
   altText?: string;
   source?: string;
+  resourceType: 'image' | 'video';
 };
 
 type EditorCanvasPhoto = PublicPhoto & {
@@ -87,6 +88,7 @@ function documentPhotos(document: PhotosPageDocument, mediaById: Map<string, Edi
       originalFilename: asset?.originalFilename ?? `Unavailable upload (${block.mediaAssetId})`,
       ...(block.caption ? { caption: block.caption } : {}),
       ...(block.displayDate ? { captureDate: block.displayDate } : {}),
+      kind: asset?.resourceType ?? 'image',
       ...(pendingSection ? {
         sectionBreak: { ...(pendingSection.title ? { title: pendingSection.title } : {}), ...(pendingSection.text ? { text: pendingSection.text } : {}) },
         sectionBlockId: pendingSection.id,
@@ -253,6 +255,7 @@ export function PhotosWorkspace({
           originalFilename: result.originalFilename,
           width: result.width,
           height: result.height,
+          resourceType: result.resourceType,
           ...(dateFromFile(file) ? { captureDate: dateFromFile(file) } : {}),
         });
       } catch (error) {
@@ -270,7 +273,7 @@ export function PhotosWorkspace({
       else {
         insertionFailed = true;
         setUploadState('error');
-        setUploadMessage('The upload completed, but its page insertion could not be saved. Use Add photos to insert the upload again.');
+        setUploadMessage('The upload completed, but its page insertion could not be saved. Use Add media to insert the upload again.');
       }
     }
     if (failures.length) {
@@ -291,6 +294,7 @@ export function PhotosWorkspace({
       captureDate: item.captureDate,
       caption: item.caption,
       altText: item.altText,
+      resourceType: item.resourceType,
     }));
     setMedia((current) => [...current, ...selected.filter((asset) => !current.some((known) => known.id === asset.id))]);
     const next = insertMedia(documentRef.current, activeBlockId, selected, newBlockId);
@@ -457,10 +461,11 @@ export function PhotosWorkspace({
     const editorPhoto = photo as EditorCanvasPhoto & { index: number };
     const selected = selectedMediaBlockIds.has(editorPhoto.blockId);
     return <article className={styles.editorTile} data-selected={selected || undefined} key={editorPhoto.blockId}>
-      <button aria-label={`Edit ${editorPhoto.originalFilename}`} className={styles.editorImageButton} onClick={() => setActiveBlockId(editorPhoto.blockId)} type="button">
+      <button aria-label={`Edit ${editorPhoto.kind === 'video' ? 'video' : 'photo'} ${editorPhoto.originalFilename}`} className={styles.editorImageButton} onClick={() => setActiveBlockId(editorPhoto.blockId)} type="button">
         {editorPhoto.unavailable ? <span className={styles.unavailable}>This upload is unavailable. Remove it before publishing.</span> : <Image alt={editorPhoto.alt} height={editorPhoto.height} sizes="(max-width: 700px) 50vw, (max-width: 1100px) 33vw, 25vw" src={editorPhoto.source} width={editorPhoto.width} />}
       </button>
       <label className={styles.selectTile}><input checked={selected} onChange={() => toggleMediaSelection(editorPhoto.blockId)} type="checkbox" /><span className="sr-only">Select {editorPhoto.originalFilename}</span></label>
+      {editorPhoto.kind === 'video' ? <span className={styles.videoBadge}>Video</span> : null}
       <button className={styles.editTile} onClick={() => setActiveBlockId(editorPhoto.blockId)} type="button">Edit</button>
     </article>;
   }
@@ -484,7 +489,7 @@ export function PhotosWorkspace({
       <span className={styles.historyButtons}><button disabled={historyIndex === 0} onClick={undo} type="button">Undo</button><button disabled={historyIndex === history.length - 1} onClick={redo} type="button">Redo</button></span>
       <span aria-live="polite" className={styles.saveState} data-state={saveState}>{saveState === 'saving' ? 'Saving…' : saveState === 'conflict' ? 'Draft changed elsewhere' : saveState === 'error' ? 'Could not save' : hasUnpublishedChanges ? 'Unpublished changes' : 'Published'}</span>
       <span className={styles.primaryActions}>
-        <button disabled={uploadState === 'uploading'} onClick={() => setPickerOpen(true)} type="button">{uploadState === 'uploading' ? 'Uploading…' : 'Add photos'}</button><button onClick={addSection} type="button">Insert section</button><button disabled={saveState === 'saving' || saveState === 'conflict' || !hasUnpublishedChanges} onClick={() => void publish()} type="button">Publish</button><button disabled={saveState === 'saving' || !hasUnpublishedChanges} onClick={() => void discard()} type="button">Discard</button>
+        <button disabled={uploadState === 'uploading'} onClick={() => setPickerOpen(true)} type="button">{uploadState === 'uploading' ? 'Uploading…' : 'Add media'}</button><button onClick={addSection} type="button">Insert section</button><button disabled={saveState === 'saving' || saveState === 'conflict' || !hasUnpublishedChanges} onClick={() => void publish()} type="button">Publish</button><button disabled={saveState === 'saving' || !hasUnpublishedChanges} onClick={() => void discard()} type="button">Discard</button>
       </span>
     </div>
     {uploadMessage ? <p className={styles.uploadStatus} data-error={uploadState === 'error' || undefined}>{uploadMessage}</p> : null}

@@ -18,11 +18,12 @@ export async function GET(request: NextRequest) {
       return apiError('INVALID_LIMIT', 'limit must be an integer from 1 to 100', 400);
     }
     const cursor = request.nextUrl.searchParams.get('cursor') ?? undefined;
+    const paged = request.nextUrl.searchParams.get('paged') === 'true';
     const resourceTypeValue = request.nextUrl.searchParams.get('resourceType') ?? undefined;
     if (resourceTypeValue && resourceTypeValue !== 'image' && resourceTypeValue !== 'video') {
       return apiError('INVALID_RESOURCE_TYPE', 'resourceType must be image or video', 400);
     }
-    if (cursor || resourceTypeValue) {
+    if (cursor || resourceTypeValue || paged) {
       const page = await (await MediaRepository.connect()).listPage({
         query,
         limit,

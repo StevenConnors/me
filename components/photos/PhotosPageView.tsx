@@ -19,6 +19,7 @@ export type PublicPhoto = {
   sectionBreak?: PublicPhotoSectionBreak;
   /** Editing identity only; omitted from ordinary public presentation. */
   sectionBlockId?: string;
+  kind?: 'image' | 'video';
 };
 
 export type PhotoSection = {

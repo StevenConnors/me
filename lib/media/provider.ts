@@ -23,5 +23,6 @@ export function getCloudinaryMediaProvider() {
     apiKey,
     apiSecret,
     uploadFolder: process.env.CLOUDINARY_EDITOR_UPLOAD_FOLDER ?? 'journey-editor',
+    maxVideoUploadBytes: Number(process.env.CLOUDINARY_EDITOR_MAX_VIDEO_BYTES) || 250 * 1024 * 1024,
   });
 }

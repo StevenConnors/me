@@ -11,6 +11,7 @@ export type UploadedMedia = {
   width: number;
   height: number;
   format: string;
+  resourceType: 'image' | 'video';
   status: 'ready';
 };
 
@@ -30,6 +31,12 @@ function normalizeTags(value: unknown): string[] {
 function normalizeVersion(value: unknown): unknown {
   if (typeof value === 'string' && /^\d+$/.test(value)) return Number(value);
   return value;
+}
+
+function resourceTypeForMimeType(mimeType: string): 'image' | 'video' {
+  if (['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'].includes(mimeType)) return 'image';
+  if (['video/mp4', 'video/quicktime', 'video/webm'].includes(mimeType)) return 'video';
+  throw new Error('Choose a JPEG, PNG, WebP, HEIC, HEIF, MP4, MOV, or WebM file');
 }
 
 function toProviderResult(result: Record<string, unknown>) {
@@ -77,6 +84,7 @@ export async function uploadMedia(
   } = {},
 ): Promise<UploadedMedia> {
   const idempotencyKey = crypto.randomUUID().replace(/-/g, '');
+  const resourceType = resourceTypeForMimeType(file.type);
   options.onPhase?.('authorizing');
   const authorizationResponse = await fetch('/api/admin/media/upload-authorizations', {
     method: 'POST',
@@ -87,7 +95,7 @@ export async function uploadMedia(
       bytes: file.size,
       idempotencyKey,
       intendedJourneyId: options.intendedJourneyId,
-      resourceType: 'image',
+      resourceType,
     }),
   });
   const authorizationPayload = await authorizationResponse.json();
