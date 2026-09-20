@@ -11,6 +11,10 @@
 .tile :global(img) { display: block; width: 100%; height: auto; transition: transform 180ms ease, filter 180ms ease; }
 .tile:hover :global(img) { filter: brightness(.94); transform: scale(1.015); }
 .tile:focus-visible, .closeButton:focus-visible, .directionButton:focus-visible { outline: 2px solid #161510; outline-offset: 4px; }
+.loader { display: grid; gap: 10px; margin-top: 32px; place-items: center; color: #615f58; font: 13px/1.4 Arial, sans-serif; }
+.loader p { margin: 0; }
+.loader button { min-height: 36px; padding: 8px 13px; border: 1px solid #8d887d; border-radius: 2px; background: transparent; color: #25231e; cursor: pointer; font: 12px/1 Arial, sans-serif; }
+.loader button:disabled { opacity: .55; cursor: wait; }
 .lightbox { position: fixed; z-index: 20; inset: 0; display: grid; place-items: center; padding: 76px 88px; background: rgba(19, 18, 14, .95); }
 .lightboxContent { max-width: min(86vw, 1250px); max-height: calc(100vh - 142px); }
 .lightboxImage { position: relative; width: min(82vw, 1180px); height: min(72vh, 780px); }

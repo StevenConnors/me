@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 
 import styles from './photos-gallery.module.css';
@@ -8,14 +8,54 @@ import { PhotosPageView, type PublicPhoto } from './PhotosPageView';
 
 export type { PublicPhoto } from './PhotosPageView';
 
-export function PhotosGallery({ photos }: { photos: PublicPhoto[] }) {
+export function PhotosGallery({
+  initialItems,
+  initialCursor,
+}: {
+  initialItems: PublicPhoto[];
+  initialCursor: string | null;
+}) {
+  const [photos, setPhotos] = useState(initialItems);
+  const [nextCursor, setNextCursor] = useState(initialCursor);
+  const [loadState, setLoadState] = useState<'idle' | 'loading' | 'error'>('idle');
+  const [loadedMessage, setLoadedMessage] = useState('');
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const loadingRef = useRef(false);
   const activePhoto = activeIndex === null ? null : photos[activeIndex];
   const close = useCallback(() => setActiveIndex(null), []);
   const previous = useCallback(() => setActiveIndex((current) => current === null ? 0 : (current - 1 + photos.length) % photos.length), [photos.length]);
   const next = useCallback(() => setActiveIndex((current) => current === null ? 0 : (current + 1) % photos.length), [photos.length]);
+
+  const loadMore = useCallback(async () => {
+    if (!nextCursor || loadingRef.current) return;
+    loadingRef.current = true;
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setLoadState('loading');
+    try {
+      const parameters = new URLSearchParams({ limit: '24', cursor: nextCursor });
+      const response = await fetch(`/api/photos?${parameters.toString()}`, { signal: controller.signal });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload?.error?.message ?? 'Unable to load more photos');
+      const items = payload.items as PublicPhoto[];
+      setPhotos((current) => [...current, ...items.filter((item) => !current.some((known) => known.id === item.id))]);
+      setNextCursor((payload.nextCursor as string | null) ?? null);
+      setLoadedMessage(items.length ? `${items.length} more photo${items.length === 1 ? '' : 's'} loaded.` : 'No additional photos were loaded.');
+      setLoadState('idle');
+    } catch (error) {
+      if ((error as DOMException).name !== 'AbortError') {
+        console.error(error);
+        setLoadState('error');
+      }
+    } finally {
+      loadingRef.current = false;
+    }
+  }, [nextCursor]);
 
   useEffect(() => {
     if (activeIndex === null) return;
@@ -33,6 +73,21 @@ export function PhotosGallery({ photos }: { photos: PublicPhoto[] }) {
       window.removeEventListener('keydown', onKeyDown);
     };
   }, [activeIndex, close, next, previous]);
+
+  useEffect(() => () => abortRef.current?.abort(), []);
+
+  useEffect(() => {
+    if (!nextCursor || !sentinelRef.current || typeof IntersectionObserver === 'undefined') return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) void loadMore();
+    }, { rootMargin: '800px 0px' });
+    observer.observe(sentinelRef.current);
+    return () => observer.disconnect();
+  }, [loadMore, nextCursor]);
+
+  useEffect(() => {
+    if (activeIndex !== null && nextCursor && activeIndex >= photos.length - 4) void loadMore();
+  }, [activeIndex, loadMore, nextCursor, photos.length]);
 
   function onTouchStart(event: React.TouchEvent<HTMLDivElement>) {
     const touch = event.changedTouches[0];
@@ -54,6 +109,11 @@ export function PhotosGallery({ photos }: { photos: PublicPhoto[] }) {
   return (
     <>
       <PhotosPageView onOpen={setActiveIndex} photos={photos} />
+      {nextCursor ? <div className={styles.loader} ref={sentinelRef}>
+        {loadState === 'error' ? <p>More photos could not be loaded.</p> : null}
+        <button disabled={loadState === 'loading'} onClick={() => void loadMore()} type="button">{loadState === 'loading' ? 'Loading…' : loadState === 'error' ? 'Try again' : 'Load more'}</button>
+      </div> : null}
+      <p aria-live="polite" className="sr-only">{loadedMessage}</p>
       {activePhoto ? (
         <div aria-label={`Photos, ${activeIndex! + 1} of ${photos.length}`} aria-modal="true" className={styles.lightbox} onClick={(event) => { if (event.target === event.currentTarget) close(); }} role="dialog">
           <button aria-label="Close gallery" className={styles.closeButton} onClick={close} ref={closeButtonRef} type="button">×</button>

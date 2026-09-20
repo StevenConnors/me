@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import type { ReactNode } from 'react';
+import React, { type ReactNode } from 'react';
 
 import styles from './photos-gallery.module.css';
 
