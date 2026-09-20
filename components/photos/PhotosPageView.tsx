@@ -4,6 +4,7 @@ import Image from 'next/image';
 import React, { type ReactNode } from 'react';
 
 import styles from './photos-gallery.module.css';
+import { MasonryGrid } from './MasonryGrid';
 
 export type PublicPhotoSectionBreak = { title?: string; text?: string };
 
@@ -87,9 +88,13 @@ export function PhotosPageView({
             {section.sectionBreak?.title ? <h2>{section.sectionBreak.title}</h2> : null}
             {section.sectionBreak?.text ? <p className={styles.sectionNote}>{section.sectionBreak.text}</p> : null}
           </>}
-          <div className={styles.grid}>
-            {section.photos.map((photo) => renderTile ? renderTile(photo) : <GalleryImageTile key={photo.id} onOpen={onOpen} photo={photo} />)}
-          </div>
+          <MasonryGrid
+            items={section.photos.map((photo) => ({ id: photo.id, width: photo.width, height: photo.height }))}
+            renderItem={(item) => {
+              const photo = section.photos.find((candidate) => candidate.id === item.id)!;
+              return renderTile ? renderTile(photo) : <GalleryImageTile onOpen={onOpen} photo={photo} />;
+            }}
+          />
         </section>
       ))}
     </section>
