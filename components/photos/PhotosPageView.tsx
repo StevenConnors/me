@@ -10,7 +10,13 @@ export type PublicPhotoSectionBreak = { title?: string; text?: string };
 
 export type PublicPhoto = {
   id: string;
+  kind?: 'image' | 'video';
+  thumbnailUrl?: string;
+  displayUrl?: string;
+  posterUrl?: string;
   source: string;
+  displaySource?: string;
+  playbackUrl?: string;
   alt: string;
   width: number;
   height: number;
@@ -19,7 +25,6 @@ export type PublicPhoto = {
   sectionBreak?: PublicPhotoSectionBreak;
   /** Editing identity only; omitted from ordinary public presentation. */
   sectionBlockId?: string;
-  kind?: 'image' | 'video';
 };
 
 export type PhotoSection = {
@@ -53,8 +58,9 @@ export function GalleryImageTile({
   onOpen: (index: number) => void;
 }) {
   return (
-    <button aria-label={`Open photo ${photo.index + 1}`} className={styles.tile} onClick={() => onOpen(photo.index)} type="button">
-      <Image alt={photo.alt} height={photo.height} sizes="(max-width: 700px) 50vw, (max-width: 1100px) 33vw, 25vw" src={photo.source} width={photo.width} />
+    <button aria-label={`Open ${photo.kind === 'video' ? 'video' : 'photo'} ${photo.index + 1}`} className={styles.tile} onClick={() => onOpen(photo.index)} type="button">
+      <Image alt={photo.alt} height={photo.height} sizes="(max-width: 700px) 50vw, (max-width: 1100px) 33vw, 25vw" src={photo.kind === 'video' ? photo.posterUrl ?? photo.source : photo.thumbnailUrl ?? photo.source} width={photo.width} />
+      {photo.kind === 'video' ? <span aria-hidden="true" className={styles.videoPlay}>▶</span> : null}
     </button>
   );
 }

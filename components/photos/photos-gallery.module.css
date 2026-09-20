@@ -11,7 +11,8 @@
 .masonryItem > * { width: 100%; height: 100%; }
 .masonryItem .tile, .masonryItem :global(button) { height: 100%; }
 .masonryItem .tile :global(img), .masonryItem :global(button > img) { width: 100%; height: 100%; object-fit: contain; }
-.tile { display: block; min-width: 0; align-self: start; overflow: hidden; padding: 0; border: 0; background: #dad8d0; cursor: pointer; }
+.tile { position: relative; display: block; min-width: 0; align-self: start; overflow: hidden; padding: 0; border: 0; background: #dad8d0; cursor: pointer; }
+.videoPlay { position: absolute; right: 10px; bottom: 10px; display: grid; width: 31px; height: 31px; place-items: center; border: 1px solid rgba(255,255,255,.8); border-radius: 50%; background: rgba(23,22,18,.7); color: #fff; font-size: 12px; }
 .tile :global(img) { display: block; width: 100%; height: auto; transition: transform 180ms ease, filter 180ms ease; }
 .tile:hover :global(img) { filter: brightness(.94); transform: scale(1.015); }
 .tile:focus-visible, .closeButton:focus-visible, .directionButton:focus-visible { outline: 2px solid #161510; outline-offset: 4px; }
@@ -23,6 +24,7 @@
 .lightboxContent { max-width: min(86vw, 1250px); max-height: calc(100vh - 142px); }
 .lightboxImage { position: relative; width: min(82vw, 1180px); height: min(72vh, 780px); }
 .lightboxImage :global(img) { object-fit: contain; }
+.lightboxVideo { display: block; width: min(82vw, 1180px); height: min(72vh, 780px); background: #000; object-fit: contain; }
 .lightboxCaption, .position { margin: 12px 0 0; color: #fff; font: 12px/1.4 Arial, Helvetica, sans-serif; letter-spacing: .06em; text-align: center; text-transform: uppercase; }
 .closeButton, .directionButton { position: absolute; display: grid; width: 42px; height: 42px; padding: 0; place-items: center; border: 1px solid rgba(255,255,255,.65); border-radius: 50%; background: transparent; color: #fff; cursor: pointer; font-size: 22px; }
 .closeButton { top: 22px; right: 24px; }
@@ -31,5 +33,5 @@
 .nextButton { right: 24px; }
 .position { position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%); }
 @container (max-width: 700px) { .gallery { padding: 0 16px 48px; } .intro { margin-bottom: 48px; } .section { margin-top: 52px; } }
-@media (max-width: 700px) { .lightbox { padding: 78px 16px 72px; } .lightboxImage { width: calc(100vw - 32px); height: min(70vh, 600px); } .directionButton { display: none; } .closeButton { top: 18px; right: 18px; } }
+@media (max-width: 700px) { .lightbox { padding: 78px 16px 72px; } .lightboxImage, .lightboxVideo { width: calc(100vw - 32px); height: min(70vh, 600px); } .directionButton { display: none; } .closeButton { top: 18px; right: 18px; } }
 @media (prefers-reduced-motion: reduce) { .tile :global(img) { transition: none; } }

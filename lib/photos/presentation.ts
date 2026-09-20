@@ -6,7 +6,7 @@ import type { PhotosPageDocument } from '@/lib/photos/schemas';
 
 export type PublicPhotoSectionBreak = { title?: string; text?: string };
 
-export type PublicPhoto = {
+type PublicPhotoBase = {
   id: string;
   source: string;
   alt: string;
@@ -17,6 +17,22 @@ export type PublicPhoto = {
   sectionBreak?: PublicPhotoSectionBreak;
   sectionBlockId?: string;
 };
+
+/** Public JSON is deliberately discriminated so clients never assign a video
+ * playback URL to a grid element. The aliases keep the shared authoring
+ * canvas compatible while it uses the same presentation data. */
+export type PublicPhoto =
+  | (PublicPhotoBase & {
+    kind: 'image';
+    thumbnailUrl: string;
+    displayUrl: string;
+    displaySource: string;
+  })
+  | (PublicPhotoBase & {
+    kind: 'video';
+    posterUrl: string;
+    playbackUrl: string;
+  });
 
 export type UnavailablePhotosBlock = {
   blockId: string;
@@ -32,18 +48,54 @@ function publicPhotoFromAsset(
     displayDate?: string;
     sectionBreak?: PublicPhotoSectionBreak;
     sectionBlockId?: string;
-    provider: Pick<MediaProvider, 'buildImageUrl'>;
+    provider: Pick<MediaProvider, 'buildImageUrl' | 'buildVideoPosterUrl' | 'buildVideoUrl'>;
   },
 ): PublicPhoto {
+  const mediaUrls = asset.resourceType === 'video'
+    ? (() => {
+      const posterUrl = options.provider.buildVideoPosterUrl({
+        providerPublicId: asset.providerPublicId,
+        version: asset.version,
+        width: 768,
+      });
+      return {
+        kind: 'video' as const,
+        source: posterUrl,
+        posterUrl,
+        playbackUrl: options.provider.buildVideoUrl({
+          providerPublicId: asset.providerPublicId,
+          version: asset.version,
+          width: 1920,
+          format: 'mp4',
+        }),
+      };
+    })()
+    : (() => {
+      const thumbnailUrl = options.provider.buildImageUrl({
+        providerPublicId: asset.providerPublicId,
+        version: asset.version,
+        width: 768,
+        sourceWidth: asset.width,
+        sourceHeight: asset.height,
+      });
+      const displayUrl = options.provider.buildImageUrl({
+        providerPublicId: asset.providerPublicId,
+        version: asset.version,
+        width: 1920,
+        sourceWidth: asset.width,
+        sourceHeight: asset.height,
+      });
+      return {
+        kind: 'image' as const,
+        source: thumbnailUrl,
+        thumbnailUrl,
+        displaySource: displayUrl,
+        displayUrl,
+      };
+    })();
   return {
     id: asset._id,
-    source: options.provider.buildImageUrl({
-      providerPublicId: asset.providerPublicId,
-      version: asset.version,
-      width: 1440,
-      sourceWidth: asset.width,
-      sourceHeight: asset.height,
-    }),
+    ...mediaUrls,
     alt: options.altText ?? options.caption ?? asset.altText ?? asset.caption ?? asset.originalFilename,
     width: asset.width,
     height: asset.height,
@@ -61,7 +113,7 @@ function publicPhotoFromAsset(
 export function resolvePublishedPhotos(
   document: PhotosPageDocument,
   mediaAssets: MediaAsset[],
-  provider: Pick<MediaProvider, 'buildImageUrl'>,
+  provider: Pick<MediaProvider, 'buildImageUrl' | 'buildVideoPosterUrl' | 'buildVideoUrl'>,
 ): { photos: PublicPhoto[]; unavailable: UnavailablePhotosBlock[] } {
   const assetsById = new Map(mediaAssets.map((asset) => [asset._id, asset]));
   const photos: PublicPhoto[] = [];
@@ -84,8 +136,8 @@ export function resolvePublishedPhotos(
       unavailable.push({ blockId: block.id, mediaAssetId: block.mediaAssetId, reason: 'missing' });
       continue;
     }
-    if (asset.status !== 'ready' || asset.resourceType !== 'image') {
-      unavailable.push({ blockId: block.id, mediaAssetId: block.mediaAssetId, reason: 'not-ready-image' });
+    if (asset.status !== 'ready') {
+      unavailable.push({ blockId: block.id, mediaAssetId: block.mediaAssetId, reason: 'not-ready' });
       continue;
     }
 
@@ -110,7 +162,7 @@ export function resolvePublishedPhotos(
 
 export function resolveLegacyPhotos(
   mediaAssets: MediaAsset[],
-  provider: Pick<MediaProvider, 'buildImageUrl'>,
+  provider: Pick<MediaProvider, 'buildImageUrl' | 'buildVideoPosterUrl' | 'buildVideoUrl'>,
 ): PublicPhoto[] {
   return mediaAssets.map((asset) => publicPhotoFromAsset(asset, {
     provider,

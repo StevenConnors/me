@@ -14,7 +14,11 @@ function media(id: string): MediaAsset {
   };
 }
 
-const provider = { buildImageUrl: ({ providerPublicId }: { providerPublicId: string }) => `https://images.test/${providerPublicId}` };
+const provider = {
+  buildImageUrl: ({ providerPublicId }: { providerPublicId: string }) => `https://images.test/${providerPublicId}`,
+  buildVideoPosterUrl: ({ providerPublicId }: { providerPublicId: string }) => `https://images.test/${providerPublicId}.jpg`,
+  buildVideoUrl: ({ providerPublicId }: { providerPublicId: string }) => `https://videos.test/${providerPublicId}.mp4`,
+};
 
 describe('loadPublicPhotosPage', () => {
   it('pages in published block order and retains a section that starts on a later page', async () => {

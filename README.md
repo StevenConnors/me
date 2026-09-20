@@ -24,6 +24,14 @@ byte-for-byte duplicates. It never deletes an image already registered in
 before applying it. `media:import-photos` creates missing media records and
 sets `showInPhotos: true`, which makes the images eligible for `/photos`.
 
+## Photos editor uploads
+
+The private Photos editor accepts JPEG, PNG, WebP, HEIC/HEIF, MP4, MOV, and
+WebM uploads. Video files have a separate 250 MiB default limit; set
+`CLOUDINARY_EDITOR_MAX_VIDEO_BYTES` in `.env.local` to match the Cloudinary
+account and deployment request limits. Videos render as generated poster images
+in the gallery and load playback only after a reader opens one.
+
 ## Getting Started
 
 First, run the development server:

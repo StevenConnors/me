@@ -30,6 +30,8 @@ function media(id: string, overrides: Partial<MediaAsset> = {}): MediaAsset {
 
 const provider = {
   buildImageUrl: ({ providerPublicId }: { providerPublicId: string }) => `https://images.test/${providerPublicId}`,
+  buildVideoPosterUrl: ({ providerPublicId }: { providerPublicId: string }) => `https://images.test/${providerPublicId}.jpg`,
+  buildVideoUrl: ({ providerPublicId }: { providerPublicId: string }) => `https://videos.test/${providerPublicId}.mp4`,
 };
 
 describe('Photos public presentation', () => {
@@ -64,6 +66,28 @@ describe('Photos public presentation', () => {
     expect(result.unavailable).toEqual([{ blockId: 'missing', mediaAssetId: 'gone', reason: 'missing' }]);
     expect(result.photos[0].sectionBreak).toEqual({});
     expect(result.photos[0].source).toContain('present');
+  });
+
+  it('maps a ready video to a generated poster without turning its playback URL into a grid source', () => {
+    const document = {
+      schemaVersion: 1 as const,
+      blocks: [
+        { id: 'video-block', type: 'media' as const, mediaAssetId: 'clip', altText: 'Waves moving across the shore', decorative: false },
+      ],
+    };
+
+    const result = resolvePublishedPhotos(document, [media('clip', {
+      resourceType: 'video', originalFilename: 'clip.mp4', format: 'mp4', width: 1920, height: 1080,
+    })], provider);
+
+    expect(result.photos).toEqual([expect.objectContaining({
+      id: 'clip',
+      kind: 'video',
+      posterUrl: 'https://images.test/photos/clip.jpg',
+      source: 'https://images.test/photos/clip.jpg',
+      playbackUrl: 'https://videos.test/photos/clip.mp4',
+    })]);
+    expect(result.unavailable).toEqual([]);
   });
 
   it('keeps the legacy attached-break reader as the rollout fallback', () => {

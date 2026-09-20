@@ -19,7 +19,7 @@ export type PublicPhotosPage = {
 export async function loadPublicPhotosPage(
   page: PhotosPage | null,
   mediaRepository: Pick<MediaRepository, 'findByIds' | 'listPhotos'>,
-  provider: Pick<MediaProvider, 'buildImageUrl'>,
+  provider: Pick<MediaProvider, 'buildImageUrl' | 'buildVideoPosterUrl' | 'buildVideoUrl'>,
   options: { limit?: number; cursor?: string } = {},
 ): Promise<PublicPhotosPage> {
   const limit = Math.min(Math.max(options.limit ?? 24, 1), 48);

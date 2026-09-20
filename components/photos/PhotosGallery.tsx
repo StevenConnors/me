@@ -21,12 +21,21 @@ export function PhotosGallery({
   const [loadedMessage, setLoadedMessage] = useState('');
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const lightboxRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLElement | null>(null);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const loadingRef = useRef(false);
   const activePhoto = activeIndex === null ? null : photos[activeIndex];
-  const close = useCallback(() => setActiveIndex(null), []);
+  const open = useCallback((index: number) => {
+    triggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setActiveIndex(index);
+  }, []);
+  const close = useCallback(() => {
+    setActiveIndex(null);
+    requestAnimationFrame(() => triggerRef.current?.focus());
+  }, []);
   const previous = useCallback(() => setActiveIndex((current) => current === null ? 0 : (current - 1 + photos.length) % photos.length), [photos.length]);
   const next = useCallback(() => setActiveIndex((current) => current === null ? 0 : (current + 1) % photos.length), [photos.length]);
 
@@ -66,6 +75,20 @@ export function PhotosGallery({
       if (event.key === 'Escape') close();
       if (event.key === 'ArrowLeft') previous();
       if (event.key === 'ArrowRight') next();
+      if (event.key === 'Tab') {
+        const focusable = Array.from(lightboxRef.current?.querySelectorAll<HTMLElement>('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"]), video[controls]') ?? [])
+          .filter((element) => !element.hasAttribute('hidden'));
+        if (!focusable.length) return;
+        const first = focusable[0];
+        const last = focusable.at(-1)!;
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => {
@@ -108,18 +131,18 @@ export function PhotosGallery({
 
   return (
     <>
-      <PhotosPageView onOpen={setActiveIndex} photos={photos} />
+      <PhotosPageView onOpen={open} photos={photos} />
       {nextCursor ? <div className={styles.loader} ref={sentinelRef}>
         {loadState === 'error' ? <p>More photos could not be loaded.</p> : null}
         <button disabled={loadState === 'loading'} onClick={() => void loadMore()} type="button">{loadState === 'loading' ? 'Loading…' : loadState === 'error' ? 'Try again' : 'Load more'}</button>
       </div> : null}
       <p aria-live="polite" className="sr-only">{loadedMessage}</p>
       {activePhoto ? (
-        <div aria-label={`Photos, ${activeIndex! + 1} of ${photos.length}`} aria-modal="true" className={styles.lightbox} onClick={(event) => { if (event.target === event.currentTarget) close(); }} role="dialog">
+        <div aria-label={`Photos, ${activeIndex! + 1} of ${photos.length}`} aria-modal="true" className={styles.lightbox} onClick={(event) => { if (event.target === event.currentTarget) close(); }} ref={lightboxRef} role="dialog">
           <button aria-label="Close gallery" className={styles.closeButton} onClick={close} ref={closeButtonRef} type="button">×</button>
           <button aria-label="Previous photo" className={`${styles.directionButton} ${styles.previousButton}`} onClick={previous} type="button">←</button>
           <div className={styles.lightboxContent} onTouchEnd={onTouchEnd} onTouchStart={onTouchStart}>
-            <div className={styles.lightboxImage}><Image alt={activePhoto.alt} fill priority sizes="(max-width: 900px) 100vw, 85vw" src={activePhoto.source} /></div>
+            <div className={styles.lightboxImage}>{activePhoto.kind === 'video' && activePhoto.playbackUrl ? <video className={styles.lightboxVideo} controls playsInline poster={activePhoto.posterUrl ?? activePhoto.source} preload="none" src={activePhoto.playbackUrl} /> : <Image alt={activePhoto.alt} fill priority sizes="(max-width: 900px) 100vw, 85vw" src={activePhoto.displayUrl ?? activePhoto.displaySource ?? activePhoto.source} />}</div>
             {activePhoto.caption || activePhoto.captureDate ? <p className={styles.lightboxCaption}>{activePhoto.caption}{activePhoto.caption && activePhoto.captureDate ? ' · ' : ''}{activePhoto.captureDate}</p> : null}
           </div>
           <button aria-label="Next photo" className={`${styles.directionButton} ${styles.nextButton}`} onClick={next} type="button">→</button>
