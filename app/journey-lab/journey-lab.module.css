@@ -1,0 +1,73 @@
+.page{width:calc(100% + 20px);min-height:100vh;margin:-10px;overflow:hidden;color:#171815;background:#f3f1eb}.page *{box-sizing:border-box}.page a{color:inherit;text-decoration:none}.page img{display:block;width:100%;object-fit:cover}.header{height:58px;padding:0 20px;display:flex;align-items:center;justify-content:space-between;font:14px/1 Arial,sans-serif}.header span{font-family:'Hiragino Mincho ProN',YuMincho,serif}.header>a:last-child{text-decoration:underline;text-underline-offset:4px}
+
+/* 01 / switchback */
+.longReturn{font-family:Arial,sans-serif;background:#f4f2ec}.returnLead{padding:0 28px 70px 0}.returnLead>img{height:392px;object-position:67% center}.returnCopy{padding:21px 20px 0}.returnCopy p,.carrierLead>p{margin:0 0 13px;color:#555b54;font-size:12px}.returnCopy h1{margin:0;font:400 48px/.92 'Iowan Old Style',Baskerville,Georgia,serif;letter-spacing:-.045em}.returnCopy>span{display:block;max-width:310px;margin:19px 0 20px;font:18px/1.38 'Iowan Old Style',Georgia,serif}.returnCopy>a,.heldLead>a,.carrierLead>a{font-size:14px;text-decoration:underline;text-underline-offset:5px}.nameNote{margin:0 20px;padding:50px 0;border-top:1px solid #d2d0c9}.nameNote b{font:34px/1 'Hiragino Mincho ProN',serif}.nameNote span{display:block;margin-top:8px;font:18px/1.3 Georgia,serif}.nameNote p{max-width:290px;margin:28px 0 0;color:#555b54;line-height:1.5}.returnArchive{padding:32px 20px 80px;background:#e8ebe4}.returnArchive h2{margin:0 0 27px;font:400 32px/1 Georgia,serif}.returnArchive a{display:grid;grid-template-columns:36px 1fr 20px;align-items:center;min-height:74px;border-top:1px solid #aeb5aa}.returnArchive span{font-size:11px}.returnArchive strong{font:400 21px/1.1 Georgia,serif}.returnArchive i{font-style:normal}
+
+/* 02 / saffron */
+.colorProof{background:#f4f1e9;font-family:Arial,sans-serif}.proofPhoto img{height:430px;object-position:center}.proofPanel{min-height:365px;padding:27px 21px 40px;background:#d39a2c;color:#171510}.proofPanel p{margin:0 0 17px;font-size:13px}.proofPanel h1{margin:0;font:400 51px/.92 Georgia,serif;letter-spacing:-.045em}.proofPanel>span{display:block;margin:22px 0 25px;max-width:335px;font:18px/1.43 Georgia,serif}.proofPanel>a{text-decoration:underline;text-underline-offset:5px}.proofIdentity{padding:95px 20px}.proofIdentity b{font:52px/1 'Hiragino Mincho ProN',serif}.proofIdentity h2{margin:12px 0 33px;font:400 28px/1.1 Georgia,serif}.proofIdentity p{max-width:330px;font:19px/1.5 Georgia,serif}.proofList{padding:40px 20px 80px;border-top:1px solid #cfcabf}.proofList h2{font:400 34px Georgia,serif}.proofList a{display:flex;justify-content:space-between;align-items:center;padding:23px 0;border-top:1px solid #cfcabf}.proofList strong{font:400 21px Georgia,serif}.proofList span{font-size:12px}
+
+/* 03 / ledger */
+.witness{background:#f1efe7;font-family:Arial,sans-serif}.witnessPhoto img{height:385px}.witnessLead{min-height:390px;padding:27px 20px 43px;background:#203b38;color:#fafaf7}.witnessLead p{margin:0 0 17px;font-size:13px}.witnessLead h1{margin:0;font:400 49px/.94 Georgia,serif;letter-spacing:-.04em}.witnessLead>span{display:block;margin:22px 0 30px;max-width:325px;font:18px/1.45 Georgia,serif}.witnessLead>a{text-decoration:underline;text-underline-offset:5px}.witnessList{padding:48px 0 90px 20px}.witnessList h2{margin:0 20px 25px 0;font:400 35px/1 Georgia,serif}.witnessList a{min-height:92px;display:grid;grid-template-columns:1fr 22px;gap:18px;align-items:stretch;border-top:1px solid #d1cfc6}.witnessList div{padding:17px 0}.witnessList small{display:block;margin-bottom:7px;color:#6b6c67;font-size:11px}.witnessList strong{font:400 23px/1.1 Georgia,serif}.witnessList i{display:block;background-size:cover;background-position:center}
+
+/* 04 / tidepool */
+.held{background:#f3f1eb;font-family:Arial,sans-serif}.heldLead{padding:39px 0 58px 16px}.heldLead>p{margin:0 0 11px;color:#706c64;font-size:13px}.heldLead h1{margin:0 16px 22px 0;font:400 46px/.95 Georgia,serif;letter-spacing:-.04em}.heldLead img{height:374px;object-position:68% center}.heldLead>span{display:block;margin:18px 20px 20px 0;max-width:320px;font:18px/1.4 Georgia,serif}.heldArchive{padding:35px 20px 90px;background:#fff}.heldArchive header{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:20px}.heldArchive h2{margin:0;font:400 34px Georgia,serif}.heldArchive header span{color:#706c64;font-size:12px}.heldArchive>a{position:relative;display:grid;grid-template-columns:4px 1fr;column-gap:15px;padding:21px 0;border-top:1px solid #d8d3c8}.heldArchive>a i{grid-row:1/3;width:2px;height:100%}.heldArchive>a strong{font:400 22px Georgia,serif}.heldArchive>a span{margin-top:5px;color:#706c64;font-size:12px}
+
+/* 05 / signal */
+.carrier{background:#f3f1ea;font-family:Arial,sans-serif}.carrierHeader{height:69px;padding:0 19px;display:flex;align-items:center;justify-content:space-between}.carrierHeader>a:first-child{display:flex;flex-direction:column}.carrierHeader b{font-size:15px}.carrierHeader span{margin-top:4px;font:11px Georgia,serif}.carrierHeader>a:last-child{color:#1647ff;font-size:11px}.carrierLead{padding-bottom:58px}.carrierLead>p{padding:9px 20px 0;color:#1647ff;text-transform:uppercase;letter-spacing:.08em}.carrierLead>img{height:305px;object-position:68% center}.carrierLead h1{margin:20px 20px 11px;font:400 49px/.92 Arial,sans-serif;letter-spacing:-.055em}.carrierLead>.trace{margin:0 20px}.trace{display:flex;align-items:center;gap:4px;height:15px}.trace i{display:block;width:9px;height:9px;background:#1c1d1a}.trace i:last-child{background:#1647ff}.trace .traceLong{width:28px;height:3px}.carrierLead>span:not(.trace){display:block;margin:17px 20px 23px;max-width:340px;font:18px/1.45 Georgia,serif}.carrierLead>a{margin-left:20px}.carrierArchive{padding:34px 20px 90px;background:#e9e9e3}.carrierArchive h2{margin:0 0 23px;font-size:32px;letter-spacing:-.04em}.carrierArchive>a{display:grid;grid-template-columns:1fr auto;align-items:center;padding:21px 0;border-top:1px solid #bfc0ba}.carrierArchive strong{display:block;font-size:21px}.carrierArchive div span{display:block;margin-top:5px;color:#6e706a;font-size:12px}.carrierArchive .trace{transform:scale(.78);transform-origin:right center}
+
+@media(min-width:720px){.page{width:100%;max-width:780px;margin:0 auto}.colorProof,.witness,.carrier{max-width:100%}}
+
+@media(min-width:1000px){
+  .page{width:100%;max-width:none;margin:0;min-height:100vh}
+  .header{height:72px;padding:0 42px;font-size:15px}
+
+  /* The Long Return: image and story trade sides as the archive unfolds. */
+  .longReturn{padding-bottom:0}
+  .returnLead{display:grid;grid-template-columns:minmax(560px,1.35fr) minmax(390px,.65fr);min-height:calc(100vh - 72px);padding:0}
+  .returnLead>img{height:calc(100vh - 72px);min-height:680px}
+  .returnCopy{display:flex;flex-direction:column;justify-content:center;padding:80px 7vw}
+  .returnCopy p{margin-bottom:24px}
+  .returnCopy h1{font-size:clamp(58px,5vw,82px)}
+  .returnCopy>span{max-width:420px;margin:32px 0;font-size:21px}
+  .nameNote{display:grid;grid-template-columns:160px 1fr 1.5fr;align-items:start;gap:34px;margin:0;padding:75px 7vw}
+  .nameNote p{margin:3px 0 0;max-width:430px}
+  .returnArchive{padding:70px 7vw 110px}.returnArchive h2{font-size:46px}.returnArchive a{min-height:90px}.returnArchive strong{font-size:28px}
+
+  /* Color Proof: the photograph and its sampled pigment become a diptych. */
+  .colorProof{display:grid;grid-template-columns:minmax(600px,1.35fr) minmax(420px,.65fr)}
+  .colorProof>.header{grid-column:1/-1}
+  .proofPhoto img{height:calc(100vh - 72px);min-height:680px}
+  .proofPanel{min-height:calc(100vh - 72px);display:flex;flex-direction:column;justify-content:center;padding:80px 6vw}
+  .proofPanel h1{font-size:clamp(62px,5.2vw,88px)}
+  .proofPanel>span{max-width:460px;font-size:22px}
+  .proofIdentity,.proofList{grid-column:1/-1}
+  .proofIdentity{display:grid;grid-template-columns:180px 1fr 1.3fr;gap:40px;align-items:start;padding:110px 8vw}.proofIdentity h2,.proofIdentity p{margin-top:4px}
+  .proofList{padding:70px 8vw 120px}.proofList h2{font-size:46px}.proofList a{padding:30px 0}.proofList strong{font-size:28px}
+
+  /* Witness Index: immersive evidence beside the archival record. */
+  .witness{display:grid;grid-template-columns:minmax(600px,1.25fr) minmax(430px,.75fr)}
+  .witness>.header{grid-column:1/-1}
+  .witnessPhoto img{height:calc(100vh - 72px);min-height:680px}
+  .witnessLead{min-height:calc(100vh - 72px);display:flex;flex-direction:column;justify-content:center;padding:80px 6vw}
+  .witnessLead h1{font-size:clamp(62px,5vw,86px)}
+  .witnessLead>span{max-width:460px;font-size:22px}
+  .witnessList{grid-column:1/-1;padding:85px 8vw 130px}.witnessList h2{font-size:47px}.witnessList a{grid-template-columns:1fr 34px;min-height:112px}.witnessList strong{font-size:28px}
+
+  /* Held Places: quiet reading column with the photograph held to its right. */
+  .heldLead{display:grid;grid-template-columns:minmax(360px,.72fr) minmax(590px,1.28fr);grid-template-rows:auto auto 1fr auto;column-gap:7vw;min-height:calc(100vh - 72px);padding:78px 0 78px 6vw}
+  .heldLead>p,.heldLead h1,.heldLead>span,.heldLead>a{grid-column:1}
+  .heldLead>p{grid-row:1}.heldLead h1{grid-row:2;margin-top:18px;font-size:clamp(62px,5.5vw,92px)}
+  .heldLead img{grid-column:2;grid-row:1/5;height:calc(100vh - 150px);min-height:570px;align-self:center}
+  .heldLead>span{grid-row:3;align-self:end;max-width:430px;margin-bottom:28px;font-size:22px}
+  .heldLead>a{grid-row:4;align-self:start}
+  .heldArchive{padding:80px 8vw 130px}.heldArchive h2{font-size:48px}.heldArchive>a{padding:28px 0}.heldArchive>a strong{font-size:28px}
+
+  /* Carrier: the content trace reads as a compact data signature beside the photograph. */
+  .carrierHeader{height:78px;padding:0 42px}
+  .carrierLead{display:grid;grid-template-columns:minmax(420px,.74fr) minmax(650px,1.26fr);grid-template-rows:auto auto auto 1fr auto;column-gap:6vw;min-height:calc(100vh - 78px);padding:70px 0 70px 5vw}
+  .carrierLead>p,.carrierLead h1,.carrierLead>.trace,.carrierLead>span:not(.trace),.carrierLead>a{grid-column:1;margin-left:0;margin-right:0}
+  .carrierLead>p{grid-row:1;padding:0}.carrierLead h1{grid-row:2;margin:20px 0 14px;font-size:clamp(64px,5.4vw,90px)}
+  .carrierLead>.trace{grid-row:3}.carrierLead>span:not(.trace){grid-row:4;align-self:end;max-width:470px;margin:35px 0 28px;font-size:22px}.carrierLead>a{grid-row:5}
+  .carrierLead>img{grid-column:2;grid-row:1/6;height:calc(100vh - 148px);min-height:570px}
+  .carrierArchive{padding:75px 8vw 125px}.carrierArchive h2{font-size:48px}.carrierArchive>a{padding:28px 0}.carrierArchive strong{font-size:28px}
+}

@@ -6,29 +6,48 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "e2e:db:up": "docker compose -f e2e/mongodb.compose.yml up -d",
+    "e2e:db:down": "docker compose -f e2e/mongodb.compose.yml down -v",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@mdx-js/loader": "^3.1.1",
     "@mdx-js/react": "^3.1.1",
     "@next/mdx": "^15.5.4",
     "@tailwindcss/postcss": "^4.1.14",
+    "@tiptap/extension-file-handler": "^3.31.3",
+    "@tiptap/pm": "^3.31.3",
+    "@tiptap/react": "^3.31.3",
+    "@tiptap/starter-kit": "^3.31.3",
     "@types/mdx": "^2.0.13",
     "autoprefixer": "^10.4.21",
     "dotenv": "^16.5.0",
     "mongodb": "^4.5.0",
     "next": "^15.3.1",
-    "next-mdx-remote": "^5.0.0",
+    "next-auth": "^4.24.15",
+    "next-mdx-remote": "^6.0.0",
     "postcss": "^8.5.6",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-markdown": "^10.1.0",
     "react-tweet": "^3.2.2",
-    "tailwindcss": "^4.1.14"
+    "tailwindcss": "^4.1.14",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
     "eslint": "8.14.0",
     "eslint-config-next": "12.1.5",
-    "fs": "^0.0.1-security"
+    "fs": "^0.0.1-security",
+    "jsdom": "^27.0.1",
+    "typescript": "5.8.3",
+    "vitest": "^3.2.7"
   }
 }

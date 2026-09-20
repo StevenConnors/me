@@ -1,0 +1,72 @@
+.editor {
+  margin-top: 28px;
+  border: 1px solid #d7d0c4;
+  background: #fffefa;
+}
+
+.toolbar {
+  position: sticky;
+  top: 64px;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px 12px;
+  border-bottom: 1px solid #ded7cb;
+  background: rgba(255, 254, 250, .96);
+  backdrop-filter: blur(12px);
+}
+
+.tool, .toolActive, .mediaPicker, .nodeSelect, .range {
+  border: 1px solid #d5cec2;
+  border-radius: 2px;
+  background: #fffefa;
+  color: #3c3730;
+  font: 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.tool, .toolActive { cursor: pointer; padding: 7px 8px; }
+.tool:hover, .tool:focus-visible, .toolActive { border-color: #9d4d3d; color: #9d4d3d; }
+.toolActive { background: #f4e8df; }
+.mediaPicker { min-width: 170px; padding: 6px; }
+.canvas { min-height: 460px; padding: clamp(24px, 5vw, 70px); }
+.canvas :global(.ProseMirror) { min-height: 370px; outline: none; font: 400 18px/1.7 Georgia, 'Times New Roman', serif; }
+.canvas :global(.ProseMirror > :first-child) { margin-top: 0; }
+.canvas :global(.ProseMirror p.is-editor-empty:first-child::before) { color: #a69d91; content: attr(data-placeholder); float: left; height: 0; pointer-events: none; }
+.canvas :global(.ProseMirror h2) { margin: 2.4em 0 .7em; font-size: 1.9em; line-height: 1.05; letter-spacing: -.035em; }
+.canvas :global(.ProseMirror h3) { margin: 2em 0 .7em; font-size: 1.35em; line-height: 1.15; }
+.canvas :global(.ProseMirror blockquote) { margin: 1.6em 0; padding-left: 1.1em; border-left: 2px solid #b56a58; color: #625b50; font-style: italic; }
+.canvas :global(.ProseMirror hr) { margin: 2.8em auto; width: 44px; border: 0; border-top: 1px solid #a89f91; }
+.canvas :global(.ProseMirror a) { color: #9d4d3d; text-decoration: underline; }
+.canvas :global(.ProseMirror ul), .canvas :global(.ProseMirror ol) { padding-left: 1.5em; }
+
+.node { position: relative; margin: 2.1em 0; border: 1px solid transparent; }
+.nodeSelected { border-color: #b56a58; box-shadow: 0 0 0 3px rgba(181, 106, 88, .12); }
+.photo { overflow: hidden; background: #ede8df; }
+.photo img { display: block; width: 100%; max-height: 600px; object-fit: cover; }
+.missingMedia { display: grid; min-height: 190px; place-items: center; padding: 24px; color: #6c6255; font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; text-align: center; }
+.nodeInspector { display: grid; grid-template-columns: minmax(110px, 1fr) repeat(5, auto); align-items: center; gap: 10px; padding: 10px; border-top: 1px solid #ddd5c9; background: #faf6ef; }
+.nodeLabel { color: #645c52; font: 10px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .08em; text-transform: uppercase; }
+.nodeSelect { padding: 5px; }
+.rangeGroup { display: flex; align-items: center; gap: 5px; color: #645c52; font: 10px/1 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.range { width: 65px; }
+.caption { margin: 0; padding: 8px 11px 12px; color: #625b50; font: italic 14px/1.4 Georgia, 'Times New Roman', serif; }
+.gallery { display: grid; gap: 6px; }
+.gallery[data-template='two-equal'] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.gallery[data-template='three-column'] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.gallery[data-template='one-plus-two'] { grid-template-columns: 2fr 1fr; }
+.gallery figure { min-width: 0; margin: 0; background: #ede8df; }
+.gallery img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; }
+.galleryEmpty { padding: 24px; color: #6c6255; font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.upload { display: flex; align-items: center; justify-content: center; min-height: 150px; padding: 20px; border: 1px dashed #b8aea0; color: #6c6255; background: #faf6ef; font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.upload[data-failed='true'] { border-color: #b56a58; color: #9d4d3d; }
+.status { margin: 0 12px 12px; color: #6c6255; font: 11px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.status[data-error='true'] { color: #9d4d3d; }
+
+@media (max-width: 700px) {
+  .toolbar { top: 0; }
+  .canvas { padding: 24px 18px; }
+  .canvas :global(.ProseMirror) { font-size: 17px; }
+  .nodeInspector { grid-template-columns: 1fr 1fr; }
+  .gallery[data-template='three-column'], .gallery[data-template='one-plus-two'] { grid-template-columns: 1fr; }
+}
