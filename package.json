@@ -47,6 +47,7 @@
     "eslint-config-next": "12.1.5",
     "fs": "^0.0.1-security",
     "jsdom": "^27.0.1",
+    "typescript": "5.8.3",
     "vitest": "^3.2.7"
   }
 }
