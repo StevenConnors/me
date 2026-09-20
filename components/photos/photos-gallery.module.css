@@ -1,4 +1,4 @@
-.gallery { min-height: calc(100vh - 150px); padding: 0 44px 88px; }
+.gallery { container-type: inline-size; min-height: calc(100vh - 150px); padding: 0 44px 88px; }
 .gallery h1, .section h2 { margin: 0; font-family: Georgia, 'Times New Roman', serif; font-weight: 400; letter-spacing: -.045em; }
 .gallery h1 { font-size: clamp(62px, 9vw, 132px); line-height: .85; }
 .intro { max-width: 360px; margin: 22px 0 72px; color: #615f58; font: 20px/1.35 Georgia, 'Times New Roman', serif; }
@@ -22,6 +22,7 @@
 .previousButton { left: 24px; }
 .nextButton { right: 24px; }
 .position { position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%); }
-@media (max-width: 900px) { .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-@media (max-width: 700px) { .gallery { padding: 0 16px 48px; } .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; } .intro { margin-bottom: 48px; } .section { margin-top: 52px; } .lightbox { padding: 78px 16px 72px; } .lightboxImage { width: calc(100vw - 32px); height: min(70vh, 600px); } .directionButton { display: none; } .closeButton { top: 18px; right: 18px; } }
+@container (max-width: 1100px) { .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@container (max-width: 700px) { .gallery { padding: 0 16px 48px; } .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; } .intro { margin-bottom: 48px; } .section { margin-top: 52px; } }
+@media (max-width: 700px) { .lightbox { padding: 78px 16px 72px; } .lightboxImage { width: calc(100vw - 32px); height: min(70vh, 600px); } .directionButton { display: none; } .closeButton { top: 18px; right: 18px; } }
 @media (prefers-reduced-motion: reduce) { .tile :global(img) { transition: none; } }

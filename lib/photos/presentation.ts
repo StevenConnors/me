@@ -15,6 +15,7 @@ export type PublicPhoto = {
   caption?: string;
   captureDate?: string;
   sectionBreak?: PublicPhotoSectionBreak;
+  sectionBlockId?: string;
 };
 
 export type UnavailablePhotosBlock = {
@@ -30,6 +31,7 @@ function publicPhotoFromAsset(
     altText?: string;
     displayDate?: string;
     sectionBreak?: PublicPhotoSectionBreak;
+    sectionBlockId?: string;
     provider: Pick<MediaProvider, 'buildImageUrl'>;
   },
 ): PublicPhoto {
@@ -48,6 +50,7 @@ function publicPhotoFromAsset(
     ...(options.caption ?? asset.caption ? { caption: options.caption ?? asset.caption } : {}),
     ...(options.displayDate ?? asset.captureDate ? { captureDate: options.displayDate ?? asset.captureDate } : {}),
     ...(options.sectionBreak ? { sectionBreak: options.sectionBreak } : {}),
+    ...(options.sectionBlockId ? { sectionBlockId: options.sectionBlockId } : {}),
   };
 }
 
@@ -63,12 +66,13 @@ export function resolvePublishedPhotos(
   const assetsById = new Map(mediaAssets.map((asset) => [asset._id, asset]));
   const photos: PublicPhoto[] = [];
   const unavailable: UnavailablePhotosBlock[] = [];
-  let pendingSection: PublicPhotoSectionBreak | undefined;
+  let pendingSection: (PublicPhotoSectionBreak & { id: string }) | undefined;
 
   for (const block of document.blocks) {
     if (block.type === 'section') {
       // Preserve an intentionally blank section as a real visual break.
       pendingSection = {
+        id: block.id,
         ...(block.title ? { title: block.title } : {}),
         ...(block.text ? { text: block.text } : {}),
       };
@@ -90,7 +94,13 @@ export function resolvePublishedPhotos(
       ...(block.caption ? { caption: block.caption } : {}),
       ...(block.altText ? { altText: block.altText } : {}),
       ...(block.displayDate ? { displayDate: block.displayDate } : {}),
-      ...(pendingSection ? { sectionBreak: pendingSection } : {}),
+      ...(pendingSection ? {
+        sectionBreak: {
+          ...(pendingSection.title ? { title: pendingSection.title } : {}),
+          ...(pendingSection.text ? { text: pendingSection.text } : {}),
+        },
+        sectionBlockId: pendingSection.id,
+      } : {}),
     }));
     pendingSection = undefined;
   }
