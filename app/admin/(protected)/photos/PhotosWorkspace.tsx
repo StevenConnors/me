@@ -18,6 +18,7 @@ import {
 } from '@/lib/photos/editor-commands';
 import type { PhotosMediaBlock, PhotosPageDocument, PhotosSectionBlock } from '@/lib/photos/schemas';
 
+import { MediaPicker, type PickerMedia } from './MediaPicker';
 import styles from './photos-workspace.module.css';
 
 type EditorMedia = {
@@ -43,6 +44,12 @@ type PhotosApiPage = {
   draftDocument: PhotosPageDocument;
   draftVersion: number;
   hasUnpublishedChanges: boolean;
+};
+type DeletionPlanItem = {
+  id: string;
+  filename: string;
+  classification: 'ready_to_delete' | 'publish_removal_first' | 'used_by_journey' | 'not_found';
+  result?: 'deleted' | 'protected' | 'not_found' | 'failed';
 };
 
 function documentEqual(left: PhotosPageDocument, right: PhotosPageDocument) {
@@ -107,7 +114,6 @@ export function PhotosWorkspace({
   media: EditorMedia[];
 }) {
   const router = useRouter();
-  const inputRef = useRef<HTMLInputElement>(null);
   const documentRef = useRef(initialDocument);
   const lastSavedDocumentRef = useRef(initialDocument);
   const versionRef = useRef(initialDraftVersion);
@@ -125,6 +131,9 @@ export function PhotosWorkspace({
   const [hasUnpublishedChanges, setHasUnpublishedChanges] = useState(initialHasUnpublishedChanges);
   const [uploadState, setUploadState] = useState<UploadState>('idle');
   const [uploadMessage, setUploadMessage] = useState('');
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [deletionPlan, setDeletionPlan] = useState<DeletionPlanItem[] | null>(null);
+  const [deletionMessage, setDeletionMessage] = useState('');
 
   const mediaById = useMemo(() => new Map(media.map((asset) => [asset.id, asset])), [media]);
   const photos = useMemo(() => documentPhotos(document, mediaById), [document, mediaById]);
@@ -233,6 +242,7 @@ export function PhotosWorkspace({
     setUploadState('uploading');
     const failures: string[] = [];
     const uploaded: EditorMedia[] = [];
+    let insertionFailed = false;
     for (let index = 0; index < files.length; index += 1) {
       const file = files[index];
       setUploadMessage(`Uploading ${index + 1} of ${files.length}: ${file.name}`);
@@ -256,23 +266,100 @@ export function PhotosWorkspace({
       applyDocument(next);
       const inserted = next.blocks.find((block) => block.type === 'media' && uploaded.some((asset) => asset.id === block.mediaAssetId));
       if (inserted) setActiveBlockId(inserted.id);
-      await saveCurrent();
-      router.refresh();
+      if (await flushDraft()) router.refresh();
+      else {
+        insertionFailed = true;
+        setUploadState('error');
+        setUploadMessage('The upload completed, but its page insertion could not be saved. Use Add photos to insert the upload again.');
+      }
     }
     if (failures.length) {
       setUploadState('error');
       setUploadMessage(`${failures.length} upload${failures.length === 1 ? '' : 's'} failed: ${failures.join(', ')}`);
-    } else {
+    } else if (!insertionFailed) {
       setUploadState('idle');
       setUploadMessage('');
     }
   }
 
-  async function publish() {
+  async function insertPickedMedia(items: PickerMedia[]) {
+    const selected = items.map((item) => ({
+      id: item._id,
+      originalFilename: item.originalFilename,
+      width: item.width,
+      height: item.height,
+      captureDate: item.captureDate,
+      caption: item.caption,
+      altText: item.altText,
+    }));
+    setMedia((current) => [...current, ...selected.filter((asset) => !current.some((known) => known.id === asset.id))]);
+    const next = insertMedia(documentRef.current, activeBlockId, selected, newBlockId);
+    applyDocument(next);
+    const inserted = next.blocks.find((block) => block.type === 'media' && selected.some((asset) => asset.id === block.mediaAssetId));
+    if (inserted) setActiveBlockId(inserted.id);
+    setPickerOpen(false);
+    if (await flushDraft()) router.refresh();
+  }
+
+  async function flushDraft() {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     while (!documentEqual(documentRef.current, lastSavedDocumentRef.current)) {
-      if (!await saveCurrent()) return;
+      if (!await saveCurrent()) return false;
     }
+    return true;
+  }
+
+  async function requestDeletionPlan() {
+    const mediaIds = documentRef.current.blocks.flatMap((block) => (
+      block.type === 'media' && selectedMediaBlockIds.has(block.id) ? [block.mediaAssetId] : []
+    ));
+    if (!mediaIds.length) return;
+    setDeletionMessage('');
+    try {
+      const response = await fetch('/api/admin/media/bulk-delete/plan', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mediaIds }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload?.error?.message ?? 'Unable to check these uploads');
+      setDeletionPlan(payload.plan as DeletionPlanItem[]);
+    } catch (error) {
+      console.error(error);
+      setDeletionMessage(error instanceof Error ? error.message : 'Unable to check these uploads');
+    }
+  }
+
+  async function permanentlyDeletePlannedUploads() {
+    const readyIds = deletionPlan?.filter((item) => item.classification === 'ready_to_delete').map((item) => item.id) ?? [];
+    if (!readyIds.length) return;
+    const readySet = new Set(readyIds);
+    const blocksToRemove = documentRef.current.blocks.flatMap((block) => block.type === 'media' && readySet.has(block.mediaAssetId) ? [block.id] : []);
+    applyDocument(removeMediaBlocks(documentRef.current, blocksToRemove));
+    if (!await flushDraft()) {
+      setDeletionMessage('The draft removal could not be saved, so no uploads were deleted.');
+      return;
+    }
+    try {
+      const response = await fetch('/api/admin/media/bulk-delete', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mediaIds: readyIds }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload?.error?.message ?? 'Unable to delete these uploads');
+      const results = payload.results as DeletionPlanItem[];
+      const deleted = new Set(results.filter((item) => item.result === 'deleted').map((item) => item.id));
+      setMedia((current) => current.filter((item) => !deleted.has(item.id)));
+      setSelectedMediaBlockIds((current) => new Set(Array.from(current).filter((id) => !blocksToRemove.includes(id))));
+      setDeletionPlan(results);
+      const failed = results.filter((item) => item.result === 'failed').length;
+      setDeletionMessage(failed ? `${failed} upload${failed === 1 ? '' : 's'} could not be deleted and can be retried.` : 'Eligible uploads were permanently deleted.');
+      router.refresh();
+    } catch (error) {
+      console.error(error);
+      setDeletionMessage(error instanceof Error ? error.message : 'Unable to delete these uploads');
+    }
+  }
+
+  async function publish() {
+    if (!await flushDraft()) return;
     setSaveState('saving');
     try {
       const response = await fetch('/api/admin/photos-page/publish', {
@@ -397,13 +484,12 @@ export function PhotosWorkspace({
       <span className={styles.historyButtons}><button disabled={historyIndex === 0} onClick={undo} type="button">Undo</button><button disabled={historyIndex === history.length - 1} onClick={redo} type="button">Redo</button></span>
       <span aria-live="polite" className={styles.saveState} data-state={saveState}>{saveState === 'saving' ? 'Saving…' : saveState === 'conflict' ? 'Draft changed elsewhere' : saveState === 'error' ? 'Could not save' : hasUnpublishedChanges ? 'Unpublished changes' : 'Published'}</span>
       <span className={styles.primaryActions}>
-        <input accept="image/jpeg,image/png,image/webp,image/heic,image/heif" hidden multiple onChange={(event) => { const files = Array.from(event.target.files ?? []); if (files.length) void uploadBatch(files); event.currentTarget.value = ''; }} ref={inputRef} type="file" />
-        <button disabled={uploadState === 'uploading'} onClick={() => inputRef.current?.click()} type="button">{uploadState === 'uploading' ? 'Uploading…' : 'Add photos'}</button><button onClick={addSection} type="button">Insert section</button><button disabled={saveState === 'saving' || saveState === 'conflict' || !hasUnpublishedChanges} onClick={() => void publish()} type="button">Publish</button><button disabled={saveState === 'saving' || !hasUnpublishedChanges} onClick={() => void discard()} type="button">Discard</button>
+        <button disabled={uploadState === 'uploading'} onClick={() => setPickerOpen(true)} type="button">{uploadState === 'uploading' ? 'Uploading…' : 'Add photos'}</button><button onClick={addSection} type="button">Insert section</button><button disabled={saveState === 'saving' || saveState === 'conflict' || !hasUnpublishedChanges} onClick={() => void publish()} type="button">Publish</button><button disabled={saveState === 'saving' || !hasUnpublishedChanges} onClick={() => void discard()} type="button">Discard</button>
       </span>
     </div>
     {uploadMessage ? <p className={styles.uploadStatus} data-error={uploadState === 'error' || undefined}>{uploadMessage}</p> : null}
     {saveState === 'conflict' ? <aside className={styles.conflict} role="alert">Another editor saved this page. Your local layout is preserved. <button onClick={() => void reloadServerDraft()} type="button">Reload server draft</button><button onClick={() => void replaceServerDraft()} type="button">Replace server draft with mine</button></aside> : null}
-    {selectedMediaBlockIds.size ? <div className={styles.bulkBar}><span>{selectedMediaBlockIds.size} selected</span><button onClick={() => { applyDocument(removeMediaBlocks(documentRef.current, selectedMediaBlockIds)); setSelectedMediaBlockIds(new Set()); setActiveBlockId(null); }} type="button">Remove from page</button></div> : null}
+    {selectedMediaBlockIds.size ? <div className={styles.bulkBar}><span>{selectedMediaBlockIds.size} selected</span><span className={styles.bulkActions}><button onClick={() => { applyDocument(removeMediaBlocks(documentRef.current, selectedMediaBlockIds)); setSelectedMediaBlockIds(new Set()); setActiveBlockId(null); }} type="button">Remove from page</button><button onClick={() => void requestDeletionPlan()} type="button">Delete uploads…</button></span></div> : null}
     <div className={styles.authoringShell} data-viewport={viewport}><div className={styles.canvasFrame}>{photos.length ? <PhotosPageView intro="A collection of moments, arranged in the order they belong." onOpen={() => undefined} photos={photos} renderSection={renderSection} renderTile={renderTile} /> : <section className={styles.emptyCanvas}><h2>Photos, soon.</h2><p>Add uploads or insert a section to start shaping this page.</p></section>}</div></div>
     {activeMediaBlock ? <aside className={styles.inspector} aria-label="Selected photo inspector">
       <p className={styles.inspectorEyebrow}>Selected media</p><strong>{mediaById.get(activeMediaBlock.mediaAssetId)?.originalFilename ?? 'Unavailable upload'}</strong>
@@ -415,5 +501,14 @@ export function PhotosWorkspace({
       <span className={styles.inspectorActions}><button onClick={() => applyDocument(moveMedia(documentRef.current, activeMediaBlock.id, 'before'))} type="button">Move earlier</button><button onClick={() => applyDocument(moveMedia(documentRef.current, activeMediaBlock.id, 'after'))} type="button">Move later</button><button onClick={() => { applyDocument(removeMediaBlocks(documentRef.current, [activeMediaBlock.id])); setActiveBlockId(null); }} type="button">Remove from page</button></span>
     </aside> : null}
     <p aria-live="polite" className="sr-only">{selectedMediaBlockIds.size ? `${selectedMediaBlockIds.size} photos selected` : ''}</p>
+    <MediaPicker onClose={() => setPickerOpen(false)} onInsert={(items) => void insertPickedMedia(items)} onUpload={(files) => { setPickerOpen(false); void uploadBatch(files); }} open={pickerOpen} placedMediaIds={new Set(document.blocks.flatMap((block) => block.type === 'media' ? [block.mediaAssetId] : []))} />
+    {deletionPlan ? <div aria-label="Confirm permanent upload deletion" aria-modal="true" className={styles.dialogBackdrop} role="dialog"><section className={styles.deleteDialog}>
+      <header><div><p className={styles.inspectorEyebrow}>Permanent deletion</p><h2>Delete uploads?</h2></div><button aria-label="Close deletion confirmation" onClick={() => setDeletionPlan(null)} type="button">×</button></header>
+      <p>Ready to delete: {deletionPlan.filter((item) => item.classification === 'ready_to_delete').length}. This permanently removes the Cloudinary originals and cannot be undone.</p>
+      <ul>{deletionPlan.map((item) => <li key={item.id}><strong>{item.filename}</strong> — {item.result ?? item.classification.replace(/_/g, ' ')}</li>)}</ul>
+      <p className={styles.deleteWarning}>Published page media must first be removed and published. Journey media remains protected.</p>
+      {deletionMessage ? <p className={styles.fieldError}>{deletionMessage}</p> : null}
+      <footer><button onClick={() => setDeletionPlan(null)} type="button">Cancel</button><button disabled={!deletionPlan.some((item) => item.classification === 'ready_to_delete')} onClick={() => void permanentlyDeletePlannedUploads()} type="button">Permanently delete ready uploads</button></footer>
+    </section></div> : null}
   </div>;
 }

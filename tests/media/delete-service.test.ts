@@ -61,4 +61,20 @@ describe('deleteMediaAsset', () => {
     expect(deleteAsset).not.toHaveBeenCalled();
     expect(deleteById).not.toHaveBeenCalled();
   });
+
+  it('protects assets still referenced by the published Photos page', async () => {
+    const deleteById = vi.fn(async () => undefined);
+    const deleteAsset = vi.fn(async () => undefined);
+
+    await expect(
+      deleteMediaAsset(media._id, {
+        mediaRepository: { findById: async () => media, deleteById },
+        journeyRepository: { isMediaReferenced: async () => false },
+        photosPageRepository: { isMediaReferencedByPublishedDocument: async () => true },
+        mediaProvider: { deleteAsset },
+      }),
+    ).rejects.toBeInstanceOf(MediaInUseError);
+
+    expect(deleteAsset).not.toHaveBeenCalled();
+  });
 });

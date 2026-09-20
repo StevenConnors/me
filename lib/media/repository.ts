@@ -1,4 +1,4 @@
-import { ObjectId, type Collection, type UpdateFilter } from 'mongodb';
+import { ObjectId, type Collection, type Filter, type UpdateFilter } from 'mongodb';
 import { z } from 'zod';
 
 import { getMediaCollections } from '@/lib/db/collections';
@@ -10,6 +10,7 @@ import {
   type MediaAsset,
   type UploadSession,
 } from '@/lib/media/schemas';
+import { decodeAdminMediaCursor, encodeAdminMediaCursor } from '@/lib/media/admin-cursor';
 
 const MediaMetadataPatchSchema = z
   .object({
@@ -73,6 +74,47 @@ export class MediaRepository {
       .limit(limit)
       .toArray();
     return assets.map((asset) => MediaAssetSchema.parse(asset));
+  }
+
+  /** Cursor-paginated, image-filterable media library listing for the Photos picker. */
+  async listPage(options: {
+    query?: string;
+    limit?: number;
+    cursor?: string;
+    resourceType?: 'image' | 'video';
+  } = {}): Promise<{ items: MediaAsset[]; nextCursor: string | null }> {
+    const limit = Math.min(Math.max(options.limit ?? 24, 1), 100);
+    const filters: Filter<MediaAsset>[] = [];
+    const query = options.query?.trim();
+    if (query) filters.push({ $text: { $search: query } } as Filter<MediaAsset>);
+    if (options.resourceType) filters.push({ resourceType: options.resourceType });
+    if (options.cursor) {
+      const cursor = decodeAdminMediaCursor(options.cursor);
+      const createdAt = new Date(cursor.createdAt);
+      filters.push({
+        $or: [
+          { createdAt: { $lt: createdAt } },
+          { createdAt, _id: { $lt: cursor.id } },
+        ],
+      } as Filter<MediaAsset>);
+    }
+    const filter = filters.length === 0 ? {} : filters.length === 1 ? filters[0] : { $and: filters } as Filter<MediaAsset>;
+    const records = await this.mediaAssets
+      .find(filter)
+      .sort({ createdAt: -1, _id: -1 })
+      .limit(limit + 1)
+      .toArray();
+    const hasNextPage = records.length > limit;
+    const page = records.slice(0, limit).map((asset) => MediaAssetSchema.parse(asset));
+    const last = page.at(-1);
+    return {
+      items: page,
+      nextCursor: hasNextPage && last ? encodeAdminMediaCursor({
+        version: 1,
+        createdAt: last.createdAt.toISOString(),
+        id: last._id,
+      }) : null,
+    };
   }
 
   /**
