@@ -35,6 +35,10 @@ npm run e2e:db:down
 
 To use a differently named disposable database, set `E2E_MONGODB_URI`. To run against an already-started local deployment, set `E2E_BASE_URL`; that deployment must be started with `E2E_TEST_MODE=1` and the same test-only MongoDB URI.
 
+## Continuous integration
+
+GitHub Actions runs the typecheck, unit suite, and this Playwright flow on every pull request and push. The browser job starts an isolated `mongo:7` service, installs Chromium, and starts the same local Next.js deployment configured by `playwright.config.ts`. No third-party authoring, media, or production database credentials are used.
+
 ## Isolation guarantees
 
 `E2E_TEST_MODE=1` is accepted only outside production. It supplies a fixed local author session and an in-process media provider that accepts the sample upload without calling GitHub or Cloudinary. The Playwright configuration sets it only for its local Next.js server, and overrides `MONGODB_URI` with the E2E database. Never point `E2E_MONGODB_URI` at a production database.
