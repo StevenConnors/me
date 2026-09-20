@@ -2,6 +2,28 @@ This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next
 
 For the local browser-based authoring workflow test, see [the E2E authoring guide](docs/e2e-authoring.md).
 
+## Cloudinary photo maintenance
+
+The Photos page reads image records from MongoDB's `media_assets` collection.
+The scripts below load credentials from `.env.local`, inspect every uploaded
+Cloudinary image, and are dry runs unless `--apply` is passed.
+
+Run the cleanup before importing, so the gallery receives one record per exact
+original image:
+
+```bash
+npm run media:dedupe
+npm run media:dedupe -- --apply
+npm run media:import-photos
+npm run media:import-photos -- --apply
+```
+
+`media:dedupe` uses Cloudinary's original-file `etag`, so it only considers
+byte-for-byte duplicates. It never deletes an image already registered in
+`media_assets`; those may be referenced by a journey. Read the dry-run report
+before applying it. `media:import-photos` creates missing media records and
+sets `showInPhotos: true`, which makes the images eligible for `/photos`.
+
 ## Getting Started
 
 First, run the development server:

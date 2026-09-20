@@ -3,6 +3,13 @@
 Status: Ready for implementation
 Last updated: 2026-09-20
 
+> **Ordering and section-model update (2026-09-21):**
+> `PHOTOS_WYSIWYG_EDITOR_PLAN.md` supersedes this document's date-derived
+> canonical ordering and media-attached `photoSectionBreak` contract. Any later
+> masonry, pagination, or video work from this plan must preserve the published
+> block order defined by the WYSIWYG plan. Do not implement Sections 3.1, 3.2,
+> or the ordering portions of Section 4 as written here.
+
 ## 1. Objective
 
 Extend the existing public Photos tab and its dedicated admin editor into a mixed photo/video gallery that:
@@ -746,4 +753,3 @@ The overall feature is complete only when all statements below are true:
 - [ ] Keyboard, touch, focus, and reduced-motion behavior are verified.
 - [ ] Unit, component, E2E, typecheck, lint, and production build checks pass.
 - [ ] Browser network inspection proves that initial page load transfers no video playback body.
-

@@ -14,6 +14,8 @@
     "e2e:db:up": "docker compose -f e2e/mongodb.compose.yml up -d",
     "e2e:db:down": "docker compose -f e2e/mongodb.compose.yml down -v",
     "migrate:legacy-stories": "node scripts/migrate-legacy-mdx-journeys.mjs",
+    "media:dedupe": "node scripts/delete-duplicate-cloudinary-images.mjs",
+    "media:import-photos": "node scripts/import-cloudinary-images-to-photos.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
