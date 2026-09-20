@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { PhotosPageView, type PhotoSection, type PublicPhoto } from '@/components/photos/PhotosPageView';
@@ -69,16 +69,30 @@ function dateFromFile(file: File) {
   return `${date.getFullYear()}-${month}-${day}`;
 }
 
-function documentPhotos(document: PhotosPageDocument, mediaById: Map<string, EditorMedia>): EditorCanvasPhoto[] {
-  let pendingSection: { id: string; title?: string; text?: string } | undefined;
+function documentCanvas(
+  document: PhotosPageDocument,
+  mediaById: Map<string, EditorMedia>,
+): { photos: EditorCanvasPhoto[]; sections: PhotoSection[] } {
   const photos: EditorCanvasPhoto[] = [];
+  const sections: PhotoSection[] = [];
+  let activeSection: PhotoSection | undefined;
+
   for (const block of document.blocks) {
     if (block.type === 'section') {
-      pendingSection = { id: block.id, ...(block.title ? { title: block.title } : {}), ...(block.text ? { text: block.text } : {}) };
+      activeSection = {
+        sectionBlockId: block.id,
+        sectionBreak: {
+          ...(block.title ? { title: block.title } : {}),
+          ...(block.text ? { text: block.text } : {}),
+        },
+        photos: [],
+      };
+      sections.push(activeSection);
       continue;
     }
+
     const asset = mediaById.get(block.mediaAssetId);
-    photos.push({
+    const photo: EditorCanvasPhoto = {
       id: block.mediaAssetId,
       blockId: block.id,
       source: asset?.source ?? '',
@@ -89,15 +103,17 @@ function documentPhotos(document: PhotosPageDocument, mediaById: Map<string, Edi
       ...(block.caption ? { caption: block.caption } : {}),
       ...(block.displayDate ? { captureDate: block.displayDate } : {}),
       kind: asset?.resourceType ?? 'image',
-      ...(pendingSection ? {
-        sectionBreak: { ...(pendingSection.title ? { title: pendingSection.title } : {}), ...(pendingSection.text ? { text: pendingSection.text } : {}) },
-        sectionBlockId: pendingSection.id,
-      } : {}),
       ...(!asset || !asset.source ? { unavailable: true } : {}),
-    });
-    pendingSection = undefined;
+    };
+    const index = photos.length;
+    photos.push(photo);
+    if (!activeSection) {
+      activeSection = { photos: [] };
+      sections.push(activeSection);
+    }
+    activeSection.photos.push({ ...photo, index });
   }
-  return photos;
+  return { photos, sections };
 }
 
 function isMediaBlock(block: PhotosPageDocument['blocks'][number] | undefined): block is PhotosMediaBlock {
@@ -138,7 +154,8 @@ export function PhotosWorkspace({
   const [deletionMessage, setDeletionMessage] = useState('');
 
   const mediaById = useMemo(() => new Map(media.map((asset) => [asset.id, asset])), [media]);
-  const photos = useMemo(() => documentPhotos(document, mediaById), [document, mediaById]);
+  const canvas = useMemo(() => documentCanvas(document, mediaById), [document, mediaById]);
+  const photos = canvas.photos;
   const activeBlock = document.blocks.find((block) => block.id === activeBlockId);
   const activeMediaBlock = isMediaBlock(activeBlock) ? activeBlock : null;
 
@@ -495,7 +512,7 @@ export function PhotosWorkspace({
     {uploadMessage ? <p className={styles.uploadStatus} data-error={uploadState === 'error' || undefined}>{uploadMessage}</p> : null}
     {saveState === 'conflict' ? <aside className={styles.conflict} role="alert">Another editor saved this page. Your local layout is preserved. <button onClick={() => void reloadServerDraft()} type="button">Reload server draft</button><button onClick={() => void replaceServerDraft()} type="button">Replace server draft with mine</button></aside> : null}
     {selectedMediaBlockIds.size ? <div className={styles.bulkBar}><span>{selectedMediaBlockIds.size} selected</span><span className={styles.bulkActions}><button onClick={() => { applyDocument(removeMediaBlocks(documentRef.current, selectedMediaBlockIds)); setSelectedMediaBlockIds(new Set()); setActiveBlockId(null); }} type="button">Remove from page</button><button onClick={() => void requestDeletionPlan()} type="button">Delete uploads…</button></span></div> : null}
-    <div className={styles.authoringShell} data-viewport={viewport}><div className={styles.canvasFrame}>{photos.length ? <PhotosPageView intro="A collection of moments, arranged in the order they belong." onOpen={() => undefined} photos={photos} renderSection={renderSection} renderTile={renderTile} /> : <section className={styles.emptyCanvas}><h2>Photos, soon.</h2><p>Add uploads or insert a section to start shaping this page.</p></section>}</div></div>
+    <div className={styles.authoringShell} data-viewport={viewport}><div className={styles.canvasFrame}>{canvas.sections.length ? <PhotosPageView intro="A collection of moments, arranged in the order they belong." onOpen={() => undefined} photos={photos} renderSection={renderSection} renderTile={renderTile} sectionGroups={canvas.sections} /> : <section className={styles.emptyCanvas}><h2>Photos, soon.</h2><p>Add uploads or insert a section to start shaping this page.</p></section>}</div></div>
     {activeMediaBlock ? <aside className={styles.inspector} aria-label="Selected photo inspector">
       <p className={styles.inspectorEyebrow}>Selected media</p><strong>{mediaById.get(activeMediaBlock.mediaAssetId)?.originalFilename ?? 'Unavailable upload'}</strong>
       <label>Display date<input max="9999-12-31" onChange={(event) => applyDocument(updateMediaBlock(documentRef.current, activeMediaBlock.id, { displayDate: event.target.value || undefined }))} type="date" value={activeMediaBlock.displayDate ?? ''} /></label>

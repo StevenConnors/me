@@ -71,6 +71,7 @@ export function GalleryImageTile({
  */
 export function PhotosPageView({
   photos,
+  sectionGroups,
   onOpen,
   renderTile,
   renderSection,
@@ -78,13 +79,15 @@ export function PhotosPageView({
   intro = 'A collection of moments, arranged in the order they belong.',
 }: {
   photos: PublicPhoto[];
+  /** Authoring may supply draft groups so empty section blocks stay visible. */
+  sectionGroups?: PhotoSection[];
   onOpen: (index: number) => void;
   renderTile?: (photo: PublicPhoto & { index: number }) => ReactNode;
   renderSection?: (section: PhotoSection, sectionIndex: number) => ReactNode;
   title?: string;
   intro?: string;
 }) {
-  const sections = groupPhotos(photos);
+  const sections = sectionGroups ?? groupPhotos(photos);
   return (
     <section aria-labelledby="photos-title" className={styles.gallery}>
       <h1 id="photos-title">{title}</h1>
