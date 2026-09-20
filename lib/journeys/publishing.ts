@@ -2,7 +2,9 @@ import { ObjectId } from 'mongodb';
 
 import {
   collectMediaPlacements,
+  isHeldPlacesDocument,
   JourneySchema,
+  restrictedTextContent,
   type Journey,
 } from '@/lib/journeys/schemas';
 
@@ -15,7 +17,9 @@ export type PublicationIssueCode =
   | 'cover_role_invalid'
   | 'upload_incomplete'
   | 'media_missing'
-  | 'media_not_ready';
+  | 'media_not_ready'
+  | 'chapter_required'
+  | 'media_alt_required';
 
 export type PublicationIssue = {
   code: PublicationIssueCode;
@@ -26,6 +30,7 @@ export type PublicationIssue = {
 export type PublishableMediaAsset = {
   _id: string | ObjectId;
   status: 'pending' | 'ready' | 'failed' | 'archived';
+  altText?: string;
 };
 
 export type PublicationValidationContext = {
@@ -104,18 +109,33 @@ export function validateJourneyForPublication(
     });
   }
 
-  journey.draftDocument.content.content.forEach((node, index) => {
-    if (node.type === 'mediaUpload') {
-      issues.push({
-        code: 'upload_incomplete',
-        path: `draftDocument.content.content.${index}`,
-        message:
-          node.attrs.status === 'failed'
-            ? 'Remove or retry the failed upload before publishing'
-            : 'Wait for the upload to finish before publishing',
-      });
-    }
-  });
+  if (journey.draftDocument.schemaVersion === 1) {
+    journey.draftDocument.content.content.forEach((node, index) => {
+      if (node.type === 'mediaUpload') {
+        issues.push({
+          code: 'upload_incomplete',
+          path: `draftDocument.content.content.${index}`,
+          message:
+            node.attrs.status === 'failed'
+              ? 'Remove or retry the failed upload before publishing'
+              : 'Wait for the upload to finish before publishing',
+        });
+      }
+    });
+  } else if (
+    !journey.draftDocument.chapters.some(
+      (chapter) =>
+        Boolean(chapter.heading?.trim()) ||
+        Boolean(restrictedTextContent(chapter.body)) ||
+        chapter.media.length > 0,
+    )
+  ) {
+    issues.push({
+      code: 'chapter_required',
+      path: 'draftDocument.chapters',
+      message: 'Add text or a photograph to at least one chapter before publishing',
+    });
+  }
 
   const assets = new Map(
     Array.from(context.mediaAssets, (asset) => [mediaId(asset._id), asset]),
@@ -142,6 +162,18 @@ export function validateJourneyForPublication(
         code: 'media_not_ready',
         path: `${path}.mediaAssetId`,
         message: `Media asset ${placement.mediaAssetId} is ${asset.status}`,
+      });
+    }
+    if (
+      isHeldPlacesDocument(journey.draftDocument) &&
+      !placement.decorative &&
+      !placement.altTextOverride?.trim() &&
+      !asset.altText?.trim()
+    ) {
+      issues.push({
+        code: 'media_alt_required',
+        path: `${path}.altTextOverride`,
+        message: 'Describe this photograph or mark it as decorative',
       });
     }
   });

@@ -1,73 +1,52 @@
-'use client';
-import Header from '../components/header'
-import ImageGallery from '../components/ImageGallery';
-import MyLink from '../components/MyLink';
-import { useState, useEffect } from 'react'
+import { HeldPlacesIndex } from '@/components/held-places/HeldPlaces';
+import { loadJourneyMediaPresentation } from '@/lib/journeys/media-presentation';
+import { JourneyRepository } from '@/lib/journeys/repository';
+import type { PublishedJourneySummary } from '@/lib/journeys/schemas';
 
-interface Story {
-  slug: string;
-  title: string;
-}
+const legacyJourneys = [
+  { slug: 'poc', title: 'Autumn in Tōhoku' },
+  { slug: 'dfw-okc', title: 'Oklahoma! Oklahoma?' },
+  { slug: 'newpoc', title: 'Whisy with an e' },
+];
 
-export default function Home() {
-  const [stories, setStories] = useState<Story[]>([]);
-  const [loading, setLoading] = useState(true);
+export const dynamic = 'force-dynamic';
 
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        // Fetch stories from API
-        const storiesRes = await fetch('/api/stories');
-        const storiesData = await storiesRes.json();
-        setStories(storiesData);
-      } catch (error) {
-        console.error('Error fetching data:', error);
-      } finally {
-        setLoading(false);
-      }
-    }
+export default async function Home() {
+  let journeys: PublishedJourneySummary[] = [];
+  let failed = false;
 
-    fetchData();
-  }, []);
-
-  if (loading) {
-    return (
-      <>
-        <Header />
-        <div style={{ textAlign: 'center', padding: '2rem' }}>Loading...</div>
-      </>
-    );
+  try {
+    journeys = await (await JourneyRepository.connect()).listPublishedSummaries({
+      limit: 24,
+    });
+  } catch (error) {
+    failed = true;
+    console.error('Unable to load the published journey index', error);
   }
 
-  return (
-    <>
-      <Header />
-      
-      <br></br>
-      <br></br>
-
-      <div>
-        The name 佑治 means  &#39;heal the person to your right&#39;. Whoever you may be, I hope I can be that person for you.
-      </div>
-
-      <div>
-        <h2>Travel Stories</h2>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginTop: '2rem' }}>
-          {stories.map((story) => (
-            <MyLink key={story.slug} href={`/stories/${story.slug}`}>
-              {story.title}
-            </MyLink>
-          ))}
-        </div>
-      </div>
-
-      <br></br>
-      <br></br>
-
-      <div>
-        <h2>And here&apos;s some one off photos</h2>
-        <ImageGallery />
-      </div>
-    </>
-  )
+  try {
+    const media = await loadJourneyMediaPresentation(
+      journeys.map((journey) => journey.cover.mediaAssetId),
+    );
+    return (
+      <HeldPlacesIndex
+        assets={media.assets}
+        buildMediaUrl={media.buildMediaUrl}
+        failed={failed}
+        journeys={journeys}
+        legacyJourneys={legacyJourneys}
+      />
+    );
+  } catch (error) {
+    console.error('Unable to load published journey covers', error);
+    return (
+      <HeldPlacesIndex
+        assets={{}}
+        buildMediaUrl={() => null}
+        failed={failed}
+        journeys={journeys}
+        legacyJourneys={legacyJourneys}
+      />
+    );
+  }
 }

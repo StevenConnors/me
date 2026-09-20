@@ -132,6 +132,11 @@
 .field textarea { min-height: 118px; resize: vertical; }
 .field input:focus, .field textarea:focus, .field select:focus { outline: 2px solid #b56a58; outline-offset: 1px; border-color: #b56a58; }
 .fieldHint { color: #7e7569; font-size: 12px; line-height: 1.4; }
+.coverControls { display: grid; gap: 9px; margin-top: 8px; padding: 16px; border: 1px solid #ded7cc; background: #f7f2e9; }
+.coverFocalGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.coverFocalGrid fieldset { border: 1px solid #d7d0c4; }
+.coverFocalGrid legend { color: #625b50; font: 10px/1 ui-monospace, SFMono-Regular, Menlo, monospace; text-transform: uppercase; }
+.coverFocalGrid label { display: grid; grid-template-columns: 16px 1fr; align-items: center; gap: 6px; color: #625b50; font-size: 11px; }
 .mediaMetadata { display: grid; gap: 16px; margin-top: 22px; padding-top: 22px; border-top: 1px solid #e0d8cd; }
 .mediaMetadata .field textarea { min-height: 72px; }
 .formFooter { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-top: 4px; }
@@ -142,6 +147,7 @@
 .deleteError { margin: 0; color: #a13b2b; font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; }
 .notice { max-width: 720px; margin-top: 24px; padding: 15px 17px; border-left: 3px solid #9d4d3d; background: #eee7da; color: #625b50; font-size: 14px; line-height: 1.5; }
 .publishPanel { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 20px 32px; max-width: 720px; margin-top: 38px; padding: 28px; border: 1px solid #d7d0c4; background: #eee7da; }
+.migrationPanel { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 20px 32px; max-width: 920px; margin-top: 46px; padding: 28px; border: 1px solid #c8b9a7; background: #f0e6d8; }
 .publishPanel .eyebrow { margin-bottom: 10px; }
 .publishTitle { margin: 0; font: 400 28px/1.05 Georgia, 'Times New Roman', serif; letter-spacing: -.03em; }
 .publishDescription { margin: 10px 0 0; color: #625b50; font-size: 14px; line-height: 1.5; }
@@ -166,5 +172,6 @@
   .identity { display: none; }
   .main { width: min(100% - 32px, 1100px); padding-top: 44px; }
   .toolbar, .formFooter { align-items: flex-start; flex-direction: column; }
-  .publishPanel { grid-template-columns: 1fr; }
+  .publishPanel, .migrationPanel { grid-template-columns: 1fr; }
+  .coverFocalGrid { grid-template-columns: 1fr; }
 }

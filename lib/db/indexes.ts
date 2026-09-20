@@ -22,6 +22,10 @@ export async function ensureJourneyIndexes(db?: Db): Promise<void> {
       { status: 1, updatedAt: -1 },
       { name: 'journey_status_updated' },
     ),
+    journeys.createIndex(
+      { status: 1, publishedAt: -1 },
+      { name: 'journey_status_published' },
+    ),
     revisions.createIndex(
       { journeyId: 1, sequence: 1 },
       { name: 'unique_journey_revision_sequence', unique: true },

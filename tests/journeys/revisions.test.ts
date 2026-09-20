@@ -2,7 +2,11 @@ import { ObjectId, type Collection } from 'mongodb';
 import { describe, expect, it } from 'vitest';
 
 import { createJourneyRevision } from '@/lib/journeys/revisions';
-import { snapshotJourneyMetadata, type JourneyRevision } from '@/lib/journeys/schemas';
+import {
+  JourneyRevisionSchema,
+  snapshotJourneyMetadata,
+  type JourneyRevision,
+} from '@/lib/journeys/schemas';
 import { makeJourney } from './fixtures';
 
 class MemoryRevisionCollection {
@@ -35,6 +39,38 @@ describe('createJourneyRevision', () => {
     expect(snapshot).not.toHaveProperty('cover');
     expect(snapshot).not.toHaveProperty('experiencedAt');
     expect(snapshot).not.toHaveProperty('social');
+  });
+
+  it('reads historical revisions that stored cleared optional metadata as null', () => {
+    const journey = makeJourney();
+    const revision = JourneyRevisionSchema.parse({
+      _id: new ObjectId(),
+      journeyId: journey._id,
+      sequence: 1,
+      schemaVersion: 1,
+      reason: 'published',
+      document: journey.draftDocument,
+      metadataSnapshot: {
+        slug: journey.slug,
+        title: journey.title,
+        summary: null,
+        cover: null,
+        experiencedAt: null,
+        locations: [],
+        social: null,
+      },
+      createdAt: journey.createdAt,
+    });
+
+    expect(revision.metadataSnapshot).toMatchObject({
+      slug: journey.slug,
+      title: journey.title,
+      locations: [],
+    });
+    expect(revision.metadataSnapshot.summary).toBeUndefined();
+    expect(revision.metadataSnapshot.cover).toBeUndefined();
+    expect(revision.metadataSnapshot.experiencedAt).toBeUndefined();
+    expect(revision.metadataSnapshot.social).toBeUndefined();
   });
 
   it('allocates a per-journey sequence and snapshots editable metadata', async () => {

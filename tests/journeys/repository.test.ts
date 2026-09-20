@@ -6,7 +6,11 @@ import {
   JourneyNotFoundError,
   JourneyRepository,
 } from '@/lib/journeys/repository';
-import type { Journey, JourneyRevision } from '@/lib/journeys/schemas';
+import {
+  JourneyRevisionSchema,
+  type Journey,
+  type JourneyRevision,
+} from '@/lib/journeys/schemas';
 import { makeJourney } from './fixtures';
 
 class MemoryJourneyCollection {
@@ -174,5 +178,56 @@ describe('JourneyRepository.isMediaReferenced', () => {
       }),
       { projection: { _id: 1 } },
     );
+  });
+});
+
+describe('JourneyRepository.listPublishedSummaries', () => {
+  it('uses selected immutable revision metadata instead of the mutable draft', async () => {
+    const revisionId = new ObjectId();
+    const journey = makeJourney({
+      title: 'Unpublished draft title',
+      summary: 'Unpublished draft summary',
+      status: 'published',
+      publishedRevisionId: revisionId,
+      publishedAt: new Date('2026-09-19T12:00:00.000Z'),
+    });
+    const revision = JourneyRevisionSchema.parse({
+      _id: revisionId,
+      journeyId: journey._id,
+      sequence: 2,
+      schemaVersion: 1,
+      reason: 'published',
+      document: journey.draftDocument,
+      metadataSnapshot: {
+        slug: 'published-slug',
+        title: 'Published title',
+        summary: 'Published summary',
+        cover: journey.cover,
+        locations: [{ id: 'tohoku', label: 'Tohoku' }],
+      },
+      createdAt: new Date('2026-09-19T12:00:00.000Z'),
+    });
+    const cursor = <T,>(values: T[]) => ({
+      sort: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockReturnThis(),
+      toArray: vi.fn(async () => values),
+    });
+    const journeyCursor = cursor([journey]);
+    const revisionCursor = cursor([revision]);
+    const repository = new JourneyRepository(
+      { find: vi.fn(() => journeyCursor) } as unknown as Collection<Journey>,
+      { find: vi.fn(() => revisionCursor) } as unknown as Collection<JourneyRevision>,
+    );
+
+    const summaries = await repository.listPublishedSummaries();
+
+    expect(summaries).toEqual([expect.objectContaining({
+      slug: 'published-slug',
+      title: 'Published title',
+      summary: 'Published summary',
+      locations: [{ id: 'tohoku', label: 'Tohoku' }],
+    })]);
+    expect(summaries[0].title).not.toBe(journey.title);
+    expect(journeyCursor.sort).toHaveBeenCalledWith({ publishedAt: -1 });
   });
 });

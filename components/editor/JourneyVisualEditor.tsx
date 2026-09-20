@@ -8,7 +8,7 @@ import type { Editor, JSONContent } from '@tiptap/core';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import styles from './JourneyVisualEditor.module.css';
-import type { JourneyDocument } from '@/lib/journeys/schemas';
+import type { LegacyTiptapDocumentV1 } from '@/lib/journeys/schemas';
 import type { MediaPlacement } from '@/lib/media/schemas';
 import { uploadMedia, type UploadedMedia } from '@/lib/client/upload-media';
 
@@ -201,7 +201,7 @@ function createExtensions(getMedia: (id: string) => EditorMedia | undefined, jou
   ];
 }
 
-export function JourneyVisualEditor({ document, media, journeyId, onChange }: { document: JourneyDocument; media: EditorMedia[]; journeyId: string; onChange: (document: JourneyDocument) => void }) {
+export function JourneyVisualEditor({ document, media, journeyId, onChange }: { document: LegacyTiptapDocumentV1; media: EditorMedia[]; journeyId: string; onChange: (document: LegacyTiptapDocumentV1) => void }) {
   const [availableMedia, setAvailableMedia] = useState(media);
   const [selectedMediaId, setSelectedMediaId] = useState(media[0]?.id ?? '');
   const mediaRef = useRef<MediaMap>(Object.fromEntries(media.map((asset) => [asset.id, asset])));
@@ -231,7 +231,7 @@ export function JourneyVisualEditor({ document, media, journeyId, onChange }: { 
     extensions,
     content: document.content,
     editorProps: { attributes: { 'data-placeholder': 'Start writing this journey…' } },
-    onUpdate: ({ editor: updatedEditor }) => onChangeRef.current({ schemaVersion: 1, editor: 'tiptap', content: updatedEditor.getJSON() as JourneyDocument['content'] }),
+    onUpdate: ({ editor: updatedEditor }) => onChangeRef.current({ schemaVersion: 1, editor: 'tiptap', content: updatedEditor.getJSON() as LegacyTiptapDocumentV1['content'] }),
   });
 
   if (!editor) return null;

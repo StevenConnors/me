@@ -2,6 +2,9 @@ import '../styles/globals.css'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000',
+  ),
   title: 'Yuji - Heal the person to your right',
   description: 'Travel stories and photography by Yuji',
   keywords: ['photography', 'travel', 'stories', 'blog'],

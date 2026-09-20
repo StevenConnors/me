@@ -10,14 +10,16 @@ import {
 import { getJourneyCollections } from '@/lib/db/collections';
 import {
   CreateJourneyInputSchema,
-  EMPTY_JOURNEY_DOCUMENT,
+  createEmptyHeldPlacesDocument,
   JourneyDraftPatchSchema,
+  JourneyRevisionSchema,
   JourneySchema,
   type CreateJourneyInput,
   type Journey,
   type JourneyDraftPatch,
   type JourneyRevision,
   type JourneyStatus,
+  type PublishedJourneySummary,
 } from '@/lib/journeys/schemas';
 
 export class JourneyNotFoundError extends Error {
@@ -94,7 +96,7 @@ export class JourneyRepository {
       slug: parsed.slug ?? makeUntitledSlug(id),
       title: parsed.title,
       status: 'draft',
-      draftDocument: EMPTY_JOURNEY_DOCUMENT,
+      draftDocument: createEmptyHeldPlacesDocument(),
       locations: [],
       editVersion: 0,
       createdAt: now,
@@ -160,6 +162,73 @@ export class JourneyRepository {
   }
 
   /**
+   * Reads public cards from the immutable revisions selected by each journey.
+   * Draft metadata is intentionally never consulted here.
+   */
+  async listPublishedSummaries(
+    options: { limit?: number; session?: ClientSession } = {},
+  ): Promise<PublishedJourneySummary[]> {
+    if (!this.revisions) return [];
+    const limit = Math.min(Math.max(options.limit ?? 24, 1), 100);
+    const journeys = await this.journeys
+      .find(
+        {
+          status: 'published',
+          publishedRevisionId: { $exists: true },
+          publishedAt: { $exists: true },
+        } as Filter<Journey>,
+        { session: options.session },
+      )
+      .sort({ publishedAt: -1 })
+      .limit(limit)
+      .toArray();
+
+    const revisionIds = journeys.flatMap((journey) =>
+      journey.publishedRevisionId ? [journey.publishedRevisionId] : [],
+    );
+    if (!revisionIds.length) return [];
+
+    const revisions = await this.revisions
+      .find(
+        { _id: { $in: revisionIds } } as Filter<JourneyRevision>,
+        { session: options.session },
+      )
+      .toArray();
+    const revisionsById = new Map(
+      revisions.map((revision) => {
+        const parsed = JourneyRevisionSchema.parse(revision);
+        return [parsed._id.toHexString(), parsed] as const;
+      }),
+    );
+
+    return journeys.flatMap((rawJourney) => {
+      const journey = JourneySchema.parse(rawJourney);
+      if (!journey.publishedRevisionId || !journey.publishedAt) return [];
+      const revision = revisionsById.get(journey.publishedRevisionId.toHexString());
+      const metadata = revision?.metadataSnapshot;
+      if (!metadata?.summary || !metadata.cover) return [];
+      const { mediaAssetId, crop, captionOverride, altTextOverride, decorative } =
+        metadata.cover;
+      return [{
+        id: journey._id.toHexString(),
+        slug: metadata.slug,
+        title: metadata.title,
+        summary: metadata.summary,
+        cover: {
+          mediaAssetId,
+          ...(crop ? { crop } : {}),
+          ...(captionOverride ? { captionOverride } : {}),
+          ...(altTextOverride ? { altTextOverride } : {}),
+          ...(decorative !== undefined ? { decorative } : {}),
+        },
+        publishedAt: journey.publishedAt.toISOString(),
+        ...(metadata.experiencedAt ? { experiencedAt: metadata.experiencedAt } : {}),
+        locations: metadata.locations,
+      }];
+    });
+  }
+
+  /**
    * A media record must stay available while any draft or immutable published
    * revision points to it. MongoDB applies dotted paths through Tiptap's node
    * arrays, so this covers photograph, gallery, and story-step placements.
@@ -172,6 +241,7 @@ export class JourneyRepository {
         { 'draftDocument.content.content.attrs.placement.mediaAssetId': mediaId },
         { 'draftDocument.content.content.attrs.items.mediaAssetId': mediaId },
         { 'draftDocument.content.content.attrs.media.mediaAssetId': mediaId },
+        { 'draftDocument.chapters.media.mediaAssetId': mediaId },
       ],
     } as Filter<Journey>;
     const draft = await this.journeys.findOne(draftReference, { projection: { _id: 1 } });
@@ -185,6 +255,7 @@ export class JourneyRepository {
         { 'document.content.content.attrs.placement.mediaAssetId': mediaId },
         { 'document.content.content.attrs.items.mediaAssetId': mediaId },
         { 'document.content.content.attrs.media.mediaAssetId': mediaId },
+        { 'document.chapters.media.mediaAssetId': mediaId },
       ],
     } as Filter<JourneyRevision>;
     return Boolean(await this.revisions.findOne(revisionReference, { projection: { _id: 1 } }));

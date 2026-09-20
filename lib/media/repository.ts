@@ -77,6 +77,13 @@ export class MediaRepository {
     return asset ? MediaAssetSchema.parse(asset) : null;
   }
 
+  async findByIds(mediaIds: Iterable<string>): Promise<MediaAsset[]> {
+    const ids = Array.from(new Set(mediaIds));
+    if (!ids.length) return [];
+    const assets = await this.mediaAssets.find({ _id: { $in: ids } }).toArray();
+    return assets.map((asset) => MediaAssetSchema.parse(asset));
+  }
+
   async findByProviderAssetId(providerAssetId: string): Promise<MediaAsset | null> {
     const asset = await this.mediaAssets.findOne({
       provider: 'cloudinary',
