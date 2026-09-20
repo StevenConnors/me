@@ -38,14 +38,28 @@ export default async function JourneysPage() {
       ) : journeys.length ? (
         <section className={styles.journeyList} aria-label="Journeys">
           {journeys.map((journey) => (
-            <Link key={journey._id.toHexString()} href={`/admin/journeys/${journey._id.toHexString()}/edit`} className={styles.journeyCard}>
-              <span className={styles.journeyCardTitle} data-empty={journey.title ? undefined : 'true'}>{journey.title || 'Untitled journey'}</span>
-              <span className={styles.journeyCardFooter}>
-                <span>{journey.slug}</span>
-                <span className={styles.badge}>{journey.status}</span>
-                <span>Edited {formatUpdatedAt(journey.updatedAt)}</span>
-              </span>
-            </Link>
+            <article key={journey._id.toHexString()} className={styles.journeyCard}>
+              <Link href={`/admin/journeys/${journey._id.toHexString()}/edit`} className={styles.journeyEditorLink}>
+                <span className={styles.journeyCardTitle} data-empty={journey.title ? undefined : 'true'}>{journey.title || 'Untitled journey'}</span>
+              </Link>
+              <footer className={styles.journeyCardFooter}>
+                <span className={styles.journeyCardDetails}>
+                  <span>{journey.slug}</span>
+                  <span className={styles.badge}>{journey.status}</span>
+                  <span>Edited {formatUpdatedAt(journey.updatedAt)}</span>
+                </span>
+                {journey.status === 'published' ? (
+                  <Link
+                    className={styles.quietButton}
+                    href={`/stories/${journey.slug}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    View published ↗
+                  </Link>
+                ) : null}
+              </footer>
+            </article>
           ))}
         </section>
       ) : (

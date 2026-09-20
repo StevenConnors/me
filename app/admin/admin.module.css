@@ -112,11 +112,14 @@
 
 .panel { padding: 24px; }
 .journeyList { display: grid; gap: 10px; }
-.journeyCard { display: block; padding: 22px; color: inherit; text-decoration: none; transition: border-color 160ms ease, transform 160ms ease; }
-.journeyCard:hover, .journeyCard:focus-visible { border-color: #9d4d3d; transform: translateY(-1px); }
+.journeyCard { display: block; padding: 22px; color: inherit; transition: border-color 160ms ease, transform 160ms ease; }
+.journeyCard:hover { border-color: #9d4d3d; transform: translateY(-1px); }
+.journeyEditorLink { display: block; color: inherit; text-decoration: none; }
+.journeyEditorLink:focus-visible { outline: 2px solid #b56a58; outline-offset: 4px; }
 .journeyCardTitle { display: block; font: 400 28px/1 Georgia, 'Times New Roman', serif; letter-spacing: -.03em; }
 .journeyCardTitle[data-empty='true'] { color: #8a8175; font-style: italic; }
 .journeyCardFooter { display: flex; justify-content: space-between; gap: 12px; margin-top: 16px; color: #7e7569; }
+.journeyCardDetails { display: flex; flex-wrap: wrap; gap: 12px; }
 .mediaThumbnail { display: block; width: min(280px, 100%); max-height: 210px; margin: -4px 0 18px; object-fit: cover; background: #e8e1d6; }
 .badge { display: inline-block; padding: 4px 6px; border: 1px solid #d7d0c4; color: #625b50; font: 10px/1 ui-monospace, SFMono-Regular, Menlo, monospace; text-transform: uppercase; }
 .empty { color: #625b50; line-height: 1.5; }
