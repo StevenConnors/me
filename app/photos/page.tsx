@@ -1,8 +1,10 @@
 import { HeldPlacesHeader } from '@/components/held-places/HeldPlaces';
-import { PhotosGallery, type PublicPhoto } from '@/components/photos/PhotosGallery';
+import { PhotosGallery } from '@/components/photos/PhotosGallery';
 import styles from '@/components/held-places/held-places.module.css';
 import { getCloudinaryMediaProvider } from '@/lib/media/provider';
 import { MediaRepository } from '@/lib/media/repository';
+import { resolveLegacyPhotos, resolvePublishedPhotos, type PublicPhoto } from '@/lib/photos/presentation';
+import { PhotosPageRepository } from '@/lib/photos/repository';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,26 +12,30 @@ export default async function PhotosPage() {
   let photos: PublicPhoto[] = [];
   let unavailable = false;
   try {
-    const [records, provider] = await Promise.all([
-      (await MediaRepository.connect()).listPhotos(),
+    const [mediaRepository, photosPageRepository, provider] = await Promise.all([
+      MediaRepository.connect(),
+      PhotosPageRepository.connect(),
       Promise.resolve(getCloudinaryMediaProvider()),
     ]);
-    photos = records.map((photo) => ({
-      id: photo._id,
-      source: provider.buildImageUrl({
-        providerPublicId: photo.providerPublicId,
-        version: photo.version,
-        width: 1440,
-        sourceWidth: photo.width,
-        sourceHeight: photo.height,
-      }),
-      alt: photo.altText ?? photo.caption ?? photo.originalFilename,
-      width: photo.width,
-      height: photo.height,
-      caption: photo.caption,
-      captureDate: photo.captureDate,
-      sectionBreak: photo.photoSectionBreak,
-    }));
+    const page = await photosPageRepository.get();
+    if (page?.publishedDocument) {
+      const mediaIds = page.publishedDocument.blocks.flatMap((block) => (
+        block.type === 'media' ? [block.mediaAssetId] : []
+      ));
+      const resolved = resolvePublishedPhotos(
+        page.publishedDocument,
+        await mediaRepository.findByIds(mediaIds),
+        provider,
+      );
+      if (resolved.unavailable.length) {
+        console.error('Photos page skipped unavailable published media', resolved.unavailable);
+      }
+      photos = resolved.photos;
+    } else {
+      // Rollout fallback: legacy query remains public until migration publishes
+      // a Photos page document, so schema deployment cannot cause downtime.
+      photos = resolveLegacyPhotos(await mediaRepository.listPhotos(), provider);
+    }
   } catch (error) {
     console.error('Unable to render Photos', error);
     unavailable = true;
