@@ -2,12 +2,14 @@ import type { Collection, Db, MongoClient } from 'mongodb';
 
 import type { Journey, JourneyRevision } from '@/lib/journeys/schemas';
 import type { MediaAsset, UploadSession } from '@/lib/media/schemas';
+import type { PhotosPage } from '@/lib/photos/schemas';
 
 export const COLLECTION_NAMES = {
   journeys: 'journeys',
   journeyRevisions: 'journey_revisions',
   mediaAssets: 'media_assets',
   uploadSessions: 'upload_sessions',
+  photosPages: 'photos_pages',
 } as const;
 
 /**
@@ -46,5 +48,16 @@ export async function getMediaCollections(db?: Db): Promise<{
   return {
     mediaAssets: database.collection<MediaAsset>(COLLECTION_NAMES.mediaAssets),
     uploadSessions: database.collection<UploadSession>(COLLECTION_NAMES.uploadSessions),
+  };
+}
+
+export async function getPhotosCollections(db?: Db): Promise<{
+  photosPages: Collection<PhotosPage>;
+  mediaAssets: Collection<MediaAsset>;
+}> {
+  const database = db ?? (await getDatabase());
+  return {
+    photosPages: database.collection<PhotosPage>(COLLECTION_NAMES.photosPages),
+    mediaAssets: database.collection<MediaAsset>(COLLECTION_NAMES.mediaAssets),
   };
 }
