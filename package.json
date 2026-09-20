@@ -13,6 +13,7 @@
     "test:e2e:headed": "playwright test --headed",
     "e2e:db:up": "docker compose -f e2e/mongodb.compose.yml up -d",
     "e2e:db:down": "docker compose -f e2e/mongodb.compose.yml down -v",
+    "migrate:legacy-stories": "node scripts/migrate-legacy-mdx-journeys.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

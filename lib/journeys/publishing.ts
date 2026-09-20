@@ -2,7 +2,6 @@ import { ObjectId } from 'mongodb';
 
 import {
   collectMediaPlacements,
-  isHeldPlacesDocument,
   JourneySchema,
   restrictedTextContent,
   type Journey,
@@ -18,8 +17,7 @@ export type PublicationIssueCode =
   | 'upload_incomplete'
   | 'media_missing'
   | 'media_not_ready'
-  | 'chapter_required'
-  | 'media_alt_required';
+  | 'chapter_required';
 
 export type PublicationIssue = {
   code: PublicationIssueCode;
@@ -162,18 +160,6 @@ export function validateJourneyForPublication(
         code: 'media_not_ready',
         path: `${path}.mediaAssetId`,
         message: `Media asset ${placement.mediaAssetId} is ${asset.status}`,
-      });
-    }
-    if (
-      isHeldPlacesDocument(journey.draftDocument) &&
-      !placement.decorative &&
-      !placement.altTextOverride?.trim() &&
-      !asset.altText?.trim()
-    ) {
-      issues.push({
-        code: 'media_alt_required',
-        path: `${path}.altTextOverride`,
-        message: 'Describe this photograph or mark it as decorative',
       });
     }
   });

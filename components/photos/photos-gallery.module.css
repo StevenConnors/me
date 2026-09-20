@@ -1,0 +1,27 @@
+.gallery { min-height: calc(100vh - 150px); padding: 0 44px 88px; }
+.gallery h1, .section h2 { margin: 0; font-family: Georgia, 'Times New Roman', serif; font-weight: 400; letter-spacing: -.045em; }
+.gallery h1 { font-size: clamp(62px, 9vw, 132px); line-height: .85; }
+.intro { max-width: 360px; margin: 22px 0 72px; color: #615f58; font: 20px/1.35 Georgia, 'Times New Roman', serif; }
+.section { margin-top: 72px; }
+.section:first-of-type { margin-top: 0; }
+.section h2 { font-size: clamp(36px, 5vw, 64px); line-height: .95; }
+.sectionNote { max-width: 600px; margin: 14px 0 28px; color: #615f58; font: 18px/1.45 Georgia, 'Times New Roman', serif; }
+.grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.tile { display: block; min-width: 0; align-self: start; overflow: hidden; padding: 0; border: 0; background: #dad8d0; cursor: pointer; }
+.tile :global(img) { display: block; width: 100%; height: auto; transition: transform 180ms ease, filter 180ms ease; }
+.tile:hover :global(img) { filter: brightness(.94); transform: scale(1.015); }
+.tile:focus-visible, .closeButton:focus-visible, .directionButton:focus-visible { outline: 2px solid #161510; outline-offset: 4px; }
+.lightbox { position: fixed; z-index: 20; inset: 0; display: grid; place-items: center; padding: 76px 88px; background: rgba(19, 18, 14, .95); }
+.lightboxContent { max-width: min(86vw, 1250px); max-height: calc(100vh - 142px); }
+.lightboxImage { position: relative; width: min(82vw, 1180px); height: min(72vh, 780px); }
+.lightboxImage :global(img) { object-fit: contain; }
+.lightboxCaption, .position { margin: 12px 0 0; color: #fff; font: 12px/1.4 Arial, Helvetica, sans-serif; letter-spacing: .06em; text-align: center; text-transform: uppercase; }
+.closeButton, .directionButton { position: absolute; display: grid; width: 42px; height: 42px; padding: 0; place-items: center; border: 1px solid rgba(255,255,255,.65); border-radius: 50%; background: transparent; color: #fff; cursor: pointer; font-size: 22px; }
+.closeButton { top: 22px; right: 24px; }
+.directionButton { top: 50%; transform: translateY(-50%); }
+.previousButton { left: 24px; }
+.nextButton { right: 24px; }
+.position { position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%); }
+@media (max-width: 900px) { .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 700px) { .gallery { padding: 0 16px 48px; } .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; } .intro { margin-bottom: 48px; } .section { margin-top: 52px; } .lightbox { padding: 78px 16px 72px; } .lightboxImage { width: calc(100vw - 32px); height: min(70vh, 600px); } .directionButton { display: none; } .closeButton { top: 18px; right: 18px; } }
+@media (prefers-reduced-motion: reduce) { .tile :global(img) { transition: none; } }

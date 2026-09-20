@@ -33,8 +33,13 @@ type MediaContext = {
 export function HeldPlacesHeader() {
   return (
     <header className={styles.header}>
-      <Link className={styles.identity} href="/">Yuji / 佑治</Link>
-      <Link className={styles.indexLink} href="/#journeys">Index</Link>
+      <Link className={styles.identity} href="/">佑治</Link>
+      <nav aria-label="Primary navigation" className={styles.navigation}>
+        <Link className={styles.indexLink} href="/#journeys">Index</Link>
+        <Link className={styles.indexLink} href="/photos">Photos</Link>
+        <Link className={styles.indexLink} href="/glass">Glass</Link>
+        <Link className={styles.indexLink} href="https://www.linkedin.com/in/steven-connors/">Work</Link>
+      </nav>
     </header>
   );
 }
@@ -228,7 +233,7 @@ function prepareSlide(
     src,
     srcSet: desktop.map(({ url, width }) => `${url} ${width}w`).join(', ') || undefined,
     mobileSrcSet: mobile.map(({ url, width }) => `${url} ${width}w`).join(', ') || undefined,
-    alt: media.decorative
+    alt: media.decorative !== false
       ? ''
       : media.altTextOverride ?? asset.altText ?? asset.title ?? '',
     caption: media.captionOverride ?? asset.caption,

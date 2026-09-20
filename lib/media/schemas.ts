@@ -132,6 +132,20 @@ export const MediaPlacementSchema = z
 
 export type MediaPlacement = z.infer<typeof MediaPlacementSchema>;
 
+/**
+ * A break belongs to the first photograph in a run. This keeps the public
+ * gallery chronologically ordered while still allowing the author to group a
+ * run of images under a small optional note.
+ */
+export const PhotoSectionBreakSchema = z
+  .object({
+    title: z.string().trim().max(500).optional(),
+    text: z.string().trim().max(2_000).optional(),
+  })
+  .strict();
+
+export type PhotoSectionBreak = z.infer<typeof PhotoSectionBreakSchema>;
+
 export const MediaAssetSchema = z
   .object({
     _id: MediaIdSchema,
@@ -153,6 +167,10 @@ export const MediaAssetSchema = z
     altText: z.string().trim().max(1_000).optional(),
     tags: z.array(nonEmptyString).max(100),
     captureDate: z.string().date().optional(),
+    /** Whether this reusable asset appears in the public Photos gallery. */
+    showInPhotos: z.boolean().default(false),
+    /** Starts a new chronological Photos gallery group immediately before this asset. */
+    photoSectionBreak: PhotoSectionBreakSchema.optional(),
     privateMetadata: z
       .object({
         originalLocation: GeoPointSchema.optional(),

@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -29,7 +29,14 @@ describe('HeldPlacesJourneyPage', () => {
       <HeldPlacesJourneyPage
         assets={{ [asset.id]: asset }}
         buildMediaUrl={buildMediaUrl}
-        document={makeHeldPlacesDocument()}
+        document={makeHeldPlacesDocument({
+          chapters: [{
+            id: 'chapter-1',
+            heading: 'Arrival',
+            body: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'The rain lifted at the coast.' }] }] },
+            media: [{ mediaAssetId: asset.id, decorative: false }],
+          }],
+        })}
         title="Coast walk"
       />,
     );
@@ -46,8 +53,8 @@ describe('HeldPlacesJourneyPage', () => {
         id: 'chapter-1',
         body: { type: 'doc', content: [] },
         media: [
-          { mediaAssetId: asset.id },
-          { mediaAssetId: secondAsset.id },
+          { mediaAssetId: asset.id, decorative: false },
+          { mediaAssetId: secondAsset.id, decorative: false },
         ],
       }],
     });
@@ -63,7 +70,8 @@ describe('HeldPlacesJourneyPage', () => {
     expect(screen.getByRole('region', {
       name: 'Photograph carousel, 2 images',
     })).toBeInTheDocument();
-    expect(screen.getAllByRole('img').map((image) => image.getAttribute('alt')))
+    expect(within(screen.getByRole('region', { name: 'Photograph carousel, 2 images' }))
+      .getAllByRole('img').map((image) => image.getAttribute('alt')))
       .toEqual(['Coast after rain', 'Train platform']);
   });
 });

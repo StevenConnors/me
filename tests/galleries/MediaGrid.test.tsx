@@ -1,0 +1,49 @@
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import React from 'react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('next/link', () => ({
+  default: ({ children, href, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => (
+    <a href={String(href)} {...props}>{children}</a>
+  ),
+}));
+
+import { HeldPlacesHeader } from '@/components/held-places/HeldPlaces';
+import { MediaGrid } from '@/components/MediaGrid';
+
+describe('site galleries', () => {
+  afterEach(cleanup);
+
+  it('uses the Japanese identity and exposes the new gallery links', () => {
+    render(<HeldPlacesHeader />);
+
+    expect(screen.getByRole('link', { name: '佑治' })).toHaveAttribute('href', '/');
+    expect(screen.queryByRole('link', { name: /Yuji/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Photos' })).toHaveAttribute('href', '/photos');
+    expect(screen.getByRole('link', { name: 'Glass' })).toHaveAttribute('href', '/glass');
+    expect(screen.getByRole('link', { name: 'Index' })).toHaveAttribute('href', '/#journeys');
+  });
+
+  it('opens an item in place and supports keyboard navigation and closing', () => {
+    render(
+      <MediaGrid
+        portrait
+        placeholderImage="/placeholder.png"
+        title="Glass"
+        items={[
+          { id: 'one', kind: 'photo' },
+          { id: 'two', kind: 'video' },
+        ]}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open photo 1' }));
+    expect(screen.getByRole('dialog', { name: 'Glass, 1 of 2' })).toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: 'ArrowRight' });
+    expect(screen.getByRole('dialog', { name: 'Glass, 2 of 2' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close gallery' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+});

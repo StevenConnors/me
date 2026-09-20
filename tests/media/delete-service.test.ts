@@ -18,6 +18,7 @@ const media: MediaAsset = {
   height: 1200,
   bytes: 230_000,
   tags: [],
+  showInPhotos: false,
   status: 'ready',
   createdAt: new Date('2026-09-18T00:00:00.000Z'),
   updatedAt: new Date('2026-09-18T00:00:00.000Z'),

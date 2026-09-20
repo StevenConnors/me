@@ -137,7 +137,7 @@ Rules:
 - `POST /api/admin/journeys` creates a version 2 Held Places draft by default.
 - `PATCH /api/admin/journeys/[id]` accepts and validates either legacy v1 or Held Places v2 documents during migration.
 - Existing optimistic concurrency remains mandatory for template and metadata changes.
-- Publication validation for v2 requires a title, summary, valid cover, at least one meaningful chapter, ready media references, and alt text or explicit decorative intent for every image.
+- Publication validation for v2 requires a title, summary, valid cover, at least one meaningful chapter, and ready media references. Photographs are decorative by default; authors may optionally add alt text for meaningful images.
 - API responses continue to serialize application media IDs and normalized crop data, never provider URLs.
 
 ### 4.3 Published index reads

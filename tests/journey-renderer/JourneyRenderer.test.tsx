@@ -23,6 +23,7 @@ const photograph: MediaPlacement = {
   },
   captionOverride: 'A placement caption',
   altTextOverride: 'A person crossing a mountain pass',
+  decorative: false,
 };
 
 const assets = {

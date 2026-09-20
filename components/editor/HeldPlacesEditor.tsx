@@ -89,7 +89,7 @@ export function HeldPlacesEditor({ document, media, journeyId, onChange }: Props
     const existing = new Set(chapter.media.map(({ mediaAssetId }) => mediaAssetId));
     const additions = (selected[chapter.id] ?? [])
       .filter((id) => !existing.has(id))
-      .map((mediaAssetId) => ({ mediaAssetId }));
+      .map((mediaAssetId) => ({ mediaAssetId, decorative: true }));
     if (additions.length) updateChapter(chapter.id, { media: [...chapter.media, ...additions] });
   }
 
@@ -112,7 +112,7 @@ export function HeldPlacesEditor({ document, media, journeyId, onChange }: Props
             ? current
             : [...current, editorMedia],
         );
-        additions.push({ mediaAssetId: uploaded._id });
+        additions.push({ mediaAssetId: uploaded._id, decorative: true });
         setUploadState(`${file.name} is ready.`);
       } catch (error) {
         setUploadState(error instanceof Error ? error.message : 'Upload failed.');
@@ -347,13 +347,15 @@ function MediaEditor({
           <strong>{asset?.title ?? placement.mediaAssetId}</strong>
           <span>{index + 1} / {total}</span>
         </div>
-        <label>Alt text
-          <textarea disabled={placement.decorative} maxLength={1000} onChange={(event) => onChange({ ...placement, altTextOverride: event.target.value || undefined })} placeholder={asset?.altText ?? 'Describe what matters in the photograph'} value={placement.altTextOverride ?? ''} />
+        <label>Alt text <span>(optional)</span>
+          <textarea maxLength={1000} onChange={(event) => {
+            const altTextOverride = event.target.value || undefined;
+            onChange({ ...placement, altTextOverride, decorative: !altTextOverride });
+          }} placeholder={asset?.altText ?? 'Describe what matters in the photograph'} value={placement.altTextOverride ?? ''} />
         </label>
         <label>Caption <span>(optional)</span>
           <input maxLength={2000} onChange={(event) => onChange({ ...placement, captionOverride: event.target.value || undefined })} placeholder="A quiet note beneath the photograph" value={placement.captionOverride ?? ''} />
         </label>
-        <label className={styles.decorative}><input checked={placement.decorative ?? false} onChange={(event) => onChange({ ...placement, decorative: event.target.checked || undefined, altTextOverride: event.target.checked ? undefined : placement.altTextOverride })} type="checkbox" /> Decorative image</label>
         <div className={styles.focalGrid}>
           {(['desktop', 'mobile'] as const).map((viewport) => (
             <fieldset key={viewport}>

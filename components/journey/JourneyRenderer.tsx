@@ -296,7 +296,7 @@ function MediaVisual({
   placement: MediaPlacement;
   context: RenderContext;
 }) {
-  const alt = placement.decorative
+  const alt = placement.decorative !== false
     ? ''
     : placement.altTextOverride ?? asset.altText ?? asset.title ?? '';
   const eager = context.priorityMediaAssetIds?.includes(placement.mediaAssetId) ?? false;

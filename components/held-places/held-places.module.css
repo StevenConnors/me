@@ -8,6 +8,10 @@
   font-family: Arial, Helvetica, sans-serif;
 }
 
+/* The global site shell still carries legacy page padding. Photos is designed
+   to meet the viewport edge, so it cancels that shell only on this route. */
+.photosPaper { margin: -8px -56px; }
+
 .paper *,
 .paper *::before,
 .paper *::after {
@@ -21,6 +25,12 @@
   min-height: 150px;
   padding: 0 44px;
   font-size: 15px;
+}
+
+.navigation {
+  display: flex;
+  align-items: center;
+  gap: 24px;
 }
 
 .identity,
@@ -320,7 +330,9 @@
 
 @media (max-width: 768px) {
   .paper { margin: 0 -10px; }
+  .photosPaper { margin: -18px; }
   .header { min-height: 93px; padding: 0 16px; font-size: 14px; }
+  .navigation { gap: 14px; }
   .indexHero,
   .journeyHero {
     display: flex;
@@ -395,6 +407,7 @@
 @container journey-preview (max-width: 768px) {
   .paper { margin: 0; }
   .header { min-height: 93px; padding: 0 16px; font-size: 14px; }
+  .navigation { gap: 14px; }
   .indexHero,
   .journeyHero {
     display: flex;

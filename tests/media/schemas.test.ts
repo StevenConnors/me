@@ -98,6 +98,33 @@ describe('media schemas', () => {
     expect('url' in result).toBe(false);
   });
 
+  it('supports an explicit Photos-tab membership and a blank section break', () => {
+    const now = new Date('2026-09-18T00:00:00.000Z');
+    const result = MediaAssetSchema.parse({
+      _id: '66e4cc6e7fd5e6ad3db7ba10',
+      schemaVersion: 1,
+      provider: 'cloudinary',
+      providerAssetId: 'immutable-provider-id',
+      providerPublicId: 'photos/example/photo',
+      resourceType: 'image',
+      deliveryType: 'upload',
+      originalFilename: 'photo.jpg',
+      format: 'jpg',
+      width: 4000,
+      height: 3000,
+      bytes: 2_500_000,
+      tags: [],
+      showInPhotos: true,
+      photoSectionBreak: {},
+      status: 'ready',
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    expect(result.showInPhotos).toBe(true);
+    expect(result.photoSectionBreak).toEqual({});
+  });
+
   it('normalizes a null provider checksum at the upload boundary', () => {
     const result = ProviderUploadResultSchema.parse({
       providerAssetId: 'immutable-provider-id',
