@@ -1,9 +1,17 @@
 import { ObjectId } from 'mongodb';
 import { z } from 'zod';
 
-import { MediaPlacementSchema } from '@/lib/media/schemas';
+import {
+  CropSchema,
+  MediaIdSchema,
+  MediaPlacementSchema,
+  type MediaPlacement,
+} from '@/lib/media/schemas';
 
 export const JOURNEY_SCHEMA_VERSION = 1 as const;
+export const LEGACY_JOURNEY_DOCUMENT_VERSION = 1 as const;
+export const HELD_PLACES_DOCUMENT_VERSION = 2 as const;
+export const HELD_PLACES_TEMPLATE = 'held-places-v1' as const;
 
 export const JourneyStatusSchema = z.enum([
   'draft',
@@ -63,6 +71,17 @@ const ParagraphNodeSchema = z
     content: z.array(InlineNodeSchema).optional(),
   })
   .strict();
+
+export const RestrictedRichTextDocumentSchema = z
+  .object({
+    type: z.literal('doc'),
+    content: z.array(ParagraphNodeSchema).default([]),
+  })
+  .strict();
+
+export type RestrictedRichTextDocument = z.infer<
+  typeof RestrictedRichTextDocumentSchema
+>;
 
 const HeadingNodeSchema = z
   .object({
@@ -199,21 +218,102 @@ export const TiptapJsonDocumentSchema = z
   })
   .strict();
 
-export const JourneyDocumentSchema = z
+export const LegacyTiptapDocumentV1Schema = z
   .object({
-    schemaVersion: z.literal(JOURNEY_SCHEMA_VERSION),
+    schemaVersion: z.literal(LEGACY_JOURNEY_DOCUMENT_VERSION),
     editor: z.literal('tiptap'),
     content: TiptapJsonDocumentSchema,
   })
   .strict();
 
-export type JourneyDocument = z.infer<typeof JourneyDocumentSchema>;
+export type LegacyTiptapDocumentV1 = z.infer<
+  typeof LegacyTiptapDocumentV1Schema
+>;
 
-export const EMPTY_JOURNEY_DOCUMENT: JourneyDocument = {
-  schemaVersion: JOURNEY_SCHEMA_VERSION,
+export const EMPTY_LEGACY_JOURNEY_DOCUMENT: LegacyTiptapDocumentV1 = {
+  schemaVersion: LEGACY_JOURNEY_DOCUMENT_VERSION,
   editor: 'tiptap',
   content: { type: 'doc', content: [] },
 };
+
+export const HeldPlacesMediaSchema = z
+  .object({
+    mediaAssetId: MediaIdSchema,
+    crop: z
+      .object({
+        desktop: CropSchema.optional(),
+        mobile: CropSchema.optional(),
+      })
+      .strict()
+      .optional(),
+    captionOverride: z.string().trim().max(2_000).optional(),
+    altTextOverride: z.string().trim().max(1_000).optional(),
+    decorative: z.boolean().optional(),
+  })
+  .strict();
+
+export type HeldPlacesMedia = z.infer<typeof HeldPlacesMediaSchema>;
+
+export const HeldPlacesChapterSchema = z
+  .object({
+    id: z.string().trim().min(1).max(120),
+    heading: z.string().trim().min(1).max(200).optional(),
+    body: RestrictedRichTextDocumentSchema,
+    media: z.array(HeldPlacesMediaSchema).max(50),
+  })
+  .strict();
+
+export type HeldPlacesChapter = z.infer<typeof HeldPlacesChapterSchema>;
+
+export const HeldPlacesDocumentV2Schema = z
+  .object({
+    schemaVersion: z.literal(HELD_PLACES_DOCUMENT_VERSION),
+    template: z.literal(HELD_PLACES_TEMPLATE),
+    chapters: z.array(HeldPlacesChapterSchema).min(1).max(100),
+  })
+  .strict()
+  .superRefine((document, context) => {
+    const seen = new Set<string>();
+    document.chapters.forEach((chapter, index) => {
+      if (seen.has(chapter.id)) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['chapters', index, 'id'],
+          message: 'Chapter IDs must be unique within a journey',
+        });
+      }
+      seen.add(chapter.id);
+    });
+  });
+
+export type HeldPlacesDocumentV2 = z.infer<typeof HeldPlacesDocumentV2Schema>;
+
+export const JourneyDocumentSchema = z.discriminatedUnion('schemaVersion', [
+  LegacyTiptapDocumentV1Schema,
+  HeldPlacesDocumentV2Schema,
+]);
+
+export type JourneyDocument = z.infer<typeof JourneyDocumentSchema>;
+
+export function createEmptyHeldPlacesDocument(
+  chapterId = new ObjectId().toHexString(),
+): HeldPlacesDocumentV2 {
+  return {
+    schemaVersion: HELD_PLACES_DOCUMENT_VERSION,
+    template: HELD_PLACES_TEMPLATE,
+    chapters: [
+      {
+        id: chapterId,
+        body: { type: 'doc', content: [] },
+        media: [],
+      },
+    ],
+  };
+}
+
+/** New journeys use Held Places; the legacy constant remains available above. */
+export const EMPTY_JOURNEY_DOCUMENT: HeldPlacesDocumentV2 =
+  createEmptyHeldPlacesDocument('initial-chapter');
 
 const IsoDateSchema = z
   .string()
@@ -277,6 +377,17 @@ export const JourneySchema = z
 
 export type Journey = z.infer<typeof JourneySchema>;
 
+export type PublishedJourneySummary = {
+  id: string;
+  slug: string;
+  title: string;
+  summary: string;
+  cover: HeldPlacesMedia;
+  publishedAt: string;
+  experiencedAt?: z.infer<typeof JourneyExperiencedAtSchema>;
+  locations: JourneyLocation[];
+};
+
 export const JourneyRevisionReasonSchema = z.enum([
   'periodic',
   'checkpoint',
@@ -292,11 +403,26 @@ export const JourneyRevisionMetadataSchema = z
   .object({
     slug: JourneySlugSchema,
     title: z.string().max(200),
-    summary: z.string().trim().min(1).max(500).optional(),
-    cover: MediaPlacementSchema.optional(),
-    experiencedAt: JourneyExperiencedAtSchema.optional(),
+    // Earlier revisions persisted cleared optional fields as null. Normalize
+    // those historical values on read so an otherwise valid published journey
+    // remains viewable after the optional fields became truly optional.
+    summary: z.preprocess(
+      (value) => value === null ? undefined : value,
+      z.string().trim().min(1).max(500).optional(),
+    ),
+    cover: z.preprocess(
+      (value) => value === null ? undefined : value,
+      MediaPlacementSchema.optional(),
+    ),
+    experiencedAt: z.preprocess(
+      (value) => value === null ? undefined : value,
+      JourneyExperiencedAtSchema.optional(),
+    ),
     locations: z.array(JourneyLocationSchema).max(100),
-    social: JourneySocialSchema.optional(),
+    social: z.preprocess(
+      (value) => value === null ? undefined : value,
+      JourneySocialSchema.optional(),
+    ),
   })
   .strict();
 
@@ -360,8 +486,14 @@ export function snapshotJourneyMetadata(
 
 export function collectMediaPlacements(
   document: JourneyDocument,
-): Array<z.infer<typeof MediaPlacementSchema>> {
-  const placements: Array<z.infer<typeof MediaPlacementSchema>> = [];
+): MediaPlacement[] {
+  if (document.schemaVersion === HELD_PLACES_DOCUMENT_VERSION) {
+    return document.chapters.flatMap((chapter) =>
+      chapter.media.map((media) => heldPlacesMediaToPlacement(media)),
+    );
+  }
+
+  const placements: MediaPlacement[] = [];
 
   for (const node of document.content.content) {
     if (node.type === 'photograph') placements.push(node.attrs.placement);
@@ -370,4 +502,31 @@ export function collectMediaPlacements(
   }
 
   return placements;
+}
+
+export function heldPlacesMediaToPlacement(
+  media: HeldPlacesMedia,
+  role: MediaPlacement['role'] = 'story',
+): MediaPlacement {
+  return {
+    ...media,
+    role,
+    layout: { desktop: role === 'cover' ? 'full' : 'story-step', mobile: 'full' },
+  };
+}
+
+export function isHeldPlacesDocument(
+  document: JourneyDocument,
+): document is HeldPlacesDocumentV2 {
+  return document.schemaVersion === HELD_PLACES_DOCUMENT_VERSION;
+}
+
+export function restrictedTextContent(
+  document: RestrictedRichTextDocument,
+): string {
+  return document.content
+    .flatMap((paragraph) => paragraph.content ?? [])
+    .flatMap((node) => (node.type === 'text' ? [node.text] : []))
+    .join('')
+    .trim();
 }

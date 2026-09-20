@@ -4,9 +4,13 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import React, { useEffect, useRef, useState } from 'react';
 
+import { HeldPlacesEditor } from '@/components/editor/HeldPlacesEditor';
 import { JourneyVisualEditor, type EditorMedia } from '@/components/editor/JourneyVisualEditor';
 import styles from '@/app/admin/admin.module.css';
-import type { JourneyDocument } from '@/lib/journeys/schemas';
+import type {
+  JourneyDocument,
+  JourneyLocation,
+} from '@/lib/journeys/schemas';
 import type { MediaPlacement } from '@/lib/media/schemas';
 
 type EditableJourney = {
@@ -15,6 +19,8 @@ type EditableJourney = {
   slug: string;
   summary?: string;
   cover?: MediaPlacement | null;
+  experiencedAt?: { start: string; end?: string } | null;
+  locations?: JourneyLocation[];
   status: 'draft' | 'preview' | 'published' | 'archived';
   editVersion: number;
   draftDocument: JourneyDocument;
@@ -32,6 +38,7 @@ export function JourneyWorkspace({ initialJourney, media }: { initialJourney: Ed
   const [summaryOmissionConfirmed, setSummaryOmissionConfirmed] = useState(false);
   const [deleteState, setDeleteState] = useState<'idle' | 'deleting' | 'error'>('idle');
   const [deleteError, setDeleteError] = useState('');
+  const [migrationState, setMigrationState] = useState<'idle' | 'migrating' | 'error'>('idle');
   const current = useRef(journey);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -43,8 +50,9 @@ export function JourneyWorkspace({ initialJourney, media }: { initialJourney: Ed
     timer.current = setTimeout(() => void save(next), 1_000);
   }
 
-  function change<K extends keyof Pick<EditableJourney, 'title' | 'slug' | 'summary' | 'cover' | 'draftDocument'>>(key: K, value: EditableJourney[K]) {
+  function change<K extends keyof Pick<EditableJourney, 'title' | 'slug' | 'summary' | 'cover' | 'experiencedAt' | 'locations' | 'draftDocument'>>(key: K, value: EditableJourney[K]) {
     const next = { ...current.current, [key]: value };
+    current.current = next;
     setJourney(next);
     setSaveState('idle');
     scheduleSave(next);
@@ -67,6 +75,8 @@ export function JourneyWorkspace({ initialJourney, media }: { initialJourney: Ed
           slug: next.slug,
           summary: next.summary || null,
           cover: next.cover ?? null,
+          experiencedAt: next.experiencedAt ?? null,
+          locations: next.locations ?? [],
           draftDocument: next.draftDocument,
         }),
       });
@@ -142,6 +152,31 @@ export function JourneyWorkspace({ initialJourney, media }: { initialJourney: Ed
     }
   }
 
+  async function startMigration() {
+    if (!window.confirm('Start the Held Places migration? Your current draft will be saved as an immutable checkpoint before the new empty chapter is created. The published journey will not change.')) return;
+    const saved = await save();
+    if (!saved) return;
+    setMigrationState('migrating');
+    try {
+      const response = await fetch(`/api/admin/journeys/${saved._id}/migration`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ expectedEditVersion: saved.editVersion }),
+      });
+      const payload = (await response.json()) as SaveResponse;
+      if (!response.ok || !payload.journey) {
+        throw new Error(payload.error?.message ?? 'Migration failed');
+      }
+      setJourney(payload.journey);
+      current.current = payload.journey;
+      setMigrationState('idle');
+      setSaveState('saved');
+    } catch (error) {
+      console.error(error);
+      setMigrationState('error');
+    }
+  }
+
   const saveLabel: Record<SaveState, string> = {
     idle: 'Changes save automatically',
     saving: 'Saving…',
@@ -162,7 +197,7 @@ export function JourneyWorkspace({ initialJourney, media }: { initialJourney: Ed
           <input id="journey-slug" value={journey.slug} onChange={(event) => change('slug', event.target.value)} placeholder="journey-slug" maxLength={120} pattern="[a-z0-9]+(?:-[a-z0-9]+)*" />
         </div>
         <div className={styles.field}>
-          <label htmlFor="journey-summary">Summary <span aria-hidden="true">(optional)</span></label>
+          <label htmlFor="journey-summary">Summary <span aria-hidden="true">{journey.draftDocument.schemaVersion === 2 ? '(required for Held Places)' : '(optional)'}</span></label>
           <textarea id="journey-summary" value={journey.summary ?? ''} onChange={(event) => change('summary', event.target.value)} placeholder="A short invitation into the journey." maxLength={500} />
         </div>
         <div className={styles.field}>
@@ -175,7 +210,89 @@ export function JourneyWorkspace({ initialJourney, media }: { initialJourney: Ed
             <option value="">Choose a cover from the media library…</option>
             {media.map((asset) => <option key={asset.id} value={asset.id}>{asset.title}</option>)}
           </select>
-          <span className={styles.fieldHint}>Add image alt text in the media library to improve accessibility.</span>
+          {journey.cover ? (
+            <div className={styles.coverControls}>
+              <label htmlFor="journey-cover-alt">Cover alt text</label>
+              <input
+                id="journey-cover-alt"
+                maxLength={1000}
+                onChange={(event) => change('cover', {
+                  ...journey.cover!,
+                  altTextOverride: event.target.value || undefined,
+                })}
+                placeholder={media.find(({ id }) => id === journey.cover?.mediaAssetId)?.altText ?? 'Describe the cover photograph'}
+                value={journey.cover.altTextOverride ?? ''}
+              />
+              <div className={styles.coverFocalGrid}>
+                {(['desktop', 'mobile'] as const).map((viewport) => (
+                  <fieldset key={viewport}>
+                    <legend>{viewport} focal point</legend>
+                    {(['x', 'y'] as const).map((axis) => (
+                      <label key={axis}>{axis.toUpperCase()}
+                        <input
+                          aria-label={`Cover ${viewport} focal point ${axis === 'x' ? 'horizontal' : 'vertical'}`}
+                          max="100"
+                          min="0"
+                          onChange={(event) => {
+                            const currentCrop = journey.cover?.crop?.[viewport];
+                            const currentPoint = currentCrop?.focalPoint ?? { x: .5, y: .5 };
+                            change('cover', {
+                              ...journey.cover!,
+                              crop: {
+                                ...journey.cover?.crop,
+                                [viewport]: {
+                                  mode: 'focal-fill',
+                                  aspectRatio: viewport === 'mobile' ? 1 : 1.15,
+                                  ...currentCrop,
+                                  focalPoint: { ...currentPoint, [axis]: Number(event.target.value) / 100 },
+                                },
+                              },
+                            });
+                          }}
+                          type="range"
+                          value={(journey.cover?.crop?.[viewport]?.focalPoint?.[axis] ?? .5) * 100}
+                        />
+                      </label>
+                    ))}
+                  </fieldset>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          <span className={styles.fieldHint}>The cover uses the template crop at every width; only its focal point and accessible description are editable.</span>
+        </div>
+        <div className={styles.field}>
+          <label htmlFor="journey-experienced-start">Experienced date <span aria-hidden="true">(optional)</span></label>
+          <input
+            id="journey-experienced-start"
+            onChange={(event) => change('experiencedAt', event.target.value ? {
+              start: event.target.value,
+              ...(journey.experiencedAt?.end ? { end: journey.experiencedAt.end } : {}),
+            } : null)}
+            type="date"
+            value={journey.experiencedAt?.start ?? ''}
+          />
+          <input
+            aria-label="Experienced end date"
+            disabled={!journey.experiencedAt?.start}
+            min={journey.experiencedAt?.start}
+            onChange={(event) => change('experiencedAt', journey.experiencedAt?.start ? {
+              start: journey.experiencedAt.start,
+              ...(event.target.value ? { end: event.target.value } : {}),
+            } : null)}
+            type="date"
+            value={journey.experiencedAt?.end ?? ''}
+          />
+        </div>
+        <div className={styles.field}>
+          <label htmlFor="journey-locations">Locations <span aria-hidden="true">(optional)</span></label>
+          <input
+            id="journey-locations"
+            onChange={(event) => change('locations', event.target.value.split(',').map((label) => label.trim()).filter(Boolean).map((label, index) => ({ id: `location-${index + 1}`, label })))}
+            placeholder="Tohoku, Sendai, Matsushima"
+            value={(journey.locations ?? []).map(({ label }) => label).join(', ')}
+          />
+          <span className={styles.fieldHint}>Separate public location labels with commas.</span>
         </div>
         <div className={styles.formFooter}>
           <span className={styles.status} data-state={saveState}>{saveLabel[saveState]}</span>
@@ -185,21 +302,41 @@ export function JourneyWorkspace({ initialJourney, media }: { initialJourney: Ed
           </div>
         </div>
       </form>
-      <p className={styles.eyebrow} style={{ marginTop: 48 }}>Visual canvas</p>
-      <h2 className={styles.title} style={{ fontSize: 'clamp(32px, 4vw, 48px)' }}>Write, then place the frame.</h2>
-      <p className={styles.lede}>Drag an image into the canvas to upload it directly, or choose an asset from the library and insert it as a photograph or gallery.</p>
-      <JourneyVisualEditor
-        document={journey.draftDocument}
-        media={media}
-        journeyId={journey._id}
-        onChange={(draftDocument) => change('draftDocument', draftDocument)}
-      />
+      {journey.draftDocument.schemaVersion === 2 ? (
+        <HeldPlacesEditor
+          document={journey.draftDocument}
+          media={media}
+          journeyId={journey._id}
+          onChange={(draftDocument) => change('draftDocument', draftDocument)}
+        />
+      ) : (
+        <>
+          <section className={styles.migrationPanel}>
+            <div>
+              <p className={styles.eyebrow}>Legacy journey</p>
+              <h2 className={styles.publishTitle}>Move this draft into Held Places</h2>
+              <p className={styles.publishDescription}>A checkpoint preserves the current draft. The public revision stays live while you manually curate the new chapter slots.</p>
+            </div>
+            <button className={styles.button} disabled={migrationState === 'migrating'} onClick={() => void startMigration()} type="button">{migrationState === 'migrating' ? 'Preparing…' : 'Start Held Places migration'}</button>
+            {migrationState === 'error' ? <p className={styles.deleteError} role="alert">Migration failed. Reload and try again.</p> : null}
+          </section>
+          <p className={styles.eyebrow} style={{ marginTop: 48 }}>Legacy visual canvas</p>
+          <h2 className={styles.title} style={{ fontSize: 'clamp(32px, 4vw, 48px)' }}>Write, then place the frame.</h2>
+          <p className={styles.lede}>This v1 editor stays available during migration.</p>
+          <JourneyVisualEditor
+            document={journey.draftDocument}
+            media={media}
+            journeyId={journey._id}
+            onChange={(draftDocument) => change('draftDocument', draftDocument)}
+          />
+        </>
+      )}
       <section className={styles.publishPanel} aria-label="Publish journey">
         <div>
           <p className={styles.eyebrow}>Release</p>
           <h2 className={styles.publishTitle}>{journey.status === 'published' ? 'Publish an updated revision' : 'Ready for the public archive?'}</h2>
           <p className={styles.publishDescription}>Publishing validates the draft, records an immutable revision, and makes that revision the public journey.</p>
-          {!journey.summary && (
+          {journey.draftDocument.schemaVersion === 1 && !journey.summary && (
             <label className={styles.checkbox}><input type="checkbox" checked={summaryOmissionConfirmed} onChange={(event) => setSummaryOmissionConfirmed(event.target.checked)} /> This journey intentionally has no summary.</label>
           )}
         </div>

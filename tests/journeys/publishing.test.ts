@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
 import { validateJourneyForPublication } from '@/lib/journeys/publishing';
-import { makeDocument, makeJourney, makePlacement, READY_MEDIA_ID } from './fixtures';
+import {
+  makeDocument,
+  makeHeldPlacesDocument,
+  makeJourney,
+  makePlacement,
+  READY_MEDIA_ID,
+} from './fixtures';
 
 const readyAsset = {
   _id: READY_MEDIA_ID,
@@ -99,5 +105,49 @@ describe('validateJourneyForPublication', () => {
     });
 
     expect(result.success).toBe(true);
+  });
+
+  it('publishes a meaningful Held Places document with accessible media', () => {
+    const journey = makeJourney({
+      draftDocument: makeHeldPlacesDocument(),
+    });
+
+    expect(
+      validateJourneyForPublication(journey, { mediaAssets: [readyAsset] }),
+    ).toMatchObject({ success: true });
+  });
+
+  it('rejects empty Held Places chapters and images without accessible text', () => {
+    const emptyResult = validateJourneyForPublication(
+      makeJourney({
+        draftDocument: makeHeldPlacesDocument({
+          chapters: [{
+            id: 'empty-chapter',
+            body: { type: 'doc', content: [] },
+            media: [],
+          }],
+        }),
+      }),
+      { mediaAssets: [readyAsset] },
+    );
+    expect(emptyResult.success).toBe(false);
+    if (!emptyResult.success) {
+      expect(emptyResult.issues.map(({ code }) => code)).toContain('chapter_required');
+    }
+
+    const inaccessibleResult = validateJourneyForPublication(
+      makeJourney({
+        cover: makePlacement({
+          role: 'cover',
+          altTextOverride: 'A coastline seen from above',
+        }),
+        draftDocument: makeHeldPlacesDocument(),
+      }),
+      { mediaAssets: [{ _id: READY_MEDIA_ID, status: 'ready' as const }] },
+    );
+    expect(inaccessibleResult.success).toBe(false);
+    if (!inaccessibleResult.success) {
+      expect(inaccessibleResult.issues.map(({ code }) => code)).toContain('media_alt_required');
+    }
   });
 });

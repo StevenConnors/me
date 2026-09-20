@@ -1,6 +1,7 @@
 import { createJourneyRevision } from '@/lib/journeys/revisions';
 import { assertJourneyPublishable, PublicationValidationError } from '@/lib/journeys/publishing';
 import { JourneyConflictError, JourneyNotFoundError, JourneyRepository } from '@/lib/journeys/repository';
+import { collectMediaPlacements } from '@/lib/journeys/schemas';
 import { MediaRepository } from '@/lib/media/repository';
 
 export { PublicationValidationError };
@@ -28,12 +29,9 @@ export async function publishJourney(
   const mediaIds = new Set([
     ...(journey.cover ? [journey.cover.mediaAssetId] : []),
     ...(journey.social?.image ? [journey.social.image.mediaAssetId] : []),
-    ...journey.draftDocument.content.content.flatMap((node) => {
-      if (node.type === 'photograph') return [node.attrs.placement.mediaAssetId];
-      if (node.type === 'gallery') return node.attrs.items.map((placement) => placement.mediaAssetId);
-      if (node.type === 'storyStep') return [node.attrs.media.mediaAssetId];
-      return [];
-    }),
+    ...collectMediaPlacements(journey.draftDocument).map(
+      (placement) => placement.mediaAssetId,
+    ),
   ]);
   const mediaAssets = await Promise.all(Array.from(mediaIds, (mediaId) => mediaRepository.findById(mediaId)));
   const validated = assertJourneyPublishable(journey, {

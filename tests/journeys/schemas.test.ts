@@ -4,8 +4,14 @@ import {
   JourneyDocumentSchema,
   JourneySchema,
   collectMediaPlacements,
+  createEmptyHeldPlacesDocument,
 } from '@/lib/journeys/schemas';
-import { makeDocument, makeJourney, makePlacement } from './fixtures';
+import {
+  makeDocument,
+  makeHeldPlacesDocument,
+  makeJourney,
+  makePlacement,
+} from './fixtures';
 
 describe('JourneyDocumentSchema', () => {
   it('accepts a versioned document made only from supported nodes', () => {
@@ -83,6 +89,58 @@ describe('JourneyDocumentSchema', () => {
         ]),
       ).success,
     ).toBe(false);
+  });
+
+  it('accepts the layout-free Held Places contract and collects its media', () => {
+    const document = makeHeldPlacesDocument();
+
+    expect(JourneyDocumentSchema.parse(document)).toEqual(document);
+    expect(collectMediaPlacements(document)).toEqual([
+      expect.objectContaining({
+        mediaAssetId: document.chapters[0].media[0].mediaAssetId,
+        role: 'story',
+        layout: { desktop: 'story-step', mobile: 'full' },
+      }),
+    ]);
+    expect(createEmptyHeldPlacesDocument('stable-chapter')).toMatchObject({
+      schemaVersion: 2,
+      template: 'held-places-v1',
+      chapters: [{ id: 'stable-chapter', media: [] }],
+    });
+  });
+
+  it('rejects presentation controls, provider URLs, and unsafe rich text in v2', () => {
+    const withLayout = makeHeldPlacesDocument({
+      chapters: [{
+        id: 'chapter-1',
+        body: { type: 'doc', content: [] },
+        media: [{
+          mediaAssetId: 'media-1',
+          layout: { desktop: 'wide', mobile: 'full' },
+        } as never],
+      }],
+    });
+    const withProviderUrl = makeHeldPlacesDocument({
+      chapters: [{
+        id: 'chapter-1',
+        body: { type: 'doc', content: [] },
+        media: [{ mediaAssetId: 'https://example.com/photo.jpg' }],
+      }],
+    });
+    const withUnsafeNode = makeHeldPlacesDocument({
+      chapters: [{
+        id: 'chapter-1',
+        body: {
+          type: 'doc',
+          content: [{ type: 'heading', content: [] } as never],
+        },
+        media: [],
+      }],
+    });
+
+    expect(JourneyDocumentSchema.safeParse(withLayout).success).toBe(false);
+    expect(JourneyDocumentSchema.safeParse(withProviderUrl).success).toBe(false);
+    expect(JourneyDocumentSchema.safeParse(withUnsafeNode).success).toBe(false);
   });
 });
 

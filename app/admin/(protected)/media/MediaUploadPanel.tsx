@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 import styles from '@/app/admin/admin.module.css';
 import { uploadMedia } from '@/lib/client/upload-media';
@@ -8,6 +9,7 @@ import { uploadMedia } from '@/lib/client/upload-media';
 type UploadState = 'idle' | 'authorizing' | 'uploading' | 'finalizing' | 'complete' | 'error';
 
 export function MediaUploadPanel() {
+  const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [state, setState] = useState<UploadState>('idle');
   const [message, setMessage] = useState('');
@@ -25,7 +27,7 @@ export function MediaUploadPanel() {
 
       setState('complete');
       setMessage(`${file.name} is ready in the media library.`);
-      window.setTimeout(() => window.location.reload(), 650);
+      router.refresh();
     } catch (error) {
       console.error(error);
       setState('error');

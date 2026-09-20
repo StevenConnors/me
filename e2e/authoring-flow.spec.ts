@@ -6,6 +6,7 @@ const sampleImage = Buffer.from(
 );
 
 test('an author can create, revise, publish, view, and delete a journey', async ({ page }) => {
+  test.setTimeout(60_000);
   const suffix = `${Date.now()}-${Math.floor(Math.random() * 10_000)}`;
   const title = `E2E coast walk ${suffix}`;
   const updatedTitle = `${title} revised`;
@@ -28,7 +29,7 @@ test('an author can create, revise, publish, view, and delete a journey', async 
 
     await page.getByLabel('Title').fill(title);
     await page.getByLabel('Public slug').fill(slug);
-    await page.getByLabel('Summary (optional)').fill('A browser-tested publishing workflow.');
+    await page.getByLabel('Summary').fill('A browser-tested publishing workflow.');
     await page.locator('.ProseMirror').fill(firstText);
     await page.getByRole('button', { name: 'Save now' }).click();
     await expect(page.getByText('Saved', { exact: true })).toBeVisible();
@@ -46,12 +47,15 @@ test('an author can create, revise, publish, view, and delete a journey', async 
     expect(finalized.ok()).toBe(true);
     mediaId = (await finalized.json() as { media: { _id: string } }).media._id;
     await expect(page.getByText('sample-image.png', { exact: true })).toBeVisible();
+    await page.getByLabel('Alt text').fill('A small cove after rain');
+    await page.getByRole('button', { name: 'Save media details' }).click();
+    await expect(page.getByText('Saved', { exact: true })).toBeVisible();
 
     await page.goto(editUrl);
     await page.getByLabel('Cover image').selectOption(mediaId);
-    await page.getByLabel('Choose media to insert').selectOption(mediaId);
-    await page.getByRole('button', { name: 'Add photo' }).click();
-    await expect(page.locator('.ProseMirror img')).toHaveCount(1);
+    await page.getByLabel('Add photographs from the library').selectOption([mediaId]);
+    await page.getByRole('button', { name: 'Add selected' }).click();
+    await page.getByLabel('Alt text', { exact: true }).fill('A small cove after rain');
     await page.getByRole('button', { name: 'Save now' }).click();
     await expect(page.getByText('Saved', { exact: true })).toBeVisible();
 
@@ -61,7 +65,7 @@ test('an author can create, revise, publish, view, and delete a journey', async 
     await page.goto(publicUrl);
     await expect(page.getByRole('heading', { name: title })).toBeVisible();
     await expect(page.getByText(firstText)).toBeVisible();
-    await expect(page.locator('[data-journey-renderer] img')).toHaveCount(1);
+    await expect(page.getByAltText('A small cove after rain')).toHaveCount(2);
 
     await page.goto(editUrl);
     await page.getByLabel('Title').fill(updatedTitle);
