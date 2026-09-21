@@ -46,10 +46,45 @@ describe('PhotosGallery pagination', () => {
     render(<PhotosGallery initialCursor="cursor-one" initialItems={[photo('one')]} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Load more' }));
-    await waitFor(() => expect(screen.getByText('More photos could not be loaded.')).toBeTruthy());
+    await waitFor(() => expect(screen.getByText('Offline')).toBeTruthy());
     expect(screen.getAllByAltText('Photo one')).toHaveLength(1);
     expect(screen.getByRole('button', { name: 'Try again' })).toBeTruthy();
     consoleError.mockRestore();
+  });
+
+  it('offers a full reload when a publish makes the pagination cursor stale', async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: false,
+      json: async () => ({ error: { code: 'GALLERY_CURSOR_STALE', message: 'This gallery page has changed.' } }),
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    render(<PhotosGallery initialCursor="cursor-one" initialItems={[photo('one')]} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Load more' }));
+
+    expect(await screen.findByText('This gallery page has changed.')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Reload gallery' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull();
+    consoleError.mockRestore();
+  });
+
+  it('does not wrap the lightbox while a later page is still loading', async () => {
+    let resolveResponse: ((response: { ok: true; json: () => Promise<{ items: ReturnType<typeof photo>[]; nextCursor: null }> }) => void) | undefined;
+    const fetchMock = vi.fn(() => new Promise((resolve) => { resolveResponse = resolve; }));
+    vi.stubGlobal('fetch', fetchMock);
+    render(<PhotosGallery initialCursor="cursor-one" initialItems={[photo('one'), photo('two')]} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open photo 2' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Next photo' }));
+
+    expect(screen.getByRole('dialog')).toHaveAttribute('aria-label', 'Photos, 2 of 2');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    resolveResponse?.({ ok: true, json: async () => ({ items: [photo('three')], nextCursor: null }) });
+    await waitFor(() => expect(screen.getByRole('dialog')).toHaveAttribute('aria-label', 'Photos, 2 of 3'));
+    fireEvent.click(screen.getByRole('button', { name: 'Next photo' }));
+    expect(screen.getByRole('dialog')).toHaveAttribute('aria-label', 'Photos, 3 of 3');
   });
 
   it('uses a poster in the grid and mounts a non-preloading video only while it is active', async () => {

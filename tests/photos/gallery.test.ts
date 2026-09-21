@@ -36,8 +36,14 @@ describe('loadPublicPhotosPage', () => {
       },
       createdAt: now, updatedAt: now, publishedAt: now,
     };
+    const requestedIds: string[][] = [];
+    const assets = new Map(['one', 'two', 'three'].map((id) => [id, media(id)]));
     const repository = {
-      findByIds: async () => [media('three'), media('one'), media('two')],
+      findByIds: async (ids: Iterable<string>) => {
+        const requested = Array.from(ids);
+        requestedIds.push(requested);
+        return [...requested].reverse().map((id) => assets.get(id)!);
+      },
       listPhotos: async () => [],
     };
 
@@ -46,6 +52,53 @@ describe('loadPublicPhotosPage', () => {
 
     expect(first.items.map((item) => item.id)).toEqual(['one', 'two']);
     expect(second.items).toMatchObject([{ id: 'three', sectionBreak: { title: 'Later' } }]);
+    expect(second.nextCursor).toBeNull();
+    expect(requestedIds).toEqual([['one', 'two', 'three'], ['three']]);
+  });
+
+  it('scans past unavailable references without resolving the entire document', async () => {
+    const ids = ['missing-one', 'two', 'missing-three', 'four', 'five'];
+    const page: PhotosPage = {
+      _id: 'photos', schemaVersion: 1, draftVersion: 1,
+      draftDocument: { schemaVersion: 1, blocks: [] },
+      publishedDocument: {
+        schemaVersion: 1,
+        blocks: ids.map((id) => ({ id: `${id}-block`, type: 'media' as const, mediaAssetId: id, decorative: true })),
+      },
+      createdAt: now, updatedAt: now, publishedAt: now,
+    };
+    const assets = new Map(['two', 'four', 'five'].map((id) => [id, media(id)]));
+    const requestedIds: string[][] = [];
+    const repository = {
+      findByIds: async (mediaIds: Iterable<string>) => {
+        const requested = Array.from(mediaIds);
+        requestedIds.push(requested);
+        return requested.flatMap((id) => assets.get(id) ?? []);
+      },
+      listPhotos: async () => [],
+    };
+
+    const result = await loadPublicPhotosPage(page, repository, provider, { limit: 2 });
+
+    expect(result.items.map((item) => item.id)).toEqual(['two', 'four']);
+    expect(result.nextCursor).not.toBeNull();
+    expect(result.unavailable.map((item) => item.mediaAssetId)).toEqual(['missing-one', 'missing-three']);
+    expect(requestedIds).toEqual([['missing-one', 'two', 'missing-three'], ['four', 'five']]);
+  });
+
+  it('paginates the legacy fallback instead of dropping everything after the first page', async () => {
+    const legacy = [media('one'), media('two'), media('three')];
+    const repository = {
+      findByIds: async () => [],
+      listPhotos: async () => legacy,
+    };
+
+    const first = await loadPublicPhotosPage(null, repository, provider, { limit: 2 });
+    const second = await loadPublicPhotosPage(null, repository, provider, { limit: 2, cursor: first.nextCursor! });
+
+    expect(first.items.map((item) => item.id)).toEqual(['one', 'two']);
+    expect(first.nextCursor).not.toBeNull();
+    expect(second.items.map((item) => item.id)).toEqual(['three']);
     expect(second.nextCursor).toBeNull();
   });
 

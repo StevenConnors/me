@@ -8,6 +8,11 @@ import { PhotosPageView, type PublicPhoto } from './PhotosPageView';
 
 export type { PublicPhoto } from './PhotosPageView';
 
+type LoadFailure = {
+  message: string;
+  reloadRequired: boolean;
+};
+
 export function PhotosGallery({
   initialItems,
   initialCursor,
@@ -18,6 +23,7 @@ export function PhotosGallery({
   const [photos, setPhotos] = useState(initialItems);
   const [nextCursor, setNextCursor] = useState(initialCursor);
   const [loadState, setLoadState] = useState<'idle' | 'loading' | 'error'>('idle');
+  const [loadFailure, setLoadFailure] = useState<LoadFailure | null>(null);
   const [loadedMessage, setLoadedMessage] = useState('');
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -36,8 +42,16 @@ export function PhotosGallery({
     setActiveIndex(null);
     requestAnimationFrame(() => triggerRef.current?.focus());
   }, []);
-  const previous = useCallback(() => setActiveIndex((current) => current === null ? 0 : (current - 1 + photos.length) % photos.length), [photos.length]);
-  const next = useCallback(() => setActiveIndex((current) => current === null ? 0 : (current + 1) % photos.length), [photos.length]);
+  const previous = useCallback(() => setActiveIndex((current) => {
+    if (current === null) return 0;
+    if (current > 0) return current - 1;
+    return nextCursor ? current : photos.length - 1;
+  }), [nextCursor, photos.length]);
+  const next = useCallback(() => setActiveIndex((current) => {
+    if (current === null) return 0;
+    if (current < photos.length - 1) return current + 1;
+    return nextCursor ? current : 0;
+  }), [nextCursor, photos.length]);
 
   const loadMore = useCallback(async () => {
     if (!nextCursor || loadingRef.current) return;
@@ -46,11 +60,16 @@ export function PhotosGallery({
     const controller = new AbortController();
     abortRef.current = controller;
     setLoadState('loading');
+    setLoadFailure(null);
     try {
       const parameters = new URLSearchParams({ limit: '24', cursor: nextCursor });
       const response = await fetch(`/api/photos?${parameters.toString()}`, { signal: controller.signal });
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload?.error?.message ?? 'Unable to load more photos');
+      if (!response.ok) {
+        const failure = new Error(payload?.error?.message ?? 'Unable to load more photos') as Error & { code?: string };
+        failure.code = payload?.error?.code;
+        throw failure;
+      }
       const items = payload.items as PublicPhoto[];
       setPhotos((current) => [...current, ...items.filter((item) => !current.some((known) => known.id === item.id))]);
       setNextCursor((payload.nextCursor as string | null) ?? null);
@@ -59,6 +78,10 @@ export function PhotosGallery({
     } catch (error) {
       if ((error as DOMException).name !== 'AbortError') {
         console.error(error);
+        setLoadFailure({
+          message: error instanceof Error ? error.message : 'Unable to load more photos',
+          reloadRequired: (error as Error & { code?: string }).code === 'GALLERY_CURSOR_STALE',
+        });
         setLoadState('error');
       }
     } finally {
@@ -133,8 +156,10 @@ export function PhotosGallery({
     <>
       <PhotosPageView onOpen={open} photos={photos} />
       {nextCursor ? <div className={styles.loader} ref={sentinelRef}>
-        {loadState === 'error' ? <p>More photos could not be loaded.</p> : null}
-        <button disabled={loadState === 'loading'} onClick={() => void loadMore()} type="button">{loadState === 'loading' ? 'Loading…' : loadState === 'error' ? 'Try again' : 'Load more'}</button>
+        {loadState === 'error' ? <p>{loadFailure?.message ?? 'More photos could not be loaded.'}</p> : null}
+        {loadFailure?.reloadRequired
+          ? <button onClick={() => window.location.reload()} type="button">Reload gallery</button>
+          : <button disabled={loadState === 'loading'} onClick={() => void loadMore()} type="button">{loadState === 'loading' ? 'Loading…' : loadState === 'error' ? 'Try again' : 'Load more'}</button>}
       </div> : null}
       <p aria-live="polite" className="sr-only">{loadedMessage}</p>
       {activePhoto ? (
