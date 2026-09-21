@@ -90,6 +90,25 @@ describe('Photos public presentation', () => {
     expect(result.unavailable).toEqual([]);
   });
 
+  it('keeps decorative media alt text empty even when the asset has descriptive metadata', () => {
+    const document = {
+      schemaVersion: 1 as const,
+      blocks: [
+        { id: 'decorative-block', type: 'media' as const, mediaAssetId: 'decorative', decorative: true },
+      ],
+    };
+
+    const result = resolvePublishedPhotos(document, [media('decorative', {
+      altText: 'A description that should not be announced',
+      caption: 'A visible caption',
+    })], provider);
+
+    expect(result.photos[0]).toMatchObject({
+      alt: '',
+      caption: 'A visible caption',
+    });
+  });
+
   it('keeps the legacy attached-break reader as the rollout fallback', () => {
     const photos = resolveLegacyPhotos([media('legacy', { photoSectionBreak: { text: 'Notes' } })], provider);
     expect(photos[0]).toMatchObject({ id: 'legacy', sectionBreak: { text: 'Notes' } });

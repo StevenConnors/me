@@ -64,4 +64,28 @@ describe('PhotosWorkspace sections', () => {
     expect(screen.getByRole('button', { name: 'Edit photo existing.jpg' })).toBeTruthy();
     expect(screen.getByRole('textbox', { name: 'Section heading' })).toHaveFocus();
   });
+
+  it('does not expose a filename as alt text for a decorative media block', () => {
+    const { container } = render(
+      <PhotosWorkspace
+        initialDocument={{
+          schemaVersion: 1,
+          blocks: [{ id: 'decorative-block', type: 'media', mediaAssetId: 'decorative-media', decorative: true }],
+        }}
+        initialDraftVersion={0}
+        initialHasUnpublishedChanges={false}
+        media={[{
+          id: 'decorative-media',
+          originalFilename: 'private-filename.jpg',
+          width: 1200,
+          height: 800,
+          altText: 'Stored asset description',
+          source: 'https://images.test/decorative.jpg',
+          resourceType: 'image',
+        }]}
+      />,
+    );
+
+    expect(container.querySelector('img')?.getAttribute('alt')).toBe('');
+  });
 });

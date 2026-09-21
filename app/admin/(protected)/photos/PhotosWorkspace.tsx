@@ -96,7 +96,7 @@ function documentCanvas(
       id: block.mediaAssetId,
       blockId: block.id,
       source: asset?.source ?? '',
-      alt: block.altText ?? block.caption ?? asset?.altText ?? asset?.caption ?? asset?.originalFilename ?? 'Unavailable media',
+      alt: block.decorative ? '' : block.altText ?? block.caption ?? asset?.altText ?? asset?.caption ?? asset?.originalFilename ?? 'Unavailable media',
       width: asset?.width ?? 1,
       height: asset?.height ?? 1,
       originalFilename: asset?.originalFilename ?? `Unavailable upload (${block.mediaAssetId})`,
@@ -434,6 +434,7 @@ export function PhotosWorkspace({
       const response = await fetch('/api/admin/photos-page');
       const payload = await response.json();
       if (!response.ok) throw new Error(payload?.error?.message ?? 'Unable to reload the server draft');
+      setMedia(Object.values((payload.mediaById ?? {}) as Record<string, EditorMedia>));
       replaceLocalDocument(payload.page as PhotosApiPage);
     } catch (error) { console.error(error); setSaveState('error'); }
   }

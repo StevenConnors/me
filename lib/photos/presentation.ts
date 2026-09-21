@@ -45,6 +45,7 @@ function publicPhotoFromAsset(
   options: {
     caption?: string;
     altText?: string;
+    decorative?: boolean;
     displayDate?: string;
     sectionBreak?: PublicPhotoSectionBreak;
     sectionBlockId?: string;
@@ -96,7 +97,7 @@ function publicPhotoFromAsset(
   return {
     id: asset._id,
     ...mediaUrls,
-    alt: options.altText ?? options.caption ?? asset.altText ?? asset.caption ?? asset.originalFilename,
+    alt: options.decorative ? '' : options.altText ?? options.caption ?? asset.altText ?? asset.caption ?? asset.originalFilename,
     width: asset.width,
     height: asset.height,
     ...(options.caption ?? asset.caption ? { caption: options.caption ?? asset.caption } : {}),
@@ -143,6 +144,7 @@ export function resolvePublishedPhotos(
 
     photos.push(publicPhotoFromAsset(asset, {
       provider,
+      decorative: block.decorative,
       ...(block.caption ? { caption: block.caption } : {}),
       ...(block.altText ? { altText: block.altText } : {}),
       ...(block.displayDate ? { displayDate: block.displayDate } : {}),

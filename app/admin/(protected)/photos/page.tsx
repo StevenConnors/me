@@ -2,6 +2,7 @@ import { PhotosWorkspace } from './PhotosWorkspace';
 import styles from '@/app/admin/admin.module.css';
 import { getCloudinaryMediaProvider } from '@/lib/media/provider';
 import { MediaRepository } from '@/lib/media/repository';
+import { serializePhotosEditorMedia } from '@/lib/photos/editor-media';
 import { PhotosPageRepository } from '@/lib/photos/repository';
 import { serializePhotosPage } from '@/lib/photos/serializers';
 
@@ -23,27 +24,7 @@ export default async function PhotosEditorPage() {
 
     const mediaIds = page.draftDocument.blocks.flatMap((block) => block.type === 'media' ? [block.mediaAssetId] : []);
     const assets = await mediaRepository.findByIds(mediaIds);
-    const editorMedia = assets.map((asset) => ({
-      id: asset._id,
-      originalFilename: asset.originalFilename,
-      width: asset.width,
-      height: asset.height,
-      captureDate: asset.captureDate,
-      caption: asset.caption,
-      altText: asset.altText,
-      source: asset.resourceType === 'image' && asset.status === 'ready' ? provider.buildImageUrl({
-        providerPublicId: asset.providerPublicId,
-        version: asset.version,
-        width: 768,
-        sourceWidth: asset.width,
-        sourceHeight: asset.height,
-      }) : asset.resourceType === 'video' && asset.status === 'ready' ? provider.buildVideoPosterUrl({
-        providerPublicId: asset.providerPublicId,
-        version: asset.version,
-        width: 768,
-      }) : undefined,
-      resourceType: asset.resourceType,
-    }));
+    const editorMedia = Object.values(serializePhotosEditorMedia(assets, provider));
     const serialized = serializePhotosPage(page);
 
     return <>
