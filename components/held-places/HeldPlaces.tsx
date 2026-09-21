@@ -35,7 +35,6 @@ export function HeldPlacesHeader() {
     <header className={styles.header}>
       <Link className={styles.identity} href="/">佑治</Link>
       <nav aria-label="Primary navigation" className={styles.navigation}>
-        <Link className={styles.indexLink} href="/#journeys">Index</Link>
         <Link className={styles.indexLink} href="/photos">Photos</Link>
         <Link className={styles.indexLink} href="/glass">Glass</Link>
         <Link className={styles.indexLink} href="https://www.linkedin.com/in/steven-connors/">Work</Link>
