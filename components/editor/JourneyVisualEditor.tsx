@@ -10,7 +10,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import styles from './JourneyVisualEditor.module.css';
 import type { LegacyTiptapDocumentV1 } from '@/lib/journeys/schemas';
 import type { MediaPlacement } from '@/lib/media/schemas';
-import { uploadMedia, type UploadedMedia } from '@/lib/client/upload-media';
+import { uploadMedia } from '@/lib/client/upload-media';
 
 export type EditorMedia = {
   id: string;

@@ -7,12 +7,6 @@ import { MongoClient } from 'mongodb';
 // @ts-ignore
 const getClient = () => clientPromise as Promise<MongoClient>;
 
-interface Thought {
-  _id: string;
-  text: string;
-  createdAt: Date;
-}
-
 interface ThoughtInput {
   text: string;
   createdAt: Date;
