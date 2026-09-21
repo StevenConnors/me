@@ -4,6 +4,7 @@ import {
   insertMedia,
   insertSection,
   moveMedia,
+  moveMediaTo,
   moveSectionGroup,
   removeMediaBlocks,
   removeSection,
@@ -38,5 +39,17 @@ describe('Photos editor commands', () => {
     const base = document([media('one'), section('section'), media('two'), media('three')]);
     expect(moveMedia(base, 'one', 'after').blocks.map((block) => block.id)).toEqual(['section', 'one', 'two', 'three']);
     expect(removeMediaBlocks(base, ['one', 'three']).blocks.map((block) => block.id)).toEqual(['section', 'two']);
+  });
+
+  it('drops media before or after photos and section boundaries', () => {
+    const base = document([section('a'), media('a-one'), media('a-two'), section('b'), media('b-one')]);
+
+    expect(moveMediaTo(base, 'a-one', 'b', 'after').blocks.map((block) => block.id)).toEqual([
+      'a', 'a-two', 'b', 'a-one', 'b-one',
+    ]);
+    expect(moveMediaTo(base, 'b-one', 'a-one', 'before').blocks.map((block) => block.id)).toEqual([
+      'a', 'b-one', 'a-one', 'a-two', 'b',
+    ]);
+    expect(moveMediaTo(base, 'a-one', 'a-one', 'after')).toBe(base);
   });
 });

@@ -104,6 +104,24 @@ export function moveMedia(document: PhotosPageDocument, blockId: string, directi
   return copy(document, blocks);
 }
 
+/** Move one media block relative to any other block, including a section boundary. */
+export function moveMediaTo(
+  document: PhotosPageDocument,
+  blockId: string,
+  targetBlockId: string,
+  position: 'before' | 'after',
+): PhotosPageDocument {
+  const from = indexOfBlock(document, blockId);
+  const target = indexOfBlock(document, targetBlockId);
+  if (from < 0 || target < 0 || blockId === targetBlockId || document.blocks[from].type !== 'media') return document;
+
+  const blocks = [...document.blocks];
+  const [block] = blocks.splice(from, 1);
+  const targetAfterRemoval = blocks.findIndex((candidate) => candidate.id === targetBlockId);
+  blocks.splice(targetAfterRemoval + (position === 'after' ? 1 : 0), 0, block);
+  return copy(document, blocks);
+}
+
 function groupRanges(document: PhotosPageDocument): Array<{ sectionId?: string; start: number; end: number }> {
   const starts = document.blocks.flatMap((block, index) => block.type === 'section' ? [index] : []);
   const ranges: Array<{ sectionId?: string; start: number; end: number }> = [];

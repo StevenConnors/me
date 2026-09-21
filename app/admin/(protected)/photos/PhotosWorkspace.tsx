@@ -10,6 +10,7 @@ import {
   insertMedia,
   insertSection,
   moveMedia,
+  moveMediaTo,
   moveSectionGroup,
   removeMediaBlocks,
   removeSection,
@@ -41,6 +42,7 @@ type EditorCanvasPhoto = PublicPhoto & {
 
 type SaveState = 'saved' | 'saving' | 'error' | 'conflict';
 type UploadState = 'idle' | 'uploading' | 'error';
+type DropTarget = { blockId: string; position: 'before' | 'after' };
 type PhotosApiPage = {
   draftDocument: PhotosPageDocument;
   draftVersion: number;
@@ -144,6 +146,9 @@ export function PhotosWorkspace({
   const [media, setMedia] = useState(initialMedia);
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
   const [selectedMediaBlockIds, setSelectedMediaBlockIds] = useState<Set<string>>(new Set());
+  const [draggedMediaBlockId, setDraggedMediaBlockId] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
+  const [reorderMessage, setReorderMessage] = useState('');
   const [viewport, setViewport] = useState<'desktop' | 'mobile'>('desktop');
   const [saveState, setSaveState] = useState<SaveState>('saved');
   const [hasUnpublishedChanges, setHasUnpublishedChanges] = useState(initialHasUnpublishedChanges);
@@ -231,6 +236,82 @@ export function PhotosWorkspace({
       return next;
     });
     setActiveBlockId(blockId);
+  }
+
+  function clearDragState() {
+    setDraggedMediaBlockId(null);
+    setDropTarget(null);
+  }
+
+  function mediaFilename(blockId: string) {
+    const block = documentRef.current.blocks.find((candidate) => candidate.id === blockId);
+    return block?.type === 'media' ? mediaById.get(block.mediaAssetId)?.originalFilename ?? 'Photo' : 'Photo';
+  }
+
+  function startMediaDrag(event: React.DragEvent<HTMLButtonElement>, blockId: string) {
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', blockId);
+    setDraggedMediaBlockId(blockId);
+    setDropTarget(null);
+  }
+
+  function draggedBlockId(event: React.DragEvent<HTMLElement>) {
+    return event.dataTransfer.getData('text/plain') || draggedMediaBlockId;
+  }
+
+  function setCurrentDropTarget(next: DropTarget) {
+    setDropTarget((current) => current?.blockId === next.blockId && current.position === next.position ? current : next);
+  }
+
+  function dragOverMedia(event: React.DragEvent<HTMLElement>, targetBlockId: string) {
+    const dragged = draggedBlockId(event);
+    if (!dragged || dragged === targetBlockId) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const position = event.clientY < bounds.top + bounds.height / 2 ? 'before' : 'after';
+    setCurrentDropTarget({ blockId: targetBlockId, position });
+  }
+
+  function dragOverSection(event: React.DragEvent<HTMLElement>, targetBlockId: string) {
+    const dragged = draggedBlockId(event);
+    if (!dragged) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    setCurrentDropTarget({ blockId: targetBlockId, position: 'after' });
+  }
+
+  function completeMediaDrop(event: React.DragEvent<HTMLElement>, targetBlockId: string, position: 'before' | 'after') {
+    event.preventDefault();
+    const dragged = draggedBlockId(event);
+    if (dragged && dragged !== targetBlockId) {
+      const next = moveMediaTo(documentRef.current, dragged, targetBlockId, position);
+      const moved = !documentEqual(next, documentRef.current);
+      applyDocument(next);
+      setActiveBlockId(dragged);
+      if (moved) setReorderMessage(`${mediaFilename(dragged)} moved.`);
+    }
+    clearDragState();
+  }
+
+  function dropOnMedia(event: React.DragEvent<HTMLElement>, targetBlockId: string) {
+    const bounds = event.currentTarget.getBoundingClientRect();
+    completeMediaDrop(event, targetBlockId, event.clientY < bounds.top + bounds.height / 2 ? 'before' : 'after');
+  }
+
+  function reorderWithKeyboard(event: React.KeyboardEvent<HTMLButtonElement>, blockId: string) {
+    const direction = event.key === 'ArrowUp' || event.key === 'ArrowLeft'
+      ? 'before'
+      : event.key === 'ArrowDown' || event.key === 'ArrowRight'
+        ? 'after'
+        : null;
+    if (!direction) return;
+    event.preventDefault();
+    const next = moveMedia(documentRef.current, blockId, direction);
+    if (next === documentRef.current) return;
+    applyDocument(next);
+    setActiveBlockId(blockId);
+    setReorderMessage(`${mediaFilename(blockId)} moved ${direction === 'before' ? 'earlier' : 'later'}.`);
   }
 
   function undo() {
@@ -478,13 +559,15 @@ export function PhotosWorkspace({
   function renderTile(photo: PublicPhoto & { index: number }) {
     const editorPhoto = photo as EditorCanvasPhoto & { index: number };
     const selected = selectedMediaBlockIds.has(editorPhoto.blockId);
-    return <article className={styles.editorTile} data-selected={selected || undefined} key={editorPhoto.blockId}>
+    const currentDrop = dropTarget?.blockId === editorPhoto.blockId ? dropTarget.position : undefined;
+    return <article className={styles.editorTile} data-dragging={draggedMediaBlockId === editorPhoto.blockId || undefined} data-drop-position={currentDrop} data-selected={selected || undefined} key={editorPhoto.blockId} onDragOver={(event) => dragOverMedia(event, editorPhoto.blockId)} onDrop={(event) => dropOnMedia(event, editorPhoto.blockId)}>
       <button aria-label={`Edit ${editorPhoto.kind === 'video' ? 'video' : 'photo'} ${editorPhoto.originalFilename}`} className={styles.editorImageButton} onClick={() => setActiveBlockId(editorPhoto.blockId)} type="button">
         {editorPhoto.unavailable ? <span className={styles.unavailable}>This upload is unavailable. Remove it before publishing.</span> : <Image alt={editorPhoto.alt} height={editorPhoto.height} sizes="(max-width: 700px) 50vw, (max-width: 1100px) 33vw, 25vw" src={editorPhoto.source} width={editorPhoto.width} />}
       </button>
       <label className={styles.selectTile}><input checked={selected} onChange={() => toggleMediaSelection(editorPhoto.blockId)} type="checkbox" /><span className="sr-only">Select {editorPhoto.originalFilename}</span></label>
       {editorPhoto.kind === 'video' ? <span className={styles.videoBadge}>Video</span> : null}
       <button className={styles.editTile} onClick={() => setActiveBlockId(editorPhoto.blockId)} type="button">Edit</button>
+      <button aria-label={`Reorder ${editorPhoto.originalFilename}; drag or use arrow keys`} className={styles.dragHandle} draggable onClick={() => setActiveBlockId(editorPhoto.blockId)} onDragEnd={clearDragState} onDragStart={(event) => startMediaDrag(event, editorPhoto.blockId)} onKeyDown={(event) => reorderWithKeyboard(event, editorPhoto.blockId)} title="Drag or use arrow keys to reorder" type="button">↕</button>
     </article>;
   }
 
@@ -492,7 +575,8 @@ export function PhotosWorkspace({
     const block = section.sectionBlockId ? document.blocks.find((item) => item.id === section.sectionBlockId) : undefined;
     if (!block || block.type !== 'section') return <>{section.sectionBreak?.title ? <h2>{section.sectionBreak.title}</h2> : null}{section.sectionBreak?.text ? <p>{section.sectionBreak.text}</p> : null}</>;
     const selected = activeBlockId === block.id;
-    return <div className={styles.sectionEditor} data-selected={selected || undefined}>
+    const currentDrop = dropTarget?.blockId === block.id ? dropTarget.position : undefined;
+    return <div className={styles.sectionEditor} data-drag-active={draggedMediaBlockId ? true : undefined} data-drop-position={currentDrop} data-selected={selected || undefined} onDragOver={(event) => dragOverSection(event, block.id)} onDrop={(event) => completeMediaDrop(event, block.id, 'after')}>
       {selected ? <>
         <label>Section heading<input autoFocus maxLength={500} onChange={(event) => applyDocument(updateSectionBlock(documentRef.current, block.id, { title: event.target.value.trim() || undefined }))} placeholder="Optional heading" value={block.title ?? ''} /></label>
         <label>Section note<textarea maxLength={2_000} onChange={(event) => applyDocument(updateSectionBlock(documentRef.current, block.id, { text: event.target.value.trim() || undefined }))} placeholder="Optional note" value={block.text ?? ''} /></label>
@@ -523,7 +607,7 @@ export function PhotosWorkspace({
       {!activeMediaBlock.decorative && !activeMediaBlock.altText ? <p className={styles.fieldError}>Alt text is required before publishing.</p> : null}
       <span className={styles.inspectorActions}><button onClick={() => applyDocument(moveMedia(documentRef.current, activeMediaBlock.id, 'before'))} type="button">Move earlier</button><button onClick={() => applyDocument(moveMedia(documentRef.current, activeMediaBlock.id, 'after'))} type="button">Move later</button><button onClick={() => { applyDocument(removeMediaBlocks(documentRef.current, [activeMediaBlock.id])); setActiveBlockId(null); }} type="button">Remove from page</button></span>
     </aside> : null}
-    <p aria-live="polite" className="sr-only">{selectedMediaBlockIds.size ? `${selectedMediaBlockIds.size} photos selected` : ''}</p>
+    <p aria-live="polite" className="sr-only">{reorderMessage || (selectedMediaBlockIds.size ? `${selectedMediaBlockIds.size} photos selected` : '')}</p>
     <MediaPicker onClose={() => setPickerOpen(false)} onInsert={(items) => void insertPickedMedia(items)} onUpload={(files) => { setPickerOpen(false); void uploadBatch(files); }} open={pickerOpen} placedMediaIds={new Set(document.blocks.flatMap((block) => block.type === 'media' ? [block.mediaAssetId] : []))} />
     {deletionPlan ? <div aria-label="Confirm permanent upload deletion" aria-modal="true" className={styles.dialogBackdrop} role="dialog"><section className={styles.deleteDialog}>
       <header><div><p className={styles.inspectorEyebrow}>Permanent deletion</p><h2>Delete uploads?</h2></div><button aria-label="Close deletion confirmation" onClick={() => setDeletionPlan(null)} type="button">×</button></header>
