@@ -51,7 +51,7 @@ export function mapImageResources(resources: any[]) {
         return [];
     }
     return resources.map((resource: any) => {
-      const { width, height, asset_id, public_id, secure_url } = resource;
+      const { width, height, asset_id, public_id } = resource;
       // Placeholder for future event/trip info
       return {
         id: asset_id,

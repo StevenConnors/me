@@ -6,6 +6,7 @@ import { deleteMediaAsset, MediaInUseError } from '@/lib/media/delete-service';
 import { getCloudinaryMediaProvider } from '@/lib/media/provider';
 import { MediaNotFoundError, MediaRepository } from '@/lib/media/repository';
 import { JourneyRepository } from '@/lib/journeys/repository';
+import { PhotosPageRepository } from '@/lib/photos/repository';
 import { MediaProviderError } from '@/lib/media/providers/CloudinaryProvider';
 
 export const runtime = 'nodejs';
@@ -17,7 +18,7 @@ function mediaError(error: unknown) {
     return apiError('MEDIA_NOT_FOUND', 'This media asset no longer exists', 404);
   }
   if (error instanceof MediaInUseError) {
-    return apiError('MEDIA_IN_USE', 'This media is used by a journey and cannot be deleted', 409);
+    return apiError('MEDIA_IN_USE', 'This media is still used by published content and cannot be deleted', 409);
   }
   if (error instanceof MediaProviderError) {
     return apiError(error.code, error.message, error.status ?? 503);
@@ -70,6 +71,7 @@ export async function DELETE(_request: NextRequest, context: RouteContext) {
     await deleteMediaAsset(mediaId, {
       mediaRepository: await MediaRepository.connect(),
       journeyRepository: await JourneyRepository.connect(),
+      photosPageRepository: await PhotosPageRepository.connect(),
       mediaProvider: getCloudinaryMediaProvider(),
     });
     return new NextResponse(null, { status: 204 });

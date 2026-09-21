@@ -14,16 +14,18 @@ export async function POST(request: Request) {
   const file = formData.get('file');
   const filename = file instanceof File && file.name ? file.name : 'sample-image.png';
   const bytes = file instanceof File ? file.size : 68;
-  const providerAssetId = `e2e-${randomUUID()}`;
+  const resourceType = new URL(request.url).searchParams.get('resourceType') === 'video' ? 'video' : 'image';
+  const providerAssetId = `e2e-${resourceType === 'video' ? 'video-' : ''}${randomUUID()}`;
+  const extension = resourceType === 'video' ? 'mp4' : 'png';
 
   return NextResponse.json({
     asset_id: providerAssetId,
     public_id: `e2e/${providerAssetId}`,
-    resource_type: 'image',
+    resource_type: resourceType,
     type: 'upload',
     version: 1,
     original_filename: filename,
-    format: 'png',
+    format: extension,
     width: 1,
     height: 1,
     bytes,

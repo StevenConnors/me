@@ -121,8 +121,6 @@ export default function ThoughtsAloud() {
           <div className={styles['ta-content']}>
             {/* Custom logic: if the text contains a bare YouTube URL, render it as an embed, otherwise use ReactMarkdown as before */}
             {(() => {
-              // Helper: Find all YouTube URLs in the text
-              const YOUTUBE_REGEX = /https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([A-Za-z0-9_-]{11})/g;
               // Helper: Find all Twitter status URLs in the text (bare URLs)
               const TWITTER_REGEX = /^https?:\/\/twitter\.com\/[^/]+\/status\/(\d+)(?:\?[^\s]*)?$/m;
               // Split text into lines for Twitter detection

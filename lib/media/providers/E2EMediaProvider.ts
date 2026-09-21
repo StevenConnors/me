@@ -8,6 +8,7 @@ import {
   UploadAuthorizationSchema,
   UploadIntentSchema,
   VideoDeliveryInputSchema,
+  VideoPosterInputSchema,
   type ExportReference,
   type ImageDeliveryInput,
   type MediaProvider,
@@ -18,6 +19,7 @@ import {
   type UploadAuthorization,
   type UploadIntent,
   type VideoDeliveryInput,
+  type VideoPosterInput,
 } from './MediaProvider';
 
 const TEST_SIGNATURE = 'e2e-upload-signature';
@@ -33,7 +35,7 @@ export class E2EMediaProvider implements MediaProvider {
     const intent = UploadIntentSchema.parse(unparsedIntent);
     return UploadAuthorizationSchema.parse({
       provider: 'cloudinary',
-      uploadUrl: `${E2E_BASE_URL}/api/e2e/media-upload`,
+      uploadUrl: `${E2E_BASE_URL}/api/e2e/media-upload?resourceType=${intent.resourceType}`,
       expiresAt: '2099-01-01T00:00:00.000Z',
       parameters: {
         api_key: 'e2e',
@@ -41,7 +43,7 @@ export class E2EMediaProvider implements MediaProvider {
         signature: TEST_SIGNATURE,
         folder: 'e2e',
         tags: `upload-session-${intent.idempotencyKey}`,
-        allowed_formats: 'jpg,jpeg,png,webp,heic,heif',
+        allowed_formats: intent.resourceType === 'video' ? 'mp4,mov,webm' : 'jpg,jpeg,png,webp,heic,heif',
         overwrite: false,
         unique_filename: true,
         use_filename: false,
@@ -59,11 +61,11 @@ export class E2EMediaProvider implements MediaProvider {
     return ProviderAssetSchema.parse({
       providerAssetId: id,
       providerPublicId: `e2e/${id}`,
-      resourceType: 'image',
+      resourceType: id.startsWith('e2e-video-') ? 'video' : 'image',
       deliveryType: 'upload',
       version: 1,
-      originalFilename: 'sample-image.png',
-      format: 'png',
+      originalFilename: id.startsWith('e2e-video-') ? 'sample-video.mp4' : 'sample-image.png',
+      format: id.startsWith('e2e-video-') ? 'mp4' : 'png',
       width: 1,
       height: 1,
       bytes: 68,
@@ -84,6 +86,11 @@ export class E2EMediaProvider implements MediaProvider {
   buildVideoUrl(unparsedInput: VideoDeliveryInput): string {
     VideoDeliveryInputSchema.parse(unparsedInput);
     return 'https://e2e.invalid/media.mp4';
+  }
+
+  buildVideoPosterUrl(unparsedInput: VideoPosterInput): string {
+    VideoPosterInputSchema.parse(unparsedInput);
+    return TRANSPARENT_PIXEL;
   }
 
   async listAssets(): Promise<ProviderAssetPage> {

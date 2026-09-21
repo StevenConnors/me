@@ -4,7 +4,6 @@ import Header from '../../../components/header';
 import BackToGalleryLink from '../../../components/BackToGalleryLink';
 import { mapImageResources } from '../../../lib/cloudinary';
 import { CLOUDINARY_IMAGE_FOLDER_ID } from '../../../config';
-import fs from 'fs';
 import path from 'path';
 import { MDXRemote } from 'next-mdx-remote/rsc';
 import { promises as fsPromises } from 'fs';

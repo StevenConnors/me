@@ -1,45 +1,93 @@
 'use client';
 
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
-import { useCallback, useEffect, useRef, useState } from 'react';
 
 import styles from './photos-gallery.module.css';
+import { PhotosPageView, type PublicPhoto } from './PhotosPageView';
 
-type SectionBreak = { title?: string; text?: string };
+export type { PublicPhoto } from './PhotosPageView';
 
-export type PublicPhoto = {
-  id: string;
-  source: string;
-  alt: string;
-  width: number;
-  height: number;
-  caption?: string;
-  captureDate?: string;
-  sectionBreak?: SectionBreak;
+type LoadFailure = {
+  message: string;
+  reloadRequired: boolean;
 };
 
-type PhotoSection = { sectionBreak?: SectionBreak; photos: PublicPhoto[] };
-
-function groupPhotos(photos: PublicPhoto[]): PhotoSection[] {
-  return photos.reduce<PhotoSection[]>((sections, photo) => {
-    if (!sections.length || photo.sectionBreak) {
-      sections.push({ sectionBreak: photo.sectionBreak, photos: [photo] });
-    } else {
-      sections[sections.length - 1].photos.push(photo);
-    }
-    return sections;
-  }, []);
-}
-
-export function PhotosGallery({ photos }: { photos: PublicPhoto[] }) {
+export function PhotosGallery({
+  initialItems,
+  initialCursor,
+}: {
+  initialItems: PublicPhoto[];
+  initialCursor: string | null;
+}) {
+  const [photos, setPhotos] = useState(initialItems);
+  const [nextCursor, setNextCursor] = useState(initialCursor);
+  const [loadState, setLoadState] = useState<'idle' | 'loading' | 'error'>('idle');
+  const [loadFailure, setLoadFailure] = useState<LoadFailure | null>(null);
+  const [loadedMessage, setLoadedMessage] = useState('');
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const lightboxRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLElement | null>(null);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const loadingRef = useRef(false);
   const activePhoto = activeIndex === null ? null : photos[activeIndex];
-  const sections = groupPhotos(photos);
-  const close = useCallback(() => setActiveIndex(null), []);
-  const previous = useCallback(() => setActiveIndex((current) => current === null ? 0 : (current - 1 + photos.length) % photos.length), [photos.length]);
-  const next = useCallback(() => setActiveIndex((current) => current === null ? 0 : (current + 1) % photos.length), [photos.length]);
+  const open = useCallback((index: number) => {
+    triggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setActiveIndex(index);
+  }, []);
+  const close = useCallback(() => {
+    setActiveIndex(null);
+    requestAnimationFrame(() => triggerRef.current?.focus());
+  }, []);
+  const previous = useCallback(() => setActiveIndex((current) => {
+    if (current === null) return 0;
+    if (current > 0) return current - 1;
+    return nextCursor ? current : photos.length - 1;
+  }), [nextCursor, photos.length]);
+  const next = useCallback(() => setActiveIndex((current) => {
+    if (current === null) return 0;
+    if (current < photos.length - 1) return current + 1;
+    return nextCursor ? current : 0;
+  }), [nextCursor, photos.length]);
+
+  const loadMore = useCallback(async () => {
+    if (!nextCursor || loadingRef.current) return;
+    loadingRef.current = true;
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setLoadState('loading');
+    setLoadFailure(null);
+    try {
+      const parameters = new URLSearchParams({ limit: '24', cursor: nextCursor });
+      const response = await fetch(`/api/photos?${parameters.toString()}`, { signal: controller.signal });
+      const payload = await response.json();
+      if (!response.ok) {
+        const failure = new Error(payload?.error?.message ?? 'Unable to load more photos') as Error & { code?: string };
+        failure.code = payload?.error?.code;
+        throw failure;
+      }
+      const items = payload.items as PublicPhoto[];
+      setPhotos((current) => [...current, ...items.filter((item) => !current.some((known) => known.id === item.id))]);
+      setNextCursor((payload.nextCursor as string | null) ?? null);
+      setLoadedMessage(items.length ? `${items.length} more photo${items.length === 1 ? '' : 's'} loaded.` : 'No additional photos were loaded.');
+      setLoadState('idle');
+    } catch (error) {
+      if ((error as DOMException).name !== 'AbortError') {
+        console.error(error);
+        setLoadFailure({
+          message: error instanceof Error ? error.message : 'Unable to load more photos',
+          reloadRequired: (error as Error & { code?: string }).code === 'GALLERY_CURSOR_STALE',
+        });
+        setLoadState('error');
+      }
+    } finally {
+      loadingRef.current = false;
+    }
+  }, [nextCursor]);
 
   useEffect(() => {
     if (activeIndex === null) return;
@@ -50,6 +98,20 @@ export function PhotosGallery({ photos }: { photos: PublicPhoto[] }) {
       if (event.key === 'Escape') close();
       if (event.key === 'ArrowLeft') previous();
       if (event.key === 'ArrowRight') next();
+      if (event.key === 'Tab') {
+        const focusable = Array.from(lightboxRef.current?.querySelectorAll<HTMLElement>('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"]), video[controls]') ?? [])
+          .filter((element) => !element.hasAttribute('hidden'));
+        if (!focusable.length) return;
+        const first = focusable[0];
+        const last = focusable.at(-1)!;
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => {
@@ -57,6 +119,21 @@ export function PhotosGallery({ photos }: { photos: PublicPhoto[] }) {
       window.removeEventListener('keydown', onKeyDown);
     };
   }, [activeIndex, close, next, previous]);
+
+  useEffect(() => () => abortRef.current?.abort(), []);
+
+  useEffect(() => {
+    if (!nextCursor || !sentinelRef.current || typeof IntersectionObserver === 'undefined') return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) void loadMore();
+    }, { rootMargin: '800px 0px' });
+    observer.observe(sentinelRef.current);
+    return () => observer.disconnect();
+  }, [loadMore, nextCursor]);
+
+  useEffect(() => {
+    if (activeIndex !== null && nextCursor && activeIndex >= photos.length - 4) void loadMore();
+  }, [activeIndex, loadMore, nextCursor, photos.length]);
 
   function onTouchStart(event: React.TouchEvent<HTMLDivElement>) {
     const touch = event.changedTouches[0];
@@ -76,37 +153,27 @@ export function PhotosGallery({ photos }: { photos: PublicPhoto[] }) {
   }
 
   return (
-    <section aria-labelledby="photos-title" className={styles.gallery}>
-      <h1 id="photos-title">Photos</h1>
-      <p className={styles.intro}>Recent photographs, in the order they were taken.</p>
-      {sections.map((section, sectionIndex) => (
-        <section aria-label={section.sectionBreak?.title ?? 'Photographs'} className={styles.section} key={`${section.sectionBreak?.title ?? 'photos'}-${sectionIndex}`}>
-          {section.sectionBreak?.title ? <h2>{section.sectionBreak.title}</h2> : null}
-          {section.sectionBreak?.text ? <p className={styles.sectionNote}>{section.sectionBreak.text}</p> : null}
-          <div className={styles.grid}>
-            {section.photos.map((photo) => {
-              const index = photos.findIndex((item) => item.id === photo.id);
-              return (
-                <button aria-label={`Open photo ${index + 1}`} className={styles.tile} key={photo.id} onClick={() => setActiveIndex(index)} type="button">
-                  <Image alt={photo.alt} height={photo.height} sizes="(max-width: 700px) 50vw, (max-width: 1100px) 33vw, 25vw" src={photo.source} width={photo.width} />
-                </button>
-              );
-            })}
-          </div>
-        </section>
-      ))}
+    <>
+      <PhotosPageView onOpen={open} photos={photos} />
+      {nextCursor ? <div className={styles.loader} ref={sentinelRef}>
+        {loadState === 'error' ? <p>{loadFailure?.message ?? 'More photos could not be loaded.'}</p> : null}
+        {loadFailure?.reloadRequired
+          ? <button onClick={() => window.location.reload()} type="button">Reload gallery</button>
+          : <button disabled={loadState === 'loading'} onClick={() => void loadMore()} type="button">{loadState === 'loading' ? 'Loading…' : loadState === 'error' ? 'Try again' : 'Load more'}</button>}
+      </div> : null}
+      <p aria-live="polite" className="sr-only">{loadedMessage}</p>
       {activePhoto ? (
-        <div aria-label={`Photos, ${activeIndex! + 1} of ${photos.length}`} aria-modal="true" className={styles.lightbox} onClick={(event) => { if (event.target === event.currentTarget) close(); }} role="dialog">
+        <div aria-label={`Photos, ${activeIndex! + 1} of ${photos.length}`} aria-modal="true" className={styles.lightbox} onClick={(event) => { if (event.target === event.currentTarget) close(); }} ref={lightboxRef} role="dialog">
           <button aria-label="Close gallery" className={styles.closeButton} onClick={close} ref={closeButtonRef} type="button">×</button>
           <button aria-label="Previous photo" className={`${styles.directionButton} ${styles.previousButton}`} onClick={previous} type="button">←</button>
           <div className={styles.lightboxContent} onTouchEnd={onTouchEnd} onTouchStart={onTouchStart}>
-            <div className={styles.lightboxImage}><Image alt={activePhoto.alt} fill priority sizes="(max-width: 900px) 100vw, 85vw" src={activePhoto.source} /></div>
+            <div className={styles.lightboxImage}>{activePhoto.kind === 'video' && activePhoto.playbackUrl ? <video className={styles.lightboxVideo} controls playsInline poster={activePhoto.posterUrl ?? activePhoto.source} preload="none" src={activePhoto.playbackUrl} /> : <Image alt={activePhoto.alt} fill priority sizes="(max-width: 900px) 100vw, 85vw" src={activePhoto.displayUrl ?? activePhoto.displaySource ?? activePhoto.source} />}</div>
             {activePhoto.caption || activePhoto.captureDate ? <p className={styles.lightboxCaption}>{activePhoto.caption}{activePhoto.caption && activePhoto.captureDate ? ' · ' : ''}{activePhoto.captureDate}</p> : null}
           </div>
           <button aria-label="Next photo" className={`${styles.directionButton} ${styles.nextButton}`} onClick={next} type="button">→</button>
           <p className={styles.position}>{activeIndex! + 1} / {photos.length}</p>
         </div>
       ) : null}
-    </section>
+    </>
   );
 }

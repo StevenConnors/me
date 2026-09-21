@@ -1,8 +1,8 @@
-import { ObjectId, type Collection, type UpdateFilter } from 'mongodb';
+import { ObjectId, type Collection, type Filter, type UpdateFilter } from 'mongodb';
 import { z } from 'zod';
 
 import { getMediaCollections } from '@/lib/db/collections';
-import type { ProviderAsset, UploadIntent } from '@/lib/media/providers/MediaProvider';
+import { UploadIntentSchema, type ProviderAsset, type UploadIntent } from '@/lib/media/providers/MediaProvider';
 import {
   MediaAssetSchema,
   PhotoSectionBreakSchema,
@@ -10,6 +10,7 @@ import {
   type MediaAsset,
   type UploadSession,
 } from '@/lib/media/schemas';
+import { decodeAdminMediaCursor, encodeAdminMediaCursor } from '@/lib/media/admin-cursor';
 
 const MediaMetadataPatchSchema = z
   .object({
@@ -37,6 +38,14 @@ export class UploadSessionNotFoundError extends Error {
   readonly code = 'UPLOAD_SESSION_NOT_FOUND';
   constructor(readonly idempotencyKey: string) {
     super(`Upload session ${idempotencyKey} was not found`);
+  }
+}
+
+export class UploadResourceTypeMismatchError extends Error {
+  readonly code = 'UPLOAD_RESOURCE_TYPE_MISMATCH';
+  constructor(readonly expectedResourceType: 'image' | 'video', readonly actualResourceType: 'image' | 'video') {
+    super(`Upload session expected ${expectedResourceType}, received ${actualResourceType}`);
+    this.name = 'UploadResourceTypeMismatchError';
   }
 }
 
@@ -75,13 +84,54 @@ export class MediaRepository {
     return assets.map((asset) => MediaAssetSchema.parse(asset));
   }
 
+  /** Cursor-paginated, image-filterable media library listing for the Photos picker. */
+  async listPage(options: {
+    query?: string;
+    limit?: number;
+    cursor?: string;
+    resourceType?: 'image' | 'video';
+  } = {}): Promise<{ items: MediaAsset[]; nextCursor: string | null }> {
+    const limit = Math.min(Math.max(options.limit ?? 24, 1), 100);
+    const filters: Filter<MediaAsset>[] = [];
+    const query = options.query?.trim();
+    if (query) filters.push({ $text: { $search: query } } as Filter<MediaAsset>);
+    if (options.resourceType) filters.push({ resourceType: options.resourceType });
+    if (options.cursor) {
+      const cursor = decodeAdminMediaCursor(options.cursor);
+      const createdAt = new Date(cursor.createdAt);
+      filters.push({
+        $or: [
+          { createdAt: { $lt: createdAt } },
+          { createdAt, _id: { $lt: cursor.id } },
+        ],
+      } as Filter<MediaAsset>);
+    }
+    const filter = filters.length === 0 ? {} : filters.length === 1 ? filters[0] : { $and: filters } as Filter<MediaAsset>;
+    const records = await this.mediaAssets
+      .find(filter)
+      .sort({ createdAt: -1, _id: -1 })
+      .limit(limit + 1)
+      .toArray();
+    const hasNextPage = records.length > limit;
+    const page = records.slice(0, limit).map((asset) => MediaAssetSchema.parse(asset));
+    const last = page.at(-1);
+    return {
+      items: page,
+      nextCursor: hasNextPage && last ? encodeAdminMediaCursor({
+        version: 1,
+        createdAt: last.createdAt.toISOString(),
+        id: last._id,
+      }) : null,
+    };
+  }
+
   /**
    * The public gallery is deliberately separate from the general media
    * library. Capture date is an ISO date, so a descending sort puts the most
    * recent photographs first; uploads without one follow at the end.
    */
   async listPhotos(options: { limit?: number } = {}): Promise<MediaAsset[]> {
-    const limit = Math.min(Math.max(options.limit ?? 200, 1), 500);
+    const limit = Math.min(Math.max(options.limit ?? 500, 1), 500);
     const assets = await this.mediaAssets
       .find({ status: 'ready', showInPhotos: true, resourceType: 'image' })
       .sort({ captureDate: -1, createdAt: -1 })
@@ -119,10 +169,7 @@ export class MediaRepository {
     intent: UploadIntent,
     options: { now?: Date; ttlMs?: number } = {},
   ): Promise<UploadSession> {
-    const parsedIntent = z.object({
-      idempotencyKey: z.string().trim().min(8).max(128),
-      intendedJourneyId: z.string().trim().min(1).optional(),
-    }).passthrough().parse(intent);
+    const parsedIntent = UploadIntentSchema.parse(intent);
     const existing = await this.uploadSessions.findOne({ idempotencyKey: parsedIntent.idempotencyKey });
     if (existing) return UploadSessionSchema.parse(existing);
 
@@ -133,7 +180,7 @@ export class MediaRepository {
       idempotencyKey: parsedIntent.idempotencyKey,
       ...(parsedIntent.intendedJourneyId ? { intendedJourneyId: parsedIntent.intendedJourneyId } : {}),
       status: 'created',
-      expectedResourceType: 'image',
+      expectedResourceType: parsedIntent.resourceType,
       createdAt: now,
       expiresAt: new Date(now.valueOf() + (options.ttlMs ?? 10 * 60 * 1_000)),
     });
@@ -161,6 +208,9 @@ export class MediaRepository {
     if (parsedSession.status === 'finalized' && parsedSession.mediaAssetId) {
       const existing = await this.findById(parsedSession.mediaAssetId);
       if (existing) return existing;
+    }
+    if (parsedSession.expectedResourceType !== providerAsset.resourceType) {
+      throw new UploadResourceTypeMismatchError(parsedSession.expectedResourceType, providerAsset.resourceType);
     }
 
     const now = options.now ?? new Date();

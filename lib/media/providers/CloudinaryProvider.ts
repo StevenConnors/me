@@ -20,6 +20,8 @@ import {
   UploadIntentSchema,
   VideoDeliveryInput,
   VideoDeliveryInputSchema,
+  VideoPosterInput,
+  VideoPosterInputSchema,
 } from './MediaProvider';
 
 export const SUPPORTED_MEDIA_WIDTHS = [320, 480, 768, 1024, 1440, 1920] as const;
@@ -38,6 +40,7 @@ export type CloudinaryProviderOptions = {
   apiSecret: string;
   uploadFolder?: string;
   maxUploadBytes?: number;
+  maxVideoUploadBytes?: number;
   uploadTtlSeconds?: number;
   signatureAlgorithm?: SignatureAlgorithm;
   responseSignatureAlgorithm?: SignatureAlgorithm;
@@ -165,6 +168,7 @@ export class CloudinaryProvider implements MediaProvider {
   private readonly apiSecret: string;
   private readonly uploadFolder: string;
   private readonly maxUploadBytes: number;
+  private readonly maxVideoUploadBytes: number;
   private readonly uploadTtlSeconds: number;
   private readonly signatureAlgorithm: SignatureAlgorithm;
   private readonly responseSignatureAlgorithm: SignatureAlgorithm;
@@ -177,6 +181,7 @@ export class CloudinaryProvider implements MediaProvider {
     this.apiSecret = options.apiSecret;
     this.uploadFolder = options.uploadFolder?.trim() || 'journey-editor';
     this.maxUploadBytes = options.maxUploadBytes ?? 20 * 1024 * 1024;
+    this.maxVideoUploadBytes = options.maxVideoUploadBytes ?? 250 * 1024 * 1024;
     this.uploadTtlSeconds = options.uploadTtlSeconds ?? 5 * 60;
     this.signatureAlgorithm = options.signatureAlgorithm ?? 'sha256';
     this.responseSignatureAlgorithm = options.responseSignatureAlgorithm ?? 'sha1';
@@ -192,6 +197,9 @@ export class CloudinaryProvider implements MediaProvider {
     if (!Number.isInteger(this.maxUploadBytes) || this.maxUploadBytes <= 0) {
       throw new MediaProviderError('INVALID_CONFIGURATION', 'Maximum upload size must be positive');
     }
+    if (!Number.isInteger(this.maxVideoUploadBytes) || this.maxVideoUploadBytes <= 0) {
+      throw new MediaProviderError('INVALID_CONFIGURATION', 'Maximum video upload size must be positive');
+    }
     if (!Number.isInteger(this.uploadTtlSeconds) || this.uploadTtlSeconds <= 0) {
       throw new MediaProviderError('INVALID_CONFIGURATION', 'Upload TTL must be positive');
     }
@@ -199,17 +207,18 @@ export class CloudinaryProvider implements MediaProvider {
 
   async createUploadAuthorization(intent: UploadIntent): Promise<UploadAuthorization> {
     const parsedIntent = UploadIntentSchema.parse(intent);
-    if (parsedIntent.bytes > this.maxUploadBytes) {
+    const maxBytes = parsedIntent.resourceType === 'video' ? this.maxVideoUploadBytes : this.maxUploadBytes;
+    if (parsedIntent.bytes > maxBytes) {
       throw new MediaProviderError(
         'UPLOAD_TOO_LARGE',
-        `Image exceeds the configured ${this.maxUploadBytes}-byte upload limit`,
+        `${parsedIntent.resourceType === 'video' ? 'Video' : 'Image'} exceeds the configured ${maxBytes}-byte upload limit`,
       );
     }
 
     const timestamp = Math.floor(this.now().getTime() / 1_000);
     const tags = `upload-session-${parsedIntent.idempotencyKey}`;
     const signedParameters = {
-      allowed_formats: 'jpg,jpeg,png,webp,heic,heif',
+      allowed_formats: parsedIntent.resourceType === 'video' ? 'mp4,mov,webm' : 'jpg,jpeg,png,webp,heic,heif',
       folder: this.uploadFolder,
       overwrite: false,
       tags,
@@ -220,7 +229,7 @@ export class CloudinaryProvider implements MediaProvider {
 
     return UploadAuthorizationSchema.parse({
       provider: 'cloudinary',
-      uploadUrl: `https://api.cloudinary.com/v1_1/${encodeURIComponent(this.cloudName)}/image/upload`,
+      uploadUrl: `https://api.cloudinary.com/v1_1/${encodeURIComponent(this.cloudName)}/${parsedIntent.resourceType}/upload`,
       expiresAt: new Date((timestamp + this.uploadTtlSeconds) * 1_000).toISOString(),
       parameters: {
         api_key: this.apiKey,
@@ -264,6 +273,14 @@ export class CloudinaryProvider implements MediaProvider {
     const version = input.version === undefined ? '' : `v${input.version}/`;
     const publicId = encodePublicId(input.providerPublicId);
     return `https://res.cloudinary.com/${encodeURIComponent(this.cloudName)}/video/upload/f_${input.format},q_auto/c_limit,w_${width}/${version}${publicId}.${input.format}`;
+  }
+
+  buildVideoPosterUrl(unparsedInput: VideoPosterInput): string {
+    const input = VideoPosterInputSchema.parse(unparsedInput);
+    const width = clampMediaWidth(input.width);
+    const version = input.version === undefined ? '' : `v${input.version}/`;
+    const publicId = encodePublicId(input.providerPublicId);
+    return `https://res.cloudinary.com/${encodeURIComponent(this.cloudName)}/video/upload/so_0,f_jpg,q_auto/c_limit,w_${width}/${version}${publicId}.jpg`;
   }
 
   async inspectAsset(providerAssetId: string): Promise<ProviderAsset> {

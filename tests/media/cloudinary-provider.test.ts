@@ -89,6 +89,15 @@ describe('CloudinaryProvider', () => {
     ).toBe(
       'https://res.cloudinary.com/travel-journal/video/upload/f_mp4,q_auto/c_limit,w_1024/v7/journal/clip.mp4',
     );
+    expect(
+      provider.buildVideoPosterUrl({
+        providerPublicId: 'journal/a clip',
+        version: 7,
+        width: 700,
+      }),
+    ).toBe(
+      'https://res.cloudinary.com/travel-journal/video/upload/so_0,f_jpg,q_auto/c_limit,w_768/v7/journal/a%20clip.jpg',
+    );
   });
 
   it('creates short-lived signed image upload parameters without exposing the secret', async () => {
@@ -146,6 +155,19 @@ describe('CloudinaryProvider', () => {
         idempotencyKey: 'upload-key-123',
       }),
     ).rejects.toMatchObject({ code: 'UPLOAD_TOO_LARGE' });
+  });
+
+  it('authorizes videos through the video endpoint with an independent size limit', async () => {
+    const provider = new CloudinaryProvider({ ...providerOptions, maxUploadBytes: 1_000, maxVideoUploadBytes: 2_000 });
+    await expect(provider.createUploadAuthorization({
+      filename: 'clip.mov', mimeType: 'video/quicktime', bytes: 1_500, idempotencyKey: 'video-upload-key-123', resourceType: 'video',
+    })).resolves.toMatchObject({
+      uploadUrl: 'https://api.cloudinary.com/v1_1/travel-journal/video/upload',
+      parameters: { allowed_formats: 'mp4,mov,webm' },
+    });
+    await expect(provider.createUploadAuthorization({
+      filename: 'large.mp4', mimeType: 'video/mp4', bytes: 2_001, idempotencyKey: 'video-upload-key-456', resourceType: 'video',
+    })).rejects.toMatchObject({ code: 'UPLOAD_TOO_LARGE' });
   });
 
   it('verifies Cloudinary upload responses using a constant-time signature comparison', () => {

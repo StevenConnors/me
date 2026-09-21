@@ -2,6 +2,50 @@ This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next
 
 For the local browser-based authoring workflow test, see [the E2E authoring guide](docs/e2e-authoring.md).
 
+## Cloudinary photo maintenance
+
+The Photos page reads image records from MongoDB's `media_assets` collection.
+The scripts below load credentials from `.env.local`, inspect every uploaded
+Cloudinary image, and are dry runs unless `--apply` is passed.
+
+Run the cleanup before importing, so the gallery receives one record per exact
+original image:
+
+```bash
+npm run media:dedupe
+npm run media:dedupe -- --apply
+npm run media:import-photos
+npm run media:import-photos -- --apply
+```
+
+`media:dedupe` uses Cloudinary's original-file `etag`, so it only considers
+byte-for-byte duplicates. It never deletes an image already registered in
+`media_assets`; those may be referenced by a journey. Read the dry-run report
+before applying it. `media:import-photos` creates missing media-library records
+without changing the public Photos page or existing records. Add imported media
+to the draft from `/admin/photos`, then publish it explicitly.
+
+The one-time Photos migration supports the page document's full 500-media
+capacity. For a page that was already migrated with the former 200-item bound,
+first inspect and then apply a draft-only backfill:
+
+```bash
+npm run photos:migrate -- --backfill-draft
+npm run photos:migrate -- --backfill-draft --apply
+```
+
+The backfill preserves the existing composition, appends only missing eligible
+legacy media, and does not change `/photos` until the resulting draft is
+reviewed and published in the admin editor.
+
+## Photos editor uploads
+
+The private Photos editor accepts JPEG, PNG, WebP, HEIC/HEIF, MP4, MOV, and
+WebM uploads. Video files have a separate 250 MiB default limit; set
+`CLOUDINARY_EDITOR_MAX_VIDEO_BYTES` in `.env.local` to match the Cloudinary
+account and deployment request limits. Videos render as generated poster images
+in the gallery and load playback only after a reader opens one.
+
 ## Getting Started
 
 First, run the development server:
