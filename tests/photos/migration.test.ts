@@ -5,6 +5,7 @@ import {
   createPhotosDocumentFromLegacyMedia,
   photosDocumentDigest,
 } from '@/lib/photos/migration';
+import { appendMissingMedia } from '../../scripts/migrate-photos-page.mjs';
 import type { MediaAsset } from '@/lib/media/schemas';
 
 const now = new Date('2026-09-21T00:00:00.000Z');
@@ -65,5 +66,20 @@ describe('Photos legacy migration', () => {
       ...first,
       blocks: [],
     })).toHaveLength(1);
+  });
+
+  it('backfills only missing media after the existing author-owned composition', () => {
+    const current = createPhotosDocumentFromLegacyMedia([media('already-placed')], () => 'existing-block');
+    const result = appendMissingMedia(current, [
+      media('already-placed'),
+      media('new-photo', { photoSectionBreak: { title: 'Recovered' } }),
+    ]);
+
+    expect(result.addedMedia).toBe(1);
+    expect(result.document.blocks[0]).toBe(current.blocks[0]);
+    expect(result.document.blocks.slice(1)).toMatchObject([
+      { type: 'section', title: 'Recovered' },
+      { type: 'media', mediaAssetId: 'new-photo' },
+    ]);
   });
 });

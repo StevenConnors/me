@@ -21,8 +21,22 @@ npm run media:import-photos -- --apply
 `media:dedupe` uses Cloudinary's original-file `etag`, so it only considers
 byte-for-byte duplicates. It never deletes an image already registered in
 `media_assets`; those may be referenced by a journey. Read the dry-run report
-before applying it. `media:import-photos` creates missing media records and
-sets `showInPhotos: true`, which makes the images eligible for `/photos`.
+before applying it. `media:import-photos` creates missing media-library records
+without changing the public Photos page or existing records. Add imported media
+to the draft from `/admin/photos`, then publish it explicitly.
+
+The one-time Photos migration supports the page document's full 500-media
+capacity. For a page that was already migrated with the former 200-item bound,
+first inspect and then apply a draft-only backfill:
+
+```bash
+npm run photos:migrate -- --backfill-draft
+npm run photos:migrate -- --backfill-draft --apply
+```
+
+The backfill preserves the existing composition, appends only missing eligible
+legacy media, and does not change `/photos` until the resulting draft is
+reviewed and published in the admin editor.
 
 ## Photos editor uploads
 

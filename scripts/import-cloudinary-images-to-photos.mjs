@@ -1,13 +1,12 @@
 #!/usr/bin/env node
 
 /**
- * Registers every Cloudinary image upload with the application's media library
- * and enables it for the public Photos page. Existing editor metadata is left
- * intact; only `showInPhotos` is changed on an existing record.
+ * Registers every Cloudinary image upload with the application's media library.
+ * Import never changes public Photos eligibility or an existing record.
  *
  * Usage:
  *   npm run media:import-photos                 # report only
- *   npm run media:import-photos -- --apply      # register and show all images
+ *   npm run media:import-photos -- --apply      # register missing images
  */
 
 import { ObjectId, MongoClient } from 'mongodb';
@@ -39,7 +38,7 @@ export function newMediaDocument(asset, now) {
     ...(asset.checksum ? { checksum: asset.checksum } : {}),
     tags: asset.tags,
     captureDate: captureDateFrom(asset.createdAt),
-    showInPhotos: true,
+    showInPhotos: false,
     status: 'ready',
     createdAt: now,
     updatedAt: now,
@@ -52,31 +51,23 @@ async function countExisting(collection, assets) {
   return collection.countDocuments({ provider: 'cloudinary', providerAssetId: { $in: ids } });
 }
 
-async function applyImport(collection, assets) {
+export async function applyImport(collection, assets) {
   let inserted = 0;
-  let enabled = 0;
   for (let index = 0; index < assets.length; index += 500) {
     const now = new Date();
     const batch = assets.slice(index, index + 500);
     const result = await collection.bulkWrite(batch.map((asset) => {
-      // `showInPhotos` is set below for both branches. Omit it from the
-      // insert document so MongoDB has no competing operators for one path.
-      const { showInPhotos: _showInPhotos, ...document } = newMediaDocument(asset, now);
       return {
         updateOne: {
           filter: { provider: 'cloudinary', providerAssetId: asset.providerAssetId },
-          update: {
-            $setOnInsert: document,
-            $set: { showInPhotos: true },
-          },
+          update: { $setOnInsert: newMediaDocument(asset, now) },
           upsert: true,
         },
       };
     }), { ordered: false });
     inserted += result.upsertedCount;
-    enabled += result.modifiedCount;
   }
-  return { inserted, enabled };
+  return { inserted };
 }
 
 async function main() {
@@ -89,17 +80,17 @@ async function main() {
     const collection = client.db().collection('media_assets');
     const assets = await listAllImageUploads(credentials);
     const existing = await countExisting(collection, assets);
-    console.log(`Found ${assets.length} uploaded Cloudinary image(s): ${assets.length - existing} will be registered and ${existing} existing record(s) will be enabled for Photos.`);
+    console.log(`Found ${assets.length} uploaded Cloudinary image(s): ${assets.length - existing} will be registered and ${existing} existing record(s) will be left unchanged.`);
     if (!apply) {
-      console.log('Dry run only. Re-run with --apply to register these images and show them on /photos.');
+      console.log('Dry run only. Re-run with --apply to register these images in the media library.');
       return;
     }
     await collection.createIndex(
       { provider: 1, providerAssetId: 1 },
       { name: 'unique_provider_asset', unique: true },
     );
-    const { inserted, enabled } = await applyImport(collection, assets);
-    console.log(`Registered ${inserted} image(s) and enabled ${enabled} existing record(s) for /photos.`);
+    const { inserted } = await applyImport(collection, assets);
+    console.log(`Registered ${inserted} image(s). Add them to the Photos draft from /admin/photos, then publish when ready.`);
   } finally {
     await client.close();
   }

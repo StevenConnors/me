@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import styles from './photos-workspace.module.css';
 
@@ -42,14 +42,20 @@ export function MediaPicker({
   const [selected, setSelected] = useState<Map<string, PickerMedia>>(new Map());
   const [state, setState] = useState<'idle' | 'loading' | 'error'>('idle');
   const controllerRef = useRef<AbortController | null>(null);
+  const loadingRef = useRef(false);
+  const queryRef = useRef(query);
+  const itemsRef = useRef<HTMLDivElement>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
-  async function load(cursor: string | null, reset = false) {
-    controllerRef.current?.abort();
+  const load = useCallback(async (cursor: string | null, reset = false) => {
+    if (loadingRef.current && !reset) return;
+    if (reset) controllerRef.current?.abort();
     const controller = new AbortController();
     controllerRef.current = controller;
+    loadingRef.current = true;
     setState('loading');
     try {
-      const response = await fetch(queryUrl(query, cursor), { signal: controller.signal });
+      const response = await fetch(queryUrl(queryRef.current, cursor), { signal: controller.signal });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload?.error?.message ?? 'Unable to load the media library');
       const media = payload.media as PickerMedia[];
@@ -60,29 +66,45 @@ export function MediaPicker({
       if ((error as DOMException).name === 'AbortError') return;
       console.error(error);
       setState('error');
+    } finally {
+      if (controllerRef.current === controller) {
+        controllerRef.current = null;
+        loadingRef.current = false;
+      }
     }
-  }
+  }, []);
 
   useEffect(() => {
     if (!open) return;
     setSelected(new Map());
     void load(null, true);
-    return () => controllerRef.current?.abort();
-  // Open is the intentional picker lifecycle boundary.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+    return () => {
+      controllerRef.current?.abort();
+      controllerRef.current = null;
+      loadingRef.current = false;
+    };
+  }, [load, open]);
+
+  useEffect(() => {
+    if (!open || !nextCursor || !itemsRef.current || !sentinelRef.current || typeof IntersectionObserver === 'undefined') return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) void load(nextCursor);
+    }, { root: itemsRef.current, rootMargin: '400px 0px' });
+    observer.observe(sentinelRef.current);
+    return () => observer.disconnect();
+  }, [load, nextCursor, open]);
 
   if (!open) return null;
   return <div aria-label="Add media from library" aria-modal="true" className={styles.dialogBackdrop} role="dialog">
     <section className={styles.pickerDialog}>
       <header><div><p className={styles.inspectorEyebrow}>Media library</p><h2>Add media</h2></div><button aria-label="Close media library" onClick={onClose} type="button">×</button></header>
       <form className={styles.pickerSearch} onSubmit={(event) => { event.preventDefault(); void load(null, true); }}>
-        <input aria-label="Search media uploads" onChange={(event) => setQuery(event.target.value)} placeholder="Search filename, title, caption, or tag" value={query} />
+        <input aria-label="Search media uploads" onChange={(event) => { queryRef.current = event.target.value; setQuery(event.target.value); }} placeholder="Search filename, title, caption, or tag" value={query} />
         <button disabled={state === 'loading'} type="submit">Search</button>
         <label className={styles.uploadLabel}>Upload new<input accept="image/jpeg,image/png,image/webp,image/heic,image/heif,video/mp4,video/quicktime,video/webm" hidden multiple onChange={(event) => { const files = Array.from(event.target.files ?? []); if (files.length) onUpload(files); event.currentTarget.value = ''; }} type="file" /></label>
       </form>
       {state === 'error' ? <p className={styles.fieldError}>The media library could not load. <button onClick={() => void load(items.length ? nextCursor : null, !items.length)} type="button">Try again</button></p> : null}
-      <div className={styles.pickerItems}>
+      <div className={styles.pickerItems} ref={itemsRef}>
         {items.map((item) => {
           const placed = placedMediaIds.has(item._id);
           const checked = selected.has(item._id);
@@ -96,6 +118,7 @@ export function MediaPicker({
           </label>;
         })}
         {!items.length && state !== 'loading' ? <p className={styles.emptyPicker}>No matching uploads.</p> : null}
+        {nextCursor ? <div aria-hidden="true" className={styles.pickerSentinel} ref={sentinelRef} /> : null}
       </div>
       <footer>
         {nextCursor ? <button disabled={state === 'loading'} onClick={() => void load(nextCursor)} type="button">{state === 'loading' ? 'Loading…' : 'Load more'}</button> : <span />}

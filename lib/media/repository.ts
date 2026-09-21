@@ -131,7 +131,7 @@ export class MediaRepository {
    * recent photographs first; uploads without one follow at the end.
    */
   async listPhotos(options: { limit?: number } = {}): Promise<MediaAsset[]> {
-    const limit = Math.min(Math.max(options.limit ?? 200, 1), 500);
+    const limit = Math.min(Math.max(options.limit ?? 500, 1), 500);
     const assets = await this.mediaAssets
       .find({ status: 'ready', showInPhotos: true, resourceType: 'image' })
       .sort({ captureDate: -1, createdAt: -1 })
