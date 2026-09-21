@@ -1,5 +1,6 @@
 .workspace { display: grid; gap: 16px; }
 .toolbar, .bulkBar, .conflict { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px; border: 1px solid #d6d1c4; background: #f7f5ef; }
+.toolbar { position: sticky; top: 76px; z-index: 10; }
 .toolbar button, .bulkBar button, .conflict button, .inlineActions button, .inspectorActions button { min-height: 34px; padding: 6px 10px; border: 1px solid #aaa394; border-radius: 3px; background: #fffdf8; color: #25231e; cursor: pointer; font: 12px/1 Arial, sans-serif; }
 .toolbar button:disabled, .bulkBar button:disabled { opacity: .5; cursor: not-allowed; }
 .viewportButtons, .historyButtons, .primaryActions, .inlineActions, .inspectorActions { display: inline-flex; flex-wrap: wrap; gap: 6px; }
