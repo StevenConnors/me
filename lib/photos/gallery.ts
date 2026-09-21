@@ -25,7 +25,7 @@ function pageResolvedPhotos(
     : 0;
   if (cursorMediaAssetId && startIndex === 0) throw new StaleGalleryCursorError();
   const items = photos.slice(startIndex, startIndex + limit);
-  const last = items.at(-1);
+  const last = items[items.length - 1];
   return {
     items,
     nextCursor: last && startIndex + items.length < photos.length
@@ -88,7 +88,7 @@ export async function loadPublicPhotosPage(
   }
 
   const items = resolved.photos.slice(0, limit);
-  const last = items.at(-1);
+  const last = items[items.length - 1];
   return {
     items,
     nextCursor: last && resolved.photos.length > limit

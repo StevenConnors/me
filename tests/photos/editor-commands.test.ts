@@ -4,6 +4,7 @@ import {
   insertMedia,
   insertSection,
   moveMedia,
+  moveMediaBlocksTo,
   moveMediaTo,
   moveSectionGroup,
   removeMediaBlocks,
@@ -51,5 +52,16 @@ describe('Photos editor commands', () => {
       'a', 'b-one', 'a-one', 'a-two', 'b',
     ]);
     expect(moveMediaTo(base, 'a-one', 'a-one', 'after')).toBe(base);
+  });
+
+  it('moves selected media together while preserving their document order', () => {
+    const base = document([
+      section('a'), media('one'), media('two'), media('three'), section('b'), media('four'), media('five'),
+    ]);
+
+    expect(moveMediaBlocksTo(base, ['three', 'one'], 'five', 'after').blocks.map((block) => block.id)).toEqual([
+      'a', 'two', 'b', 'four', 'five', 'one', 'three',
+    ]);
+    expect(moveMediaBlocksTo(base, ['one', 'three'], 'three', 'before')).toBe(base);
   });
 });

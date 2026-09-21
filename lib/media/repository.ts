@@ -114,7 +114,7 @@ export class MediaRepository {
       .toArray();
     const hasNextPage = records.length > limit;
     const page = records.slice(0, limit).map((asset) => MediaAssetSchema.parse(asset));
-    const last = page.at(-1);
+    const last = page[page.length - 1];
     return {
       items: page,
       nextCursor: hasNextPage && last ? encodeAdminMediaCursor({

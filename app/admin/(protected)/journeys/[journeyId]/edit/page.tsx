@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { JourneyWorkspace } from './JourneyWorkspace';
 import styles from '@/app/admin/admin.module.css';
 import type { EditorMedia } from '@/components/editor/JourneyVisualEditor';
+import { loadJourneyEditorMedia } from '@/lib/journeys/editor-media';
 import { JourneyRepository } from '@/lib/journeys/repository';
 import { getCloudinaryMediaProvider } from '@/lib/media/provider';
 import { MediaRepository } from '@/lib/media/repository';
@@ -20,19 +21,10 @@ export default async function JourneyEditPage({ params }: { params: Promise<{ jo
 
   let media: EditorMedia[] = [];
   try {
-    const assets = await (await MediaRepository.connect()).list({ limit: 100 });
+    const repository = await MediaRepository.connect();
     let provider: ReturnType<typeof getCloudinaryMediaProvider> | null = null;
     try { provider = getCloudinaryMediaProvider(); } catch { provider = null; }
-    media = assets.map((asset) => ({
-      id: asset._id,
-      title: asset.title || asset.originalFilename,
-      width: asset.width,
-      height: asset.height,
-      altText: asset.altText,
-      previewUrl: provider && asset.resourceType === 'image'
-        ? provider.buildImageUrl({ providerPublicId: asset.providerPublicId, version: asset.version, width: 768, sourceWidth: asset.width, sourceHeight: asset.height })
-        : undefined,
-    }));
+    media = await loadJourneyEditorMedia(journey, repository, provider);
   } catch (error) {
     console.error('Unable to load editor media', error);
   }

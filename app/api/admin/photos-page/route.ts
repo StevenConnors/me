@@ -31,7 +31,8 @@ export async function GET() {
         404,
       );
     }
-    const mediaIds = page.draftDocument.blocks.flatMap((block) => block.type === 'media' ? [block.mediaAssetId] : []);
+    // Keep draft identities complete, but fetch preview assets only as they enter the canvas.
+    const mediaIds = page.draftDocument.blocks.flatMap((block) => block.type === 'media' ? [block.mediaAssetId] : []).slice(0, 24);
     const mediaById = serializePhotosEditorMedia(await mediaRepository.findByIds(mediaIds), provider);
     return NextResponse.json({ page: serializePhotosPage(page), mediaById });
   } catch (error) {

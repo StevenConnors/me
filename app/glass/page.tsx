@@ -1,24 +1,30 @@
 import { HeldPlacesHeader } from '@/components/held-places/HeldPlaces';
 import { MediaGrid, type GalleryMediaItem } from '@/components/MediaGrid';
 import styles from '@/components/held-places/held-places.module.css';
+import { loadGlassGallery } from '@/lib/glass/gallery';
 
-const glass: GalleryMediaItem[] = [
-  { id: 'glass-01', kind: 'photo' },
-  { id: 'glass-02', kind: 'video' },
-  { id: 'glass-03', kind: 'photo' },
-  { id: 'glass-04', kind: 'photo' },
-];
+export const revalidate = 300;
 
-export default function GlassPage() {
+export default async function GlassPage() {
+  let glass: GalleryMediaItem[] = [];
+  let unavailable = false;
+  try {
+    glass = await loadGlassGallery();
+  } catch {
+    console.error('Unable to render the Glass collection');
+    unavailable = true;
+  }
+
   return (
     <main className={styles.paper}>
       <HeldPlacesHeader />
-      <MediaGrid
-        items={glass}
-        placeholderImage="/gallery-placeholders/glass-contact-sheet.png"
-        portrait
-        title="Glass"
-      />
+      {unavailable ? (
+        <section className={styles.indexEmpty}><h1>Glass is temporarily unavailable.</h1><p>Please try again shortly.</p></section>
+      ) : glass.length ? (
+        <MediaGrid items={glass} portrait title="Glass" />
+      ) : (
+        <section className={styles.indexEmpty}><h1>Glass, soon.</h1><p>The next collection is being prepared.</p></section>
+      )}
     </main>
   );
 }

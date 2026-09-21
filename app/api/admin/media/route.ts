@@ -1,10 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 import { apiError, requireAuthorApi } from '@/lib/http/admin-api';
+import { serializeJourneyEditorMedia } from '@/lib/journeys/editor-media';
 import { InvalidAdminMediaCursorError } from '@/lib/media/admin-cursor';
+import { getCloudinaryMediaProvider } from '@/lib/media/provider';
 import { MediaRepository } from '@/lib/media/repository';
+import type { MediaAsset } from '@/lib/media/schemas';
 
 export const runtime = 'nodejs';
+
+function withPreviews(assets: MediaAsset[]) {
+  let provider: ReturnType<typeof getCloudinaryMediaProvider> | null = null;
+  try { provider = getCloudinaryMediaProvider(); } catch { /* Metadata remains available without delivery credentials. */ }
+  return assets.map((asset) => ({ ...asset, previewUrl: serializeJourneyEditorMedia(asset, provider).previewUrl }));
+}
 
 export async function GET(request: NextRequest) {
   const authorization = await requireAuthorApi();
@@ -30,10 +39,10 @@ export async function GET(request: NextRequest) {
         cursor,
         resourceType: resourceTypeValue as 'image' | 'video' | undefined,
       });
-      return NextResponse.json({ media: page.items, nextCursor: page.nextCursor });
+      return NextResponse.json({ media: withPreviews(page.items), nextCursor: page.nextCursor });
     }
     const assets = await (await MediaRepository.connect()).list({ query, limit });
-    return NextResponse.json({ media: assets, nextCursor: null });
+    return NextResponse.json({ media: withPreviews(assets), nextCursor: null });
   } catch (error) {
     if (error instanceof InvalidAdminMediaCursorError) {
       return apiError('INVALID_MEDIA_CURSOR', 'The media cursor is invalid', 400);

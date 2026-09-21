@@ -22,7 +22,8 @@ export default async function PhotosEditorPage() {
       </>;
     }
 
-    const mediaIds = page.draftDocument.blocks.flatMap((block) => block.type === 'media' ? [block.mediaAssetId] : []);
+    // Keep draft identities complete, but fetch preview assets only as they enter the canvas.
+    const mediaIds = page.draftDocument.blocks.flatMap((block) => block.type === 'media' ? [block.mediaAssetId] : []).slice(0, 24);
     const assets = await mediaRepository.findByIds(mediaIds);
     const editorMedia = Object.values(serializePhotosEditorMedia(assets, provider));
     const serialized = serializePhotosPage(page);

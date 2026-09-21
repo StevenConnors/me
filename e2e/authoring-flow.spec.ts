@@ -53,7 +53,8 @@ test('an author can create, revise, publish, view, and delete a journey', async 
 
     await page.goto(editUrl);
     await page.getByLabel('Cover image').selectOption(mediaId);
-    await page.getByLabel('Add photographs from the library').selectOption([mediaId]);
+    await page.getByRole('button', { name: 'Choose photographs' }).click();
+    await page.getByRole('region', { name: 'Photograph library' }).locator(`input[type="checkbox"][value="${mediaId}"]`).check();
     await page.getByRole('button', { name: 'Add selected' }).click();
     await page.getByLabel('Alt text', { exact: true }).fill('A small cove after rain');
     await page.getByRole('button', { name: 'Save now' }).click();
