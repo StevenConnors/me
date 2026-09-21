@@ -17,6 +17,7 @@
 
 .grid {
   display: grid;
+  align-items: start;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
 }
@@ -26,6 +27,7 @@
 }
 
 .tile {
+  position: relative;
   display: block;
   min-width: 0;
   aspect-ratio: 4 / 3;
@@ -46,16 +48,16 @@
   outline-offset: 4px;
 }
 
-.placeholder {
+.image {
   display: block;
   width: 100%;
   height: 100%;
   background-color: #dad8d0;
-  background-repeat: no-repeat;
+  object-fit: contain;
   transition: transform 180ms ease, filter 180ms ease;
 }
 
-.tile:hover .placeholder { filter: brightness(.94); transform: scale(1.015); }
+.tile:hover .image { filter: brightness(.94); transform: scale(1.015); }
 
 .videoMarker,
 .position {
@@ -67,6 +69,7 @@
 }
 
 .videoMarker {
+  position: relative;
   display: inline-block;
   margin: 12px;
   padding: 7px 8px;
@@ -85,17 +88,19 @@
 }
 
 .lightboxMedia {
-  width: min(78vw, 980px);
-  max-height: calc(100vh - 152px);
-  aspect-ratio: 4 / 3;
+  position: relative;
+  width: 100%;
+  height: calc(100dvh - 152px);
   overflow: hidden;
   touch-action: none;
 }
 
 .portraitLightboxMedia {
-  width: min(54vw, 560px);
-  aspect-ratio: 3 / 4;
+  width: 100%;
 }
+
+.fullImage { object-fit: contain; }
+.lightboxVideo { width: 100%; height: 100%; object-fit: contain; }
 
 .closeButton,
 .directionButton {
@@ -137,14 +142,13 @@
   .lightbox { padding: 82px 16px 74px; }
   .lightboxMedia,
   .portraitLightboxMedia {
-    width: min(100%, 430px);
-    max-height: calc(100vh - 156px);
+    width: 100%;
+    height: calc(100dvh - 156px);
   }
-  .portraitLightboxMedia { width: min(74vw, 330px); }
   .directionButton { display: none; }
   .closeButton { top: 18px; right: 18px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .placeholder { transition: none; }
+  .image { transition: none; }
 }

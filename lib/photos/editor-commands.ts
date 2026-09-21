@@ -122,6 +122,28 @@ export function moveMediaTo(
   return copy(document, blocks);
 }
 
+/** Move a media selection as one ordered group relative to any block. */
+export function moveMediaBlocksTo(
+  document: PhotosPageDocument,
+  blockIds: Iterable<string>,
+  targetBlockId: string,
+  position: 'before' | 'after',
+): PhotosPageDocument {
+  const selected = new Set(blockIds);
+  if (!selected.size || selected.has(targetBlockId)) return document;
+
+  const moving = document.blocks.filter(
+    (block): block is PhotosMediaBlock => block.type === 'media' && selected.has(block.id),
+  );
+  if (!moving.length) return document;
+
+  const blocks = document.blocks.filter((block) => !selected.has(block.id));
+  const target = blocks.findIndex((block) => block.id === targetBlockId);
+  if (target < 0) return document;
+  blocks.splice(target + (position === 'after' ? 1 : 0), 0, ...moving);
+  return copy(document, blocks);
+}
+
 function groupRanges(document: PhotosPageDocument): Array<{ sectionId?: string; start: number; end: number }> {
   const starts = document.blocks.flatMap((block, index) => block.type === 'section' ? [index] : []);
   const ranges: Array<{ sectionId?: string; start: number; end: number }> = [];

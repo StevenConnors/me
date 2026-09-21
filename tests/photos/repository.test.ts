@@ -189,4 +189,48 @@ describe('PhotosPageRepository', () => {
       code: 'PHOTOS_PUBLISH_INVALID',
     });
   });
+
+  it('identifies an empty section and publishes after the author removes it', async () => {
+    const pages = new MemoryPhotosPages();
+    const repository = new PhotosPageRepository(
+      pages as unknown as Collection<PhotosPage>,
+      new MemoryMediaAssets([readyImage()]) as unknown as Collection<MediaAsset>,
+    );
+    const draft: PhotosPageDocument = {
+      schemaVersion: 1,
+      blocks: [...documentWithOnePhoto().blocks, { id: 'empty-section', type: 'section', title: 'Summer' }],
+    };
+    await repository.createIfMissing({ draftDocument: draft, now });
+
+    await expect(repository.publish(0, { now })).rejects.toMatchObject({
+      code: 'PHOTOS_PUBLISH_INVALID',
+      issues: [{ blockId: 'empty-section', message: expect.stringContaining('Section “Summer” has no photos') }],
+    });
+    expect((await repository.get())?.draftDocument).toEqual(draft);
+    expect((await repository.get())?.publishedDocument).toBeUndefined();
+
+    await repository.updateDraft(0, documentWithOnePhoto(), { now });
+    expect((await repository.publish(1, { now })).publishedDocument).toEqual(documentWithOnePhoto());
+  });
+
+  it('reports every unavailable upload against its editable block', async () => {
+    const pages = new MemoryPhotosPages();
+    const repository = new PhotosPageRepository(
+      pages as unknown as Collection<PhotosPage>,
+      new MemoryMediaAssets([{ ...readyImage(), status: 'pending' }]) as unknown as Collection<MediaAsset>,
+    );
+    const draft: PhotosPageDocument = {
+      schemaVersion: 1,
+      blocks: [mediaBlock(), mediaBlock({ id: 'missing-block', mediaAssetId: 'missing-media' })],
+    };
+    await repository.createIfMissing({ draftDocument: draft, now });
+
+    await expect(repository.publish(0, { now })).rejects.toMatchObject({
+      code: 'PHOTOS_PUBLISH_INVALID',
+      issues: [
+        { blockId: 'block-photo-1', message: expect.stringContaining('still processing') },
+        { blockId: 'missing-block', message: expect.stringContaining('no longer available') },
+      ],
+    });
+  });
 });

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import Image from 'next/image';
 
 import styles from './mediaGrid.module.css';
 
@@ -9,18 +10,21 @@ export type GalleryMediaKind = 'photo' | 'video';
 export type GalleryMediaItem = {
   id: string;
   kind: GalleryMediaKind;
+  src: string;
+  thumbnailSrc: string;
+  alt: string;
+  width: number;
+  height: number;
 };
 
 export function MediaGrid({
   title,
   items,
   portrait = false,
-  placeholderImage,
 }: {
   title: string;
   items: GalleryMediaItem[];
   portrait?: boolean;
-  placeholderImage: string;
 }) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -89,14 +93,18 @@ export function MediaGrid({
             data-kind={item.kind}
             key={item.id}
             onClick={() => setActiveIndex(index)}
+            style={{ aspectRatio: `${item.width} / ${item.height}` }}
             type="button"
           >
-            <MediaPlaceholder
-              item={item}
-              position={contactSheetPosition(index, portrait ? 2 : 3)}
-              placeholderImage={placeholderImage}
-              sheetColumns={portrait ? 2 : 3}
+            <Image
+              alt={item.alt}
+              className={styles.image}
+              fill
+              sizes={portrait ? '(max-width: 768px) 50vw, 25vw' : '(max-width: 768px) 50vw, 33vw'}
+              src={item.thumbnailSrc}
+              unoptimized
             />
+            {item.kind === 'video' ? <span className={styles.videoMarker}>Video</span> : null}
           </button>
         ))}
       </div>
@@ -133,12 +141,11 @@ export function MediaGrid({
             onTouchEnd={handleTouchEnd}
             onTouchStart={handleTouchStart}
           >
-            <MediaPlaceholder
-              item={activeItem}
-              position={contactSheetPosition(activeIndex!, portrait ? 2 : 3)}
-              placeholderImage={placeholderImage}
-              sheetColumns={portrait ? 2 : 3}
-            />
+            {activeItem.kind === 'video' ? (
+              <video className={styles.lightboxVideo} controls playsInline poster={activeItem.thumbnailSrc} preload="none" src={activeItem.src} />
+            ) : (
+              <Image alt={activeItem.alt} className={styles.fullImage} fill priority sizes="100vw" src={activeItem.src} unoptimized />
+            )}
           </div>
           <button
             aria-label="Next item"
@@ -152,40 +159,5 @@ export function MediaGrid({
         </div>
       ) : null}
     </section>
-  );
-}
-
-function contactSheetPosition(index: number, columns: number) {
-  const cell = index % (columns * columns);
-  const column = cell % columns;
-  const row = Math.floor(cell / columns);
-  const position = (value: number) => columns === 1 ? '0%' : `${(value / (columns - 1)) * 100}%`;
-
-  return `${position(column)} ${position(row)}`;
-}
-
-function MediaPlaceholder({
-  item,
-  placeholderImage,
-  position,
-  sheetColumns,
-}: {
-  item: GalleryMediaItem;
-  placeholderImage: string;
-  position: string;
-  sheetColumns: number;
-}) {
-  return (
-    <span
-      aria-hidden="true"
-      className={styles.placeholder}
-      style={{
-        backgroundImage: `url(${placeholderImage})`,
-        backgroundPosition: position,
-        backgroundSize: `${sheetColumns * 100}% ${sheetColumns * 100}%`,
-      }}
-    >
-      {item.kind === 'video' ? <span className={styles.videoMarker}>Video</span> : null}
-    </span>
   );
 }

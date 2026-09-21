@@ -2,10 +2,12 @@
 
 import StarterKit from '@tiptap/starter-kit';
 import { EditorContent, useEditor } from '@tiptap/react';
+import Image from 'next/image';
 import React from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import styles from './HeldPlacesEditor.module.css';
+import { JourneyMediaPicker } from './JourneyMediaPicker';
 import type { EditorMedia } from './JourneyVisualEditor';
 import { uploadMedia } from '@/lib/client/upload-media';
 import type {
@@ -24,7 +26,7 @@ type Props = {
 
 export function HeldPlacesEditor({ document, media, journeyId, onChange }: Props) {
   const [availableMedia, setAvailableMedia] = useState(media);
-  const [selected, setSelected] = useState<Record<string, string[]>>({});
+  const [pickingChapterId, setPickingChapterId] = useState<string | null>(null);
   const [uploadState, setUploadState] = useState('');
   const draggedChapter = useRef<string | null>(null);
   const mediaById = useMemo(
@@ -32,7 +34,11 @@ export function HeldPlacesEditor({ document, media, journeyId, onChange }: Props
     [availableMedia],
   );
 
-  useEffect(() => setAvailableMedia(media), [media]);
+  useEffect(() => {
+    setAvailableMedia((current) => Array.from(new Map(
+      [...current, ...media].map((asset) => [asset.id, asset]),
+    ).values()));
+  }, [media]);
 
   function updateChapters(chapters: HeldPlacesChapter[]) {
     onChange({ ...document, chapters });
@@ -85,12 +91,14 @@ export function HeldPlacesEditor({ document, media, journeyId, onChange }: Props
     updateChapters(chapters);
   }
 
-  function addSelectedMedia(chapter: HeldPlacesChapter) {
+  function addSelectedMedia(chapter: HeldPlacesChapter, assets: EditorMedia[]) {
     const existing = new Set(chapter.media.map(({ mediaAssetId }) => mediaAssetId));
-    const additions = (selected[chapter.id] ?? [])
-      .filter((id) => !existing.has(id))
-      .map((mediaAssetId) => ({ mediaAssetId, decorative: true }));
+    const additions = assets
+      .filter(({ id }) => !existing.has(id))
+      .map(({ id }) => ({ mediaAssetId: id, decorative: true }));
+    setAvailableMedia((current) => Array.from(new Map([...current, ...assets].map((asset) => [asset.id, asset])).values()));
     if (additions.length) updateChapter(chapter.id, { media: [...chapter.media, ...additions] });
+    setPickingChapterId(null);
   }
 
   async function uploadFiles(chapter: HeldPlacesChapter, files: FileList | null) {
@@ -181,27 +189,21 @@ export function HeldPlacesEditor({ document, media, journeyId, onChange }: Props
 
             <div className={styles.mediaSection}>
               <div className={styles.mediaPicker}>
-                <label htmlFor={`media-${chapter.id}`}>Add photographs from the library</label>
-                <select
-                  aria-describedby={`media-help-${chapter.id}`}
-                  id={`media-${chapter.id}`}
-                  multiple
-                  onChange={(event) => setSelected((current) => ({
-                    ...current,
-                    [chapter.id]: Array.from(event.target.selectedOptions, (option) => option.value),
-                  }))}
-                  value={selected[chapter.id] ?? []}
-                >
-                  {availableMedia.map((asset) => <option key={asset.id} value={asset.id}>{asset.title}</option>)}
-                </select>
-                <p id={`media-help-${chapter.id}`}>Hold Command or Control to choose more than one.</p>
+                <span className={styles.fieldLabel}>Add photographs from the library</span>
                 <div className={styles.mediaPickerActions}>
-                  <button disabled={!selected[chapter.id]?.length} onClick={() => addSelectedMedia(chapter)} type="button">Add selected</button>
+                  <button aria-expanded={pickingChapterId === chapter.id} onClick={() => setPickingChapterId((current) => current === chapter.id ? null : chapter.id)} type="button">Choose photographs</button>
                   <label className={styles.uploadButton}>
                     Upload photographs
                     <input accept="image/jpeg,image/png,image/webp,image/heic,image/heif" multiple onChange={(event) => void uploadFiles(chapter, event.target.files)} type="file" />
                   </label>
                 </div>
+                {pickingChapterId === chapter.id ? (
+                  <JourneyMediaPicker
+                    onClose={() => setPickingChapterId(null)}
+                    onInsert={(assets) => addSelectedMedia(chapter, assets)}
+                    placedMediaIds={new Set(chapter.media.map(({ mediaAssetId }) => mediaAssetId))}
+                  />
+                ) : null}
               </div>
 
               {chapter.media.length ? (
@@ -338,8 +340,7 @@ function MediaEditor({
     <article className={styles.mediaCard}>
       <div className={styles.mediaPreview}>
         {asset?.previewUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img alt="" src={asset.previewUrl} />
+          <Image alt="" draggable={false} height={asset.height} sizes="(max-width: 720px) 90vw, 200px" src={asset.previewUrl} unoptimized width={asset.width} />
         ) : <span>Preview unavailable</span>}
       </div>
       <div className={styles.mediaFields}>

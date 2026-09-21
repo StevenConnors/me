@@ -1,15 +1,15 @@
 'use client';
 
 import Image from 'next/image';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { PhotosPageView, type PhotoSection, type PublicPhoto } from '@/components/photos/PhotosPageView';
 import { uploadMedia } from '@/lib/client/upload-media';
 import {
   insertMedia,
-  insertSection,
   moveMedia,
+  moveMediaBlocksTo,
   moveMediaTo,
   moveSectionGroup,
   removeMediaBlocks,
@@ -38,11 +38,13 @@ type EditorCanvasPhoto = PublicPhoto & {
   blockId: string;
   originalFilename: string;
   unavailable?: boolean;
+  loading?: boolean;
 };
 
 type SaveState = 'saved' | 'saving' | 'error' | 'conflict';
 type UploadState = 'idle' | 'uploading' | 'error';
 type DropTarget = { blockId: string; position: 'before' | 'after' };
+const PHOTO_BATCH_SIZE = 24;
 type PhotosApiPage = {
   draftDocument: PhotosPageDocument;
   draftVersion: number;
@@ -74,6 +76,7 @@ function dateFromFile(file: File) {
 function documentCanvas(
   document: PhotosPageDocument,
   mediaById: Map<string, EditorMedia>,
+  loadedMediaIds: Set<string>,
 ): { photos: EditorCanvasPhoto[]; sections: PhotoSection[] } {
   const photos: EditorCanvasPhoto[] = [];
   const sections: PhotoSection[] = [];
@@ -105,7 +108,7 @@ function documentCanvas(
       ...(block.caption ? { caption: block.caption } : {}),
       ...(block.displayDate ? { captureDate: block.displayDate } : {}),
       kind: asset?.resourceType ?? 'image',
-      ...(!asset || !asset.source ? { unavailable: true } : {}),
+      ...(!loadedMediaIds.has(block.mediaAssetId) ? { loading: true } : !asset || !asset.source ? { unavailable: true } : {}),
     };
     const index = photos.length;
     photos.push(photo);
@@ -145,8 +148,10 @@ export function PhotosWorkspace({
   const [historyIndex, setHistoryIndex] = useState(0);
   const [media, setMedia] = useState(initialMedia);
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
+  const [sectionDraft, setSectionDraft] = useState<{ blockId: string; title: string; text: string } | null>(null);
   const [selectedMediaBlockIds, setSelectedMediaBlockIds] = useState<Set<string>>(new Set());
   const [draggedMediaBlockId, setDraggedMediaBlockId] = useState<string | null>(null);
+  const [pointerDragActive, setPointerDragActive] = useState(false);
   const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
   const [reorderMessage, setReorderMessage] = useState('');
   const [viewport, setViewport] = useState<'desktop' | 'mobile'>('desktop');
@@ -157,12 +162,44 @@ export function PhotosWorkspace({
   const [pickerOpen, setPickerOpen] = useState(false);
   const [deletionPlan, setDeletionPlan] = useState<DeletionPlanItem[] | null>(null);
   const [deletionMessage, setDeletionMessage] = useState('');
+  const [visiblePhotoCount, setVisiblePhotoCount] = useState(PHOTO_BATCH_SIZE);
+  const [loadedMediaIds, setLoadedMediaIds] = useState(() => new Set([
+    ...initialDocument.blocks.filter(isMediaBlock).slice(0, PHOTO_BATCH_SIZE).map((block) => block.mediaAssetId),
+    ...initialMedia.map((asset) => asset.id),
+  ]));
+  const [mediaLoadState, setMediaLoadState] = useState<'idle' | 'loading' | 'error'>('idle');
+  const [mediaRetry, setMediaRetry] = useState(0);
+  const [insertionTarget, setInsertionTarget] = useState<DropTarget | null>(null);
+  const [publishError, setPublishError] = useState('');
+  const [publishIssues, setPublishIssues] = useState<Array<{ blockId: string; message: string }>>([]);
+  const [collapsedSectionIds, setCollapsedSectionIds] = useState<Set<string>>(new Set());
+  const [moveTargetSectionId, setMoveTargetSectionId] = useState('');
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const dragPreviewRef = useRef<HTMLDivElement>(null);
+  const pointerCleanupRef = useRef<(() => void) | null>(null);
+  const suppressClickRef = useRef(false);
+  const previousPositionsRef = useRef(new Map<string, DOMRect>());
 
   const mediaById = useMemo(() => new Map(media.map((asset) => [asset.id, asset])), [media]);
-  const canvas = useMemo(() => documentCanvas(document, mediaById), [document, mediaById]);
+  const totalPhotoCount = document.blocks.filter(isMediaBlock).length;
+  const visibleDocument = useMemo(() => {
+    let count = 0;
+    const end = document.blocks.findIndex((block) => block.type === 'media' && ++count > visiblePhotoCount);
+    return end < 0 ? document : { ...document, blocks: document.blocks.slice(0, end) };
+  }, [document, visiblePhotoCount]);
+  const canvas = useMemo(() => documentCanvas(visibleDocument, mediaById, loadedMediaIds), [visibleDocument, mediaById, loadedMediaIds]);
+  const displayedSections = useMemo(() => canvas.sections.map((section) => (
+    section.sectionBlockId && collapsedSectionIds.has(section.sectionBlockId)
+      ? { ...section, photos: [] }
+      : section
+  )), [canvas.sections, collapsedSectionIds]);
   const photos = canvas.photos;
   const activeBlock = document.blocks.find((block) => block.id === activeBlockId);
   const activeMediaBlock = isMediaBlock(activeBlock) ? activeBlock : null;
+  const draggingSelectionCount = draggedMediaBlockId && selectedMediaBlockIds.has(draggedMediaBlockId)
+    ? selectedMediaBlockIds.size
+    : 1;
 
   const scheduleSave = useCallback(() => {
     if (conflictRef.current) return;
@@ -219,6 +256,8 @@ export function PhotosWorkspace({
   const applyDocument = useCallback((next: PhotosPageDocument) => {
     if (documentEqual(next, documentRef.current)) return;
     documentRef.current = next;
+    setPublishError('');
+    setPublishIssues([]);
     setDocument(next);
     setHistory((current) => {
       const nextHistory = [...current.slice(0, historyIndex + 1), next].slice(-80);
@@ -235,12 +274,156 @@ export function PhotosWorkspace({
       else next.add(blockId);
       return next;
     });
+    setInsertionTarget(null);
+  }
+
+  function moveSelectionToSection() {
+    if (!moveTargetSectionId || !selectedMediaBlockIds.size) return;
+    const next = moveMediaBlocksTo(documentRef.current, selectedMediaBlockIds, moveTargetSectionId, 'after');
+    if (documentEqual(next, documentRef.current)) return;
+    applyDocument(next);
+    setCollapsedSectionIds((current) => {
+      if (!current.has(moveTargetSectionId)) return current;
+      const expanded = new Set(current);
+      expanded.delete(moveTargetSectionId);
+      return expanded;
+    });
+    const section = next.blocks.find((block) => block.id === moveTargetSectionId);
+    setReorderMessage(`${selectedMediaBlockIds.size} photo${selectedMediaBlockIds.size === 1 ? '' : 's'} moved to ${section?.type === 'section' && section.title ? section.title : 'the selected section'}.`);
+  }
+
+  function selectBlock(blockId: string | null) {
     setActiveBlockId(blockId);
+    setInsertionTarget(null);
+    const block = documentRef.current.blocks.find((item) => item.id === blockId);
+    setSectionDraft(block?.type === 'section' ? { blockId: block.id, title: block.title ?? '', text: block.text ?? '' } : null);
+  }
+
+  function editSection(block: PhotosSectionBlock, field: 'title' | 'text', value: string) {
+    setSectionDraft((current) => ({
+      ...(current?.blockId === block.id ? current : { blockId: block.id, title: block.title ?? '', text: block.text ?? '' }),
+      [field]: value,
+    }));
+    applyDocument(updateSectionBlock(documentRef.current, block.id, { [field]: value.trim() || undefined }));
+  }
+
+  function revealBlock(blockId: string, nextDocument = documentRef.current, openEditor = false) {
+    const index = nextDocument.blocks.findIndex((block) => block.id === blockId);
+    const count = nextDocument.blocks.slice(0, index + 1).filter(isMediaBlock).length;
+    setVisiblePhotoCount((current) => Math.max(current, count));
+    const section = nextDocument.blocks.slice(0, index + 1).reverse().find((block) => block.type === 'section');
+    if (section?.type === 'section') {
+      setCollapsedSectionIds((current) => {
+        if (!current.has(section.id)) return current;
+        const next = new Set(current);
+        next.delete(section.id);
+        return next;
+      });
+    }
+    if (openEditor) selectBlock(blockId);
+    else setInsertionTarget(null);
+    requestAnimationFrame(() => Array.from(canvasRef.current?.querySelectorAll<HTMLElement>('[data-block-id]') ?? []).find((element) => element.dataset.blockId === blockId)?.scrollIntoView?.({ block: 'center', behavior: 'smooth' }));
   }
 
   function clearDragState() {
     setDraggedMediaBlockId(null);
     setDropTarget(null);
+    setPointerDragActive(false);
+  }
+
+  function positionWithinMedia(element: HTMLElement, x: number) {
+    const bounds = element.getBoundingClientRect();
+    return x < bounds.left + bounds.width / 2 ? 'before' as const : 'after' as const;
+  }
+
+  function startPointerDrag(event: React.PointerEvent<HTMLButtonElement>, blockId: string) {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    pointerCleanupRef.current?.();
+    const handle = event.currentTarget;
+    handle.focus();
+    handle.setPointerCapture?.(event.pointerId);
+    const origin = { x: event.clientX, y: event.clientY };
+    let point = origin;
+    let active = false;
+    let frame = 0;
+    let target: DropTarget | null = null;
+    const draggedIds = selectedMediaBlockIds.has(blockId) && selectedMediaBlockIds.size > 1
+      ? new Set(selectedMediaBlockIds)
+      : new Set([blockId]);
+
+    const update = () => {
+      if (!active) return;
+      if (dragPreviewRef.current) dragPreviewRef.current.style.transform = `translate3d(${point.x + 16}px, ${point.y + 16}px, 0)`;
+      const edge = 100;
+      const scroll = point.y < edge ? -Math.ceil((edge - point.y) / 5) : point.y > window.innerHeight - edge ? Math.ceil((point.y - window.innerHeight + edge) / 5) : 0;
+      if (scroll) window.scrollBy(0, scroll);
+      let hit = window.document.elementFromPoint(point.x, point.y)?.closest<HTMLElement>('[data-block-id]') ?? null;
+      // The gaps are valid drop areas too. Choose the closest visible block.
+      if (!hit && canvasRef.current) {
+        const canvasBounds = canvasRef.current.getBoundingClientRect();
+        if (point.x >= canvasBounds.left && point.x <= canvasBounds.right && point.y >= canvasBounds.top && point.y <= canvasBounds.bottom) {
+          let distance = Infinity;
+          canvasRef.current.querySelectorAll<HTMLElement>('[data-block-id]').forEach((candidate) => {
+            if (candidate.dataset.blockId && draggedIds.has(candidate.dataset.blockId)) return;
+            const rect = candidate.getBoundingClientRect();
+            const nextDistance = Math.hypot(Math.max(rect.left - point.x, 0, point.x - rect.right), Math.max(rect.top - point.y, 0, point.y - rect.bottom));
+            if (nextDistance < distance) { distance = nextDistance; hit = candidate; }
+          });
+        }
+      }
+      const targetId = hit?.dataset.blockId;
+      target = hit && targetId && !draggedIds.has(targetId) ? {
+        blockId: targetId,
+        position: hit.dataset.blockType === 'section' ? 'after' : positionWithinMedia(hit, point.x),
+      } : null;
+      if (target) setCurrentDropTarget(target); else setDropTarget(null);
+      frame = requestAnimationFrame(update);
+    };
+    const move = (moveEvent: PointerEvent) => {
+      if (moveEvent.pointerId !== event.pointerId) return;
+      point = { x: moveEvent.clientX, y: moveEvent.clientY };
+      if (!active && Math.hypot(point.x - origin.x, point.y - origin.y) >= 5) {
+        active = true;
+        setDraggedMediaBlockId(blockId);
+        setPointerDragActive(true);
+        frame = requestAnimationFrame(update);
+      }
+    };
+    const cleanup = () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', finish);
+      window.removeEventListener('pointercancel', cancel);
+      window.removeEventListener('keydown', escape);
+      if (handle.hasPointerCapture?.(event.pointerId)) handle.releasePointerCapture(event.pointerId);
+      pointerCleanupRef.current = null;
+    };
+    const finish = (upEvent: PointerEvent) => {
+      if (upEvent.pointerId !== event.pointerId) return;
+      if (active && target) {
+        const next = draggedIds.size > 1
+          ? moveMediaBlocksTo(documentRef.current, draggedIds, target.blockId, target.position)
+          : moveMediaTo(documentRef.current, blockId, target.blockId, target.position);
+        if (!documentEqual(next, documentRef.current)) {
+          applyDocument(next);
+          setReorderMessage(draggedIds.size > 1 ? `${draggedIds.size} photos moved together.` : `${mediaFilename(blockId)} moved.`);
+        }
+      }
+      if (active) {
+        suppressClickRef.current = true;
+        setTimeout(() => { suppressClickRef.current = false; }, 0);
+      }
+      cleanup();
+      clearDragState();
+    };
+    const cancel = () => { cleanup(); clearDragState(); };
+    const escape = (keyEvent: KeyboardEvent) => { if (keyEvent.key === 'Escape') cancel(); };
+    pointerCleanupRef.current = cleanup;
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', finish);
+    window.addEventListener('pointercancel', cancel);
+    window.addEventListener('keydown', escape);
   }
 
   function mediaFilename(blockId: string) {
@@ -259,23 +442,28 @@ export function PhotosWorkspace({
     return event.dataTransfer.getData('text/plain') || draggedMediaBlockId;
   }
 
+  function draggedBlockIds(primaryBlockId: string) {
+    return selectedMediaBlockIds.has(primaryBlockId) && selectedMediaBlockIds.size > 1
+      ? new Set(selectedMediaBlockIds)
+      : new Set([primaryBlockId]);
+  }
+
   function setCurrentDropTarget(next: DropTarget) {
     setDropTarget((current) => current?.blockId === next.blockId && current.position === next.position ? current : next);
   }
 
   function dragOverMedia(event: React.DragEvent<HTMLElement>, targetBlockId: string) {
     const dragged = draggedBlockId(event);
-    if (!dragged || dragged === targetBlockId) return;
+    if (!dragged || draggedBlockIds(dragged).has(targetBlockId)) return;
     event.preventDefault();
     event.dataTransfer.dropEffect = 'move';
-    const bounds = event.currentTarget.getBoundingClientRect();
-    const position = event.clientY < bounds.top + bounds.height / 2 ? 'before' : 'after';
+    const position = positionWithinMedia(event.currentTarget, event.clientX);
     setCurrentDropTarget({ blockId: targetBlockId, position });
   }
 
   function dragOverSection(event: React.DragEvent<HTMLElement>, targetBlockId: string) {
     const dragged = draggedBlockId(event);
-    if (!dragged) return;
+    if (!dragged || draggedBlockIds(dragged).has(targetBlockId)) return;
     event.preventDefault();
     event.dataTransfer.dropEffect = 'move';
     setCurrentDropTarget({ blockId: targetBlockId, position: 'after' });
@@ -284,19 +472,21 @@ export function PhotosWorkspace({
   function completeMediaDrop(event: React.DragEvent<HTMLElement>, targetBlockId: string, position: 'before' | 'after') {
     event.preventDefault();
     const dragged = draggedBlockId(event);
-    if (dragged && dragged !== targetBlockId) {
-      const next = moveMediaTo(documentRef.current, dragged, targetBlockId, position);
+    if (dragged && !draggedBlockIds(dragged).has(targetBlockId)) {
+      const draggedIds = draggedBlockIds(dragged);
+      const next = draggedIds.size > 1
+        ? moveMediaBlocksTo(documentRef.current, draggedIds, targetBlockId, position)
+        : moveMediaTo(documentRef.current, dragged, targetBlockId, position);
       const moved = !documentEqual(next, documentRef.current);
       applyDocument(next);
       setActiveBlockId(dragged);
-      if (moved) setReorderMessage(`${mediaFilename(dragged)} moved.`);
+      if (moved) setReorderMessage(draggedIds.size > 1 ? `${draggedIds.size} photos moved together.` : `${mediaFilename(dragged)} moved.`);
     }
     clearDragState();
   }
 
   function dropOnMedia(event: React.DragEvent<HTMLElement>, targetBlockId: string) {
-    const bounds = event.currentTarget.getBoundingClientRect();
-    completeMediaDrop(event, targetBlockId, event.clientY < bounds.top + bounds.height / 2 ? 'before' : 'after');
+    completeMediaDrop(event, targetBlockId, positionWithinMedia(event.currentTarget, event.clientX));
   }
 
   function reorderWithKeyboard(event: React.KeyboardEvent<HTMLButtonElement>, blockId: string) {
@@ -319,6 +509,7 @@ export function PhotosWorkspace({
     const next = history[historyIndex - 1];
     documentRef.current = next;
     setDocument(next);
+    setSectionDraft(null);
     setHistoryIndex(historyIndex - 1);
     scheduleSave();
   }
@@ -328,14 +519,22 @@ export function PhotosWorkspace({
     const next = history[historyIndex + 1];
     documentRef.current = next;
     setDocument(next);
+    setSectionDraft(null);
     setHistoryIndex(historyIndex + 1);
     scheduleSave();
   }
 
   function addSection() {
     const section: PhotosSectionBlock = { id: newBlockId(), type: 'section' };
-    applyDocument(insertSection(documentRef.current, activeBlockId, section));
-    setActiveBlockId(section.id);
+    const current = documentRef.current;
+    const targetIndex = insertionTarget ? current.blocks.findIndex((block) => block.id === insertionTarget.blockId) : -1;
+    const index = targetIndex < 0 ? 0 : targetIndex + (insertionTarget?.position === 'after' ? 1 : 0);
+    const next = {
+      ...current,
+      blocks: [...current.blocks.slice(0, index), section, ...current.blocks.slice(index)],
+    };
+    applyDocument(next);
+    revealBlock(section.id, next, true);
   }
 
   async function uploadBatch(files: File[]) {
@@ -366,7 +565,7 @@ export function PhotosWorkspace({
       const next = insertMedia(documentRef.current, activeBlockId, uploaded, newBlockId);
       applyDocument(next);
       const inserted = next.blocks.find((block) => block.type === 'media' && uploaded.some((asset) => asset.id === block.mediaAssetId));
-      if (inserted) setActiveBlockId(inserted.id);
+      if (inserted) revealBlock(inserted.id, next);
       if (await flushDraft()) router.refresh();
       else {
         insertionFailed = true;
@@ -398,7 +597,7 @@ export function PhotosWorkspace({
     const next = insertMedia(documentRef.current, activeBlockId, selected, newBlockId);
     applyDocument(next);
     const inserted = next.blocks.find((block) => block.type === 'media' && selected.some((asset) => asset.id === block.mediaAssetId));
-    if (inserted) setActiveBlockId(inserted.id);
+    if (inserted) revealBlock(inserted.id, next);
     setPickerOpen(false);
     if (await flushDraft()) router.refresh();
   }
@@ -461,6 +660,8 @@ export function PhotosWorkspace({
   }
 
   async function publish() {
+    setPublishError('');
+    setPublishIssues([]);
     if (!await flushDraft()) return;
     setSaveState('saving');
     try {
@@ -469,14 +670,24 @@ export function PhotosWorkspace({
       });
       const payload = await response.json();
       if (response.status === 409) { conflictRef.current = true; setSaveState('conflict'); return; }
-      if (!response.ok) throw new Error(payload?.error?.message ?? 'Unable to publish the Photos page');
+      if (!response.ok) {
+        setPublishError(payload?.error?.message ?? 'Unable to publish the Photos page');
+        if (Array.isArray(payload?.error?.details)) {
+          setPublishIssues(payload.error.details.filter((issue: { blockId?: unknown; message?: unknown }) => typeof issue.blockId === 'string' && typeof issue.message === 'string'));
+        }
+        setSaveState('saved');
+        return;
+      }
       const page = payload.page as PhotosApiPage;
       versionRef.current = page.draftVersion;
       lastSavedDocumentRef.current = page.draftDocument;
       setHasUnpublishedChanges(page.hasUnpublishedChanges);
       setSaveState('saved');
       router.refresh();
-    } catch (error) { console.error(error); setSaveState('error'); }
+    } catch (error) {
+      setPublishError(error instanceof Error ? error.message : 'Unable to publish the Photos page');
+      setSaveState('saved');
+    }
   }
 
   async function discard() {
@@ -495,7 +706,7 @@ export function PhotosWorkspace({
     } catch (error) { console.error(error); setSaveState('error'); }
   }
 
-  function replaceLocalDocument(page: PhotosApiPage) {
+  function replaceLocalDocument(page: PhotosApiPage, resolvedMediaIds?: string[]) {
     conflictRef.current = false;
     documentRef.current = page.draftDocument;
     lastSavedDocumentRef.current = page.draftDocument;
@@ -505,6 +716,16 @@ export function PhotosWorkspace({
     setHistoryIndex(0);
     setSelectedMediaBlockIds(new Set());
     setActiveBlockId(null);
+    setSectionDraft(null);
+    setPublishError('');
+    setPublishIssues([]);
+    setInsertionTarget(null);
+    setCollapsedSectionIds(new Set());
+    setMoveTargetSectionId('');
+    setVisiblePhotoCount(PHOTO_BATCH_SIZE);
+    // Discard/replacement responses contain no previews. Keep the cache and let
+    // the batch loader resolve any newly visible assets in the restored layout.
+    if (resolvedMediaIds) setLoadedMediaIds(new Set(resolvedMediaIds));
     setHasUnpublishedChanges(page.hasUnpublishedChanges);
     setSaveState('saved');
   }
@@ -516,7 +737,8 @@ export function PhotosWorkspace({
       const payload = await response.json();
       if (!response.ok) throw new Error(payload?.error?.message ?? 'Unable to reload the server draft');
       setMedia(Object.values((payload.mediaById ?? {}) as Record<string, EditorMedia>));
-      replaceLocalDocument(payload.page as PhotosApiPage);
+      const page = payload.page as PhotosApiPage;
+      replaceLocalDocument(page, page.draftDocument.blocks.filter(isMediaBlock).slice(0, PHOTO_BATCH_SIZE).map((block) => block.mediaAssetId));
     } catch (error) { console.error(error); setSaveState('error'); }
   }
 
@@ -553,21 +775,71 @@ export function PhotosWorkspace({
   // A successful upload refreshes this Server Component with the signed
   // preview URL. Merge those server DTOs without disturbing a local draft.
   useEffect(() => {
-    setMedia(initialMedia);
+    setMedia((current) => [...current.filter((asset) => !initialMedia.some((fresh) => fresh.id === asset.id)), ...initialMedia]);
   }, [initialMedia]);
+
+  useEffect(() => {
+    const ids = visibleDocument.blocks.filter(isMediaBlock).map((block) => block.mediaAssetId).filter((id) => !loadedMediaIds.has(id)).slice(0, PHOTO_BATCH_SIZE);
+    if (!ids.length) { setMediaLoadState('idle'); return; }
+    const controller = new AbortController();
+    setMediaLoadState('loading');
+    const params = new URLSearchParams(ids.map((id) => ['id', id]));
+    void fetch(`/api/admin/photos-page/media?${params}`, { signal: controller.signal }).then(async (response) => {
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload?.error?.message ?? 'Unable to load more photos');
+      if (controller.signal.aborted) return;
+      const fresh = Object.values(payload.mediaById ?? {}) as EditorMedia[];
+      setMedia((current) => [...current.filter((asset) => !ids.includes(asset.id)), ...fresh]);
+      setLoadedMediaIds((current) => new Set([...Array.from(current), ...ids]));
+      setMediaLoadState('idle');
+    }).catch((error) => {
+      if (error.name !== 'AbortError' && !controller.signal.aborted) setMediaLoadState('error');
+    });
+    return () => controller.abort();
+  }, [visibleDocument, loadedMediaIds, mediaRetry]);
+
+  useEffect(() => {
+    if (visiblePhotoCount >= totalPhotoCount || mediaLoadState !== 'idle' || !sentinelRef.current || typeof IntersectionObserver === 'undefined') return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) setVisiblePhotoCount((current) => Math.min(current + PHOTO_BATCH_SIZE, totalPhotoCount));
+    }, { rootMargin: '600px 0px' });
+    observer.observe(sentinelRef.current);
+    return () => observer.disconnect();
+  }, [visiblePhotoCount, totalPhotoCount, mediaLoadState]);
+
+  useEffect(() => () => pointerCleanupRef.current?.(), []);
+
+  useLayoutEffect(() => {
+    const positions = new Map<string, DOMRect>();
+    canvasRef.current?.querySelectorAll<HTMLElement>('[data-block-id]').forEach((element) => {
+      const id = element.dataset.blockId!;
+      const rect = element.getBoundingClientRect();
+      const previous = previousPositionsRef.current.get(id);
+      positions.set(id, rect);
+      if (previous && element.animate && !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+        const x = previous.left - rect.left;
+        const y = previous.top - rect.top;
+        if (x || y) element.animate([{ transform: `translate(${x}px, ${y}px)` }, { transform: 'translate(0, 0)' }], { duration: 180, easing: 'ease-out' });
+      }
+    });
+    previousPositionsRef.current = positions;
+  }, [document, viewport]);
 
   function renderTile(photo: PublicPhoto & { index: number }) {
     const editorPhoto = photo as EditorCanvasPhoto & { index: number };
     const selected = selectedMediaBlockIds.has(editorPhoto.blockId);
     const currentDrop = dropTarget?.blockId === editorPhoto.blockId ? dropTarget.position : undefined;
-    return <article className={styles.editorTile} data-dragging={draggedMediaBlockId === editorPhoto.blockId || undefined} data-drop-position={currentDrop} data-selected={selected || undefined} key={editorPhoto.blockId} onDragOver={(event) => dragOverMedia(event, editorPhoto.blockId)} onDrop={(event) => dropOnMedia(event, editorPhoto.blockId)}>
-      <button aria-label={`Edit ${editorPhoto.kind === 'video' ? 'video' : 'photo'} ${editorPhoto.originalFilename}`} className={styles.editorImageButton} onClick={() => setActiveBlockId(editorPhoto.blockId)} type="button">
-        {editorPhoto.unavailable ? <span className={styles.unavailable}>This upload is unavailable. Remove it before publishing.</span> : <Image alt={editorPhoto.alt} height={editorPhoto.height} sizes="(max-width: 700px) 50vw, (max-width: 1100px) 33vw, 25vw" src={editorPhoto.source} width={editorPhoto.width} />}
+    const dragging = draggedMediaBlockId === editorPhoto.blockId
+      || Boolean(draggedMediaBlockId && selectedMediaBlockIds.has(draggedMediaBlockId) && selected);
+    return <article className={styles.editorTile} data-block-id={editorPhoto.blockId} data-block-type="media" data-dragging={dragging || undefined} data-drop-position={currentDrop} data-selected={selected || undefined} key={editorPhoto.blockId} onDragOver={(event) => dragOverMedia(event, editorPhoto.blockId)} onDrop={(event) => dropOnMedia(event, editorPhoto.blockId)}>
+      <button aria-label={`Select ${editorPhoto.kind === 'video' ? 'video' : 'photo'} ${editorPhoto.originalFilename}`} aria-pressed={selected} className={styles.editorImageButton} onClick={() => { if (!suppressClickRef.current) toggleMediaSelection(editorPhoto.blockId); }} type="button">
+        {editorPhoto.loading ? <span className={styles.loadingPhoto}>Loading photo…</span> : editorPhoto.unavailable ? <span className={styles.unavailable}>This upload is unavailable. Remove it before publishing.</span> : <Image draggable={false} loading="lazy" alt={editorPhoto.alt} height={editorPhoto.height} sizes="(max-width: 700px) 50vw, (max-width: 1100px) 33vw, 25vw" src={editorPhoto.source} width={editorPhoto.width} />}
       </button>
       <label className={styles.selectTile}><input checked={selected} onChange={() => toggleMediaSelection(editorPhoto.blockId)} type="checkbox" /><span className="sr-only">Select {editorPhoto.originalFilename}</span></label>
       {editorPhoto.kind === 'video' ? <span className={styles.videoBadge}>Video</span> : null}
-      <button className={styles.editTile} onClick={() => setActiveBlockId(editorPhoto.blockId)} type="button">Edit</button>
-      <button aria-label={`Reorder ${editorPhoto.originalFilename}; drag or use arrow keys`} className={styles.dragHandle} draggable onClick={() => setActiveBlockId(editorPhoto.blockId)} onDragEnd={clearDragState} onDragStart={(event) => startMediaDrag(event, editorPhoto.blockId)} onKeyDown={(event) => reorderWithKeyboard(event, editorPhoto.blockId)} title="Drag or use arrow keys to reorder" type="button">↕</button>
+      <button aria-label={`Edit ${editorPhoto.kind === 'video' ? 'video' : 'photo'} ${editorPhoto.originalFilename}`} className={styles.editTile} onClick={() => { if (!suppressClickRef.current) selectBlock(editorPhoto.blockId); }} type="button">Edit</button>
+      <button aria-label={`Reorder ${editorPhoto.originalFilename}; drag or use arrow keys`} className={styles.dragHandle} draggable onPointerDown={(event) => startPointerDrag(event, editorPhoto.blockId)} onDragEnd={clearDragState} onDragStart={(event) => startMediaDrag(event, editorPhoto.blockId)} onKeyDown={(event) => reorderWithKeyboard(event, editorPhoto.blockId)} title="Drag or use arrow keys to reorder" type="button">↕</button>
+      {(['before', 'after'] as const).map((position) => <button aria-label={`Insert point ${position} ${editorPhoto.originalFilename}`} aria-pressed={insertionTarget?.blockId === editorPhoto.blockId && insertionTarget.position === position} className={styles.insertionPoint} data-position={position} key={position} onClick={() => { setInsertionTarget({ blockId: editorPhoto.blockId, position }); setActiveBlockId(null); }} title={`Choose this gap, then Insert section`} type="button"><span>+</span></button>)}
     </article>;
   }
 
@@ -575,31 +847,60 @@ export function PhotosWorkspace({
     const block = section.sectionBlockId ? document.blocks.find((item) => item.id === section.sectionBlockId) : undefined;
     if (!block || block.type !== 'section') return <>{section.sectionBreak?.title ? <h2>{section.sectionBreak.title}</h2> : null}{section.sectionBreak?.text ? <p>{section.sectionBreak.text}</p> : null}</>;
     const selected = activeBlockId === block.id;
+    const collapsed = collapsedSectionIds.has(block.id);
+    const sectionPhotoCount = canvas.sections.find((candidate) => candidate.sectionBlockId === block.id)?.photos.length ?? section.photos.length;
+    const sectionName = block.title || 'untitled section';
     const currentDrop = dropTarget?.blockId === block.id ? dropTarget.position : undefined;
-    return <div className={styles.sectionEditor} data-drag-active={draggedMediaBlockId ? true : undefined} data-drop-position={currentDrop} data-selected={selected || undefined} onDragOver={(event) => dragOverSection(event, block.id)} onDrop={(event) => completeMediaDrop(event, block.id, 'after')}>
+    return <div className={styles.sectionEditor} data-block-id={block.id} data-block-type="section" data-collapsed={collapsed || undefined} data-drag-active={draggedMediaBlockId ? true : undefined} data-drop-position={currentDrop} data-selected={selected || undefined} onDragOver={(event) => dragOverSection(event, block.id)} onDrop={(event) => completeMediaDrop(event, block.id, 'after')}>
       {selected ? <>
-        <label>Section heading<input autoFocus maxLength={500} onChange={(event) => applyDocument(updateSectionBlock(documentRef.current, block.id, { title: event.target.value.trim() || undefined }))} placeholder="Optional heading" value={block.title ?? ''} /></label>
-        <label>Section note<textarea maxLength={2_000} onChange={(event) => applyDocument(updateSectionBlock(documentRef.current, block.id, { text: event.target.value.trim() || undefined }))} placeholder="Optional note" value={block.text ?? ''} /></label>
-        <span className={styles.inlineActions}><button onClick={() => applyDocument(moveSectionGroup(documentRef.current, block.id, 'before'))} type="button">Move earlier</button><button onClick={() => applyDocument(moveSectionGroup(documentRef.current, block.id, 'after'))} type="button">Move later</button><button onClick={() => { applyDocument(removeSection(documentRef.current, block.id)); setActiveBlockId(null); }} type="button">Remove section break</button></span>
-      </> : <button className={styles.sectionSelect} onClick={() => setActiveBlockId(block.id)} type="button">{block.title ? <h2>{block.title}</h2> : <span className={styles.blankSection}>Blank section break</span>}{block.text ? <p>{block.text}</p> : null}</button>}
+        <label>Section heading<input autoFocus maxLength={500} onChange={(event) => editSection(block, 'title', event.target.value)} placeholder="Optional heading" value={sectionDraft?.blockId === block.id ? sectionDraft.title : block.title ?? ''} /></label>
+        <label>Section note<textarea maxLength={2_000} onChange={(event) => editSection(block, 'text', event.target.value)} placeholder="Optional note" value={sectionDraft?.blockId === block.id ? sectionDraft.text : block.text ?? ''} /></label>
+        <span className={styles.inlineActions}><button className={styles.doneButton} onClick={() => selectBlock(null)} type="button">Done</button><button onClick={() => applyDocument(moveSectionGroup(documentRef.current, block.id, 'before'))} type="button">Move earlier</button><button onClick={() => applyDocument(moveSectionGroup(documentRef.current, block.id, 'after'))} type="button">Move later</button><button onClick={() => { applyDocument(removeSection(documentRef.current, block.id)); setActiveBlockId(null); }} type="button">Remove section break</button></span>
+      </> : <div className={styles.sectionHeader}>
+        <button className={styles.sectionSelect} onClick={() => selectBlock(block.id)} type="button">{block.title ? <h2>{block.title}</h2> : <span className={styles.blankSection}>Blank section break</span>}{block.text ? <p>{block.text}</p> : null}</button>
+        <button aria-expanded={!collapsed} aria-label={`${collapsed ? 'Expand' : 'Collapse'} section ${sectionName}`} className={styles.foldSection} onClick={() => setCollapsedSectionIds((current) => {
+          const next = new Set(current);
+          if (next.has(block.id)) next.delete(block.id); else next.add(block.id);
+          return next;
+        })} type="button">{collapsed ? `▸ Show ${sectionPhotoCount}` : `▾ Hide ${sectionPhotoCount}`}</button>
+      </div>}
     </div>;
   }
 
   return <div className={styles.workspace}>
     <div className={styles.toolbar}>
-      <span className={styles.viewportButtons} aria-label="Preview viewport"><button aria-pressed={viewport === 'desktop'} onClick={() => setViewport('desktop')} type="button">Desktop</button><button aria-pressed={viewport === 'mobile'} onClick={() => setViewport('mobile')} type="button">Mobile</button></span>
-      <span className={styles.historyButtons}><button disabled={historyIndex === 0} onClick={undo} type="button">Undo</button><button disabled={historyIndex === history.length - 1} onClick={redo} type="button">Redo</button></span>
-      <span aria-live="polite" className={styles.saveState} data-state={saveState}>{saveState === 'saving' ? 'Saving…' : saveState === 'conflict' ? 'Draft changed elsewhere' : saveState === 'error' ? 'Could not save' : hasUnpublishedChanges ? 'Unpublished changes' : 'Published'}</span>
-      <span className={styles.primaryActions}>
-        <button disabled={uploadState === 'uploading'} onClick={() => setPickerOpen(true)} type="button">{uploadState === 'uploading' ? 'Uploading…' : 'Add media'}</button><button onClick={addSection} type="button">Insert section</button><button disabled={saveState === 'saving' || saveState === 'conflict' || !hasUnpublishedChanges} onClick={() => void publish()} type="button">Publish</button><button disabled={saveState === 'saving' || !hasUnpublishedChanges} onClick={() => void discard()} type="button">Discard</button>
-      </span>
+      <div className={styles.toolbarMain}>
+        <span className={styles.viewportButtons} aria-label="Preview viewport"><button aria-pressed={viewport === 'desktop'} onClick={() => setViewport('desktop')} type="button">Desktop</button><button aria-pressed={viewport === 'mobile'} onClick={() => setViewport('mobile')} type="button">Mobile</button></span>
+        <span className={styles.historyButtons}><button disabled={historyIndex === 0} onClick={undo} type="button">Undo</button><button disabled={historyIndex === history.length - 1} onClick={redo} type="button">Redo</button></span>
+        <span aria-live="polite" className={styles.saveState} data-state={saveState}>{saveState === 'saving' ? 'Saving…' : saveState === 'conflict' ? 'Draft changed elsewhere' : saveState === 'error' ? 'Could not save' : hasUnpublishedChanges ? 'Unpublished changes' : 'Published'}</span>
+        <span className={styles.primaryActions}>
+          <button disabled={uploadState === 'uploading'} onClick={() => setPickerOpen(true)} type="button">{uploadState === 'uploading' ? 'Uploading…' : 'Add media'}</button><button onClick={addSection} type="button">Insert section at top</button><button disabled={saveState === 'saving' || saveState === 'conflict' || !hasUnpublishedChanges} onClick={() => void publish()} type="button">Publish</button><button disabled={saveState === 'saving' || !hasUnpublishedChanges} onClick={() => void discard()} type="button">Discard</button>
+        </span>
+      </div>
+      <div className={styles.toolbarContext}>
+        {insertionTarget ? <div className={styles.insertionNotice} role="status">Section will be inserted {insertionTarget.position} {mediaFilename(insertionTarget.blockId)}.<button onClick={addSection} type="button">Insert section here</button><button onClick={() => setInsertionTarget(null)} type="button">Cancel</button></div> : selectedMediaBlockIds.size ? <>
+          <strong>{selectedMediaBlockIds.size} selected</strong>
+          <span>Drag any selected photo to move the selection together.</span>
+          <span className={styles.moveToSection}><label htmlFor="photos-move-to-section">Move to</label><select id="photos-move-to-section" onChange={(event) => setMoveTargetSectionId(event.target.value)} value={moveTargetSectionId}><option value="">Choose a section…</option>{document.blocks.filter((block): block is PhotosSectionBlock => block.type === 'section').map((section, index) => <option key={section.id} value={section.id}>{section.title || `Untitled section ${index + 1}`}</option>)}</select><button disabled={!moveTargetSectionId} onClick={moveSelectionToSection} type="button">Move</button></span>
+          <span className={styles.bulkActions}><button onClick={() => { applyDocument(removeMediaBlocks(documentRef.current, selectedMediaBlockIds)); setSelectedMediaBlockIds(new Set()); setActiveBlockId(null); }} type="button">Remove selected from page</button><button onClick={() => void requestDeletionPlan()} type="button">Delete selected uploads…</button><button onClick={() => { setSelectedMediaBlockIds(new Set()); setMoveTargetSectionId(''); }} type="button">Clear selection</button></span>
+        </> : <p className={styles.editorHint}>Click photos to select them. Press Edit to change photo details. Use + at a photo edge to insert a section there; “Insert section at top” starts one at the beginning.</p>}
+      </div>
     </div>
+    {publishError ? <aside className={styles.publishError} role="alert"><p>{publishError}</p>{publishIssues.length ? <ul>{publishIssues.map((issue, index) => <li key={`${issue.blockId}-${index}`}><button onClick={() => revealBlock(issue.blockId, documentRef.current, true)} type="button">Edit: {issue.message}</button></li>)}</ul> : null}</aside> : null}
     {uploadMessage ? <p className={styles.uploadStatus} data-error={uploadState === 'error' || undefined}>{uploadMessage}</p> : null}
     {saveState === 'conflict' ? <aside className={styles.conflict} role="alert">Another editor saved this page. Your local layout is preserved. <button onClick={() => void reloadServerDraft()} type="button">Reload server draft</button><button onClick={() => void replaceServerDraft()} type="button">Replace server draft with mine</button></aside> : null}
-    {selectedMediaBlockIds.size ? <div className={styles.bulkBar}><span>{selectedMediaBlockIds.size} selected</span><span className={styles.bulkActions}><button onClick={() => { applyDocument(removeMediaBlocks(documentRef.current, selectedMediaBlockIds)); setSelectedMediaBlockIds(new Set()); setActiveBlockId(null); }} type="button">Remove from page</button><button onClick={() => void requestDeletionPlan()} type="button">Delete uploads…</button></span></div> : null}
-    <div className={styles.authoringShell} data-viewport={viewport}><div className={styles.canvasFrame}>{canvas.sections.length ? <PhotosPageView intro="A collection of moments, arranged in the order they belong." onOpen={() => undefined} photos={photos} renderSection={renderSection} renderTile={renderTile} sectionGroups={canvas.sections} /> : <section className={styles.emptyCanvas}><h2>Photos, soon.</h2><p>Add uploads or insert a section to start shaping this page.</p></section>}</div></div>
+    <div className={styles.authoringShell} data-viewport={viewport}><div className={styles.canvasFrame} ref={canvasRef}>{canvas.sections.length ? <PhotosPageView intro="A collection of moments, arranged in the order they belong." onOpen={() => undefined} photos={photos} renderSection={renderSection} renderTile={renderTile} sectionGroups={displayedSections} /> : <section className={styles.emptyCanvas}><h2>Photos, soon.</h2><p>Add uploads or insert a section to start shaping this page.</p></section>}
+      {(visiblePhotoCount < totalPhotoCount || mediaLoadState !== 'idle') ? <div className={styles.canvasLoader} ref={sentinelRef}>
+        <p aria-live="polite">{mediaLoadState === 'loading' ? 'Loading photos…' : mediaLoadState === 'error' ? 'More photos could not be loaded.' : `${Math.min(visiblePhotoCount, totalPhotoCount)} of ${totalPhotoCount} photos loaded`}</p>
+        <button disabled={mediaLoadState === 'loading'} onClick={() => mediaLoadState === 'error' ? setMediaRetry((current) => current + 1) : setVisiblePhotoCount((current) => Math.min(current + PHOTO_BATCH_SIZE, totalPhotoCount))} type="button">{mediaLoadState === 'error' ? 'Retry loading photos' : 'Load more photos'}</button>
+      </div> : null}
+    </div></div>
+    {pointerDragActive ? <div aria-hidden="true" className={styles.dragPreview} ref={dragPreviewRef}>{draggingSelectionCount > 1 ? `${draggingSelectionCount} selected photos` : mediaFilename(draggedMediaBlockId ?? '')}<span>Drop to move{draggingSelectionCount > 1 ? ' together' : ''}</span></div> : null}
     {activeMediaBlock ? <aside className={styles.inspector} aria-label="Selected photo inspector">
-      <p className={styles.inspectorEyebrow}>Selected media</p><strong>{mediaById.get(activeMediaBlock.mediaAssetId)?.originalFilename ?? 'Unavailable upload'}</strong>
+      <header className={styles.inspectorHeader}>
+        <div><p className={styles.inspectorEyebrow}>Selected media</p><strong>{mediaById.get(activeMediaBlock.mediaAssetId)?.originalFilename ?? 'Unavailable upload'}</strong></div>
+        <button aria-label="Close selected media inspector" className={styles.closeInspector} onClick={() => setActiveBlockId(null)} type="button">×</button>
+      </header>
       <label>Display date<input max="9999-12-31" onChange={(event) => applyDocument(updateMediaBlock(documentRef.current, activeMediaBlock.id, { displayDate: event.target.value || undefined }))} type="date" value={activeMediaBlock.displayDate ?? ''} /></label>
       <label>Caption<input maxLength={2_000} onChange={(event) => applyDocument(updateMediaBlock(documentRef.current, activeMediaBlock.id, { caption: event.target.value.trim() || undefined }))} placeholder="Optional text beneath the photo" value={activeMediaBlock.caption ?? ''} /></label>
       <label>Alt text<input aria-invalid={!activeMediaBlock.decorative && !activeMediaBlock.altText || undefined} maxLength={1_000} onChange={(event) => applyDocument(updateMediaBlock(documentRef.current, activeMediaBlock.id, { altText: event.target.value.trim() || undefined }))} placeholder="Describe the image" value={activeMediaBlock.altText ?? ''} /></label>

@@ -144,7 +144,7 @@ export function validatePhotosDocumentForPublishing(
       if (!following || following.type !== 'media') {
         issues.push({
           blockId: block.id,
-          message: 'Each section must be followed by at least one media block',
+          message: `${block.title ? `Section “${block.title}”` : 'This section'} has no photos. Move a photo below it, move the section before a photo, or remove the section.`,
         });
       }
       return;
@@ -153,7 +153,7 @@ export function validatePhotosDocumentForPublishing(
     if (!block.decorative && !block.altText) {
       issues.push({
         blockId: block.id,
-        message: 'Non-decorative media requires alt text before publishing',
+        message: 'Add alt text to this photo, or mark it as decorative, before publishing.',
       });
     }
   });

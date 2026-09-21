@@ -49,7 +49,7 @@ export class PhotosPublishValidationError extends Error {
   readonly code = 'PHOTOS_PUBLISH_INVALID';
 
   constructor(readonly issues: PhotosPublishIssue[]) {
-    super('The Photos draft cannot be published yet');
+    super(`Resolve ${issues.length === 1 ? 'this issue' : `these ${issues.length} issues`} before publishing the Photos page.`);
     this.name = 'PhotosPublishValidationError';
   }
 }
@@ -215,11 +215,13 @@ export class PhotosPageRepository {
     mediaBlocks.forEach((block) => {
       const asset = assetsById.get(block.mediaAssetId);
       if (!asset) {
-        issues.push({ blockId: block.id, message: 'The referenced media asset is unavailable' });
+        issues.push({ blockId: block.id, message: 'This upload is no longer available. Remove it from the Photos page or replace it from the library.' });
       } else if (asset.status !== 'ready') {
         issues.push({
           blockId: block.id,
-          message: 'The referenced media must be ready before publishing',
+          message: asset.status === 'pending'
+            ? 'This upload is still processing. Wait for it to finish before publishing.'
+            : 'This upload is unavailable. Remove it from the Photos page or replace it from the library.',
         });
       }
     });
