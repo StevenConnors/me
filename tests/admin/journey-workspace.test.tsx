@@ -65,6 +65,7 @@ describe('JourneyWorkspace', () => {
           title: 'Cover photograph',
           width: 1600,
           height: 1200,
+          altText: 'A coast after rain',
         }]}
       />,
     );
@@ -84,6 +85,7 @@ describe('JourneyWorkspace', () => {
         mediaAssetId: 'media-1',
         role: 'cover',
         layout: { desktop: 'full', mobile: 'full' },
+        decorative: false,
       },
     });
   });

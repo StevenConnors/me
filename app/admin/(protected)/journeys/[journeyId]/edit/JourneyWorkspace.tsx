@@ -202,11 +202,15 @@ export function JourneyWorkspace({ initialJourney, media }: { initialJourney: Ed
         </div>
         <div className={styles.field}>
           <label htmlFor="journey-cover">Cover image</label>
-          <select id="journey-cover" value={journey.cover?.mediaAssetId ?? ''} onChange={(event) => change('cover', event.target.value ? {
-            mediaAssetId: event.target.value,
-            role: 'cover',
-            layout: { desktop: 'full', mobile: 'full' },
-          } : null)}>
+          <select id="journey-cover" value={journey.cover?.mediaAssetId ?? ''} onChange={(event) => {
+            const asset = media.find(({ id }) => id === event.target.value);
+            change('cover', event.target.value ? {
+              mediaAssetId: event.target.value,
+              role: 'cover',
+              layout: { desktop: 'full', mobile: 'full' },
+              decorative: !asset?.altText,
+            } : null);
+          }}>
             <option value="">Choose a cover from the media library…</option>
             {media.map((asset) => <option key={asset.id} value={asset.id}>{asset.title}</option>)}
           </select>
@@ -219,6 +223,7 @@ export function JourneyWorkspace({ initialJourney, media }: { initialJourney: Ed
                 onChange={(event) => change('cover', {
                   ...journey.cover!,
                   altTextOverride: event.target.value || undefined,
+                  decorative: !event.target.value,
                 })}
                 placeholder={media.find(({ id }) => id === journey.cover?.mediaAssetId)?.altText ?? 'Describe the cover photograph'}
                 value={journey.cover.altTextOverride ?? ''}
