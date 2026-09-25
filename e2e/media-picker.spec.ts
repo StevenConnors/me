@@ -31,9 +31,9 @@ test('journey media picker shows searchable, paged library assets with previews 
   await page.getByRole('button', { name: 'New journey' }).click();
   await expect(page).toHaveURL(/\/admin\/journeys\/[a-f0-9]{24}\/edit$/, { timeout: 20_000 });
   journeyId = page.url().match(/\/journeys\/([a-f0-9]{24})\/edit$/)?.[1];
-  await page.getByRole('button', { name: 'Choose photographs' }).click();
+  await page.getByRole('button', { name: 'Choose media' }).click();
 
-  const library = page.getByRole('region', { name: 'Photograph library' });
+  const library = page.getByRole('region', { name: 'Media library' });
   await expect(library.getByText('Rainy cove')).toBeVisible();
   await expect(library.locator('img').first()).toHaveAttribute('src', /sample\.jpg/);
   await expect(library.getByText('2024-04-18').first()).toBeVisible();
@@ -48,7 +48,7 @@ test('journey media picker shows searchable, paged library assets with previews 
   await expect(library.getByText('Rainy cove')).toBeVisible();
   await library.getByRole('combobox', { name: 'Collection' }).selectOption('');
 
-  await library.getByLabel('Search library photographs').fill('rainy');
+  await library.getByLabel('Search library media').fill('rainy');
   await library.getByRole('button', { name: 'Search' }).click();
   await expect(library.getByText('Rainy cove')).toBeVisible();
   await expect(library.getByText('last-page.jpg')).toHaveCount(0);

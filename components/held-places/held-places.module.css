@@ -149,6 +149,8 @@
   object-position: var(--held-desktop-position, 50% 50%);
 }
 
+video.picture { display: block; width: 100%; height: 100%; object-fit: contain; background: #161510; }
+
 .archive {
   padding: 118px 86px 128px;
   background: #fff;
@@ -285,6 +287,9 @@
   aspect-ratio: 4 / 3;
   background: #e4e2dc;
 }
+
+.staticPhotograph video.picture,
+.carouselSlide video.picture { background: #161510; }
 
 .caption {
   margin-top: 12px;

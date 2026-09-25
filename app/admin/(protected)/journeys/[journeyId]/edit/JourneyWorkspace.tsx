@@ -212,7 +212,7 @@ export function JourneyWorkspace({ initialJourney, media }: { initialJourney: Ed
             } : null);
           }}>
             <option value="">Choose a cover from the media library…</option>
-            {media.map((asset) => <option key={asset.id} value={asset.id}>{asset.title}</option>)}
+            {media.filter((asset) => asset.resourceType !== 'video').map((asset) => <option key={asset.id} value={asset.id}>{asset.title}</option>)}
           </select>
           {journey.cover ? (
             <div className={styles.coverControls}>

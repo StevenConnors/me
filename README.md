@@ -50,6 +50,15 @@ WebM uploads. Video files have a separate 250 MiB default limit; set
 account and deployment request limits. Videos render as generated poster images
 in the gallery and load playback only after a reader opens one.
 
+## Journey videos
+
+The Media library at `/admin/media` accepts MP4, MOV, and WebM uploads. Large
+videos upload in signed chunks. To use videos already uploaded to
+Cloudinary, click **Import Cloudinary videos** in that library. The import is
+safe to repeat: it registers missing uploaded videos and preserves existing
+media details. Imported assets remain unpublished until you add them to a
+journey chapter and publish that journey. Journey covers remain photographs.
+
 ## Getting Started
 
 First, run the development server:

@@ -27,10 +27,15 @@ export async function loadJourneyMediaPresentation(mediaIds: Iterable<string>) {
     provider = null;
   }
 
-  const buildMediaUrl: BuildMediaUrl = ({ asset, placement, viewport, width }) => {
+  const buildMediaUrl: BuildMediaUrl = ({ asset, placement, viewport, width, purpose }) => {
     const record = recordsById.get(asset.id ?? placement.mediaAssetId);
     if (!record || !provider) return null;
     if (record.resourceType === 'video') {
+      if (purpose === 'poster') return provider.buildVideoPosterUrl({
+        providerPublicId: record.providerPublicId,
+        version: record.version,
+        width,
+      });
       return provider.buildVideoUrl({
         providerPublicId: record.providerPublicId,
         version: record.version,

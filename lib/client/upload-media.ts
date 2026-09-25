@@ -76,6 +76,40 @@ function responseErrorMessage(payload: unknown, fallback: string): string {
   return details.length ? `${message}: ${details.join('; ')}` : message;
 }
 
+async function sendToProvider(
+  file: File,
+  authorization: CloudinaryAuthorization,
+  idempotencyKey: string,
+  resourceType: 'image' | 'video',
+): Promise<Record<string, unknown>> {
+  // Start below Cloudinary's 100 MB single-request limit to leave room for
+  // differences between decimal and binary size reporting.
+  const chunked = resourceType === 'video' && file.size > 90_000_000;
+  const chunkSize = 20 * 1024 * 1024;
+  let result: Record<string, unknown> = {};
+  for (let start = 0; start < file.size; start += chunked ? chunkSize : file.size) {
+    const end = chunked ? Math.min(start + chunkSize, file.size) : file.size;
+    const formData = new FormData();
+    for (const [key, value] of Object.entries(authorization.parameters)) {
+      formData.append(key, String(value));
+    }
+    formData.append('file', chunked ? file.slice(start, end) : file, file.name);
+    const response = await fetch(authorization.uploadUrl, {
+      method: 'POST',
+      body: formData,
+      ...(chunked ? { headers: {
+        'X-Unique-Upload-Id': idempotencyKey,
+        'Content-Range': `bytes ${start}-${end - 1}/${file.size}`,
+      } } : {}),
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(responseErrorMessage(payload, 'Cloudinary rejected the file'));
+    result = payload as Record<string, unknown>;
+  }
+  if (result.done === false) throw new Error('Cloudinary did not finish processing the upload');
+  return result;
+}
+
 export async function uploadMedia(
   file: File,
   options: {
@@ -105,16 +139,7 @@ export async function uploadMedia(
   const authorization = authorizationPayload.authorization as CloudinaryAuthorization;
 
   options.onPhase?.('uploading');
-  const formData = new FormData();
-  for (const [key, value] of Object.entries(authorization.parameters)) {
-    formData.append(key, String(value));
-  }
-  formData.append('file', file);
-  const providerResponse = await fetch(authorization.uploadUrl, { method: 'POST', body: formData });
-  const providerPayload = await providerResponse.json();
-  if (!providerResponse.ok) {
-    throw new Error(responseErrorMessage(providerPayload, 'Cloudinary rejected the file'));
-  }
+  const providerPayload = await sendToProvider(file, authorization, idempotencyKey, resourceType);
 
   options.onPhase?.('finalizing');
   const finalizationResponse = await fetch('/api/admin/media/finalize', {

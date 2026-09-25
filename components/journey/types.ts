@@ -63,6 +63,7 @@ export type MediaUrlRequest = {
   placement: MediaPlacement;
   viewport: 'desktop' | 'mobile';
   width: ResponsiveImageWidth;
+  purpose?: 'playback' | 'poster';
 };
 
 export type BuildMediaUrl = (request: MediaUrlRequest) => string | null | undefined;

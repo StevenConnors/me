@@ -329,9 +329,13 @@ export class CloudinaryProvider implements MediaProvider {
     }
   }
 
-  async listAssets(cursor?: string): Promise<ProviderAssetPage> {
+  async listAssets(cursor?: string, resourceType?: 'image' | 'video'): Promise<ProviderAssetPage> {
     const body: Record<string, unknown> = {
-      expression: 'resource_type:image OR resource_type:video',
+      expression: resourceType === 'video'
+        ? 'resource_type:video AND type:upload AND width>0 AND height>0'
+        : resourceType === 'image'
+          ? 'resource_type:image AND type:upload'
+          : '(resource_type:image OR resource_type:video) AND type:upload',
       max_results: 100,
       sort_by: [{ created_at: 'desc' }],
     };

@@ -9,9 +9,12 @@ import type { HeldPlacesSlide } from './types';
 export function HeldPlacesCarousel({ slides }: { slides: HeldPlacesSlide[] }) {
   const [current, setCurrent] = useState(0);
   const viewport = useRef<HTMLDivElement>(null);
+  const imageOnly = slides.every((slide) => slide.kind !== 'video');
+  const itemName = imageOnly ? 'photograph' : 'media';
 
   const goTo = useCallback((next: number) => {
     const bounded = Math.max(0, Math.min(slides.length - 1, next));
+    viewport.current?.querySelectorAll('video').forEach((video) => video.pause());
     setCurrent(bounded);
     viewport.current?.children[bounded]?.scrollIntoView({
       behavior: 'smooth',
@@ -23,17 +26,22 @@ export function HeldPlacesCarousel({ slides }: { slides: HeldPlacesSlide[] }) {
   function handleScroll() {
     const element = viewport.current;
     if (!element || !element.clientWidth) return;
-    setCurrent(Math.max(0, Math.min(
+    const next = Math.max(0, Math.min(
       slides.length - 1,
       Math.round(element.scrollLeft / element.clientWidth),
-    )));
+    ));
+    Array.from(element.children).forEach((slide, index) => {
+      if (index !== next) slide.querySelector('video')?.pause();
+    });
+    setCurrent(next);
   }
 
   return (
     <section
-      aria-label={`Photograph carousel, ${slides.length} images`}
+      aria-label={imageOnly ? `Photograph carousel, ${slides.length} images` : `Media carousel, ${slides.length} items`}
       className={styles.carousel}
       onKeyDown={(event) => {
+        if (event.target !== event.currentTarget) return;
         if (event.key === 'ArrowLeft') {
           event.preventDefault();
           goTo(current - 1);
@@ -61,7 +69,7 @@ export function HeldPlacesCarousel({ slides }: { slides: HeldPlacesSlide[] }) {
       </div>
       <div className={styles.carouselControls}>
         <button
-          aria-label="Previous photograph"
+          aria-label={`Previous ${itemName}`}
           disabled={current === 0}
           onClick={() => goTo(current - 1)}
           type="button"
@@ -72,7 +80,7 @@ export function HeldPlacesCarousel({ slides }: { slides: HeldPlacesSlide[] }) {
           {current + 1} / {slides.length}
         </span>
         <button
-          aria-label="Next photograph"
+          aria-label={`Next ${itemName}`}
           disabled={current === slides.length - 1}
           onClick={() => goTo(current + 1)}
           type="button"
@@ -96,6 +104,17 @@ export function HeldPlacesPicture({
   slide: HeldPlacesSlide;
   eager?: boolean;
 }) {
+  if (slide.kind === 'video') return (
+    <video
+      aria-label={slide.alt || 'Journey video'}
+      className={styles.picture}
+      controls
+      playsInline
+      poster={slide.poster}
+      preload={eager ? 'metadata' : 'none'}
+      src={slide.src}
+    />
+  );
   return (
     <picture className={styles.picture}>
       {slide.mobileSrcSet ? (

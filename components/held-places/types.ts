@@ -1,6 +1,8 @@
 export type HeldPlacesSlide = {
   id: string;
+  kind?: 'image' | 'video';
   src: string;
+  poster?: string;
   srcSet?: string;
   mobileSrcSet?: string;
   alt: string;

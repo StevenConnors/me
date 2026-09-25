@@ -174,6 +174,33 @@ export class MediaRepository {
     return asset ? MediaAssetSchema.parse(asset) : null;
   }
 
+  async importProviderAsset(providerAsset: ProviderAsset, options: { now?: Date } = {}): Promise<boolean> {
+    const now = options.now ?? new Date();
+    const candidate = MediaAssetSchema.parse({
+      _id: newApplicationMediaId(), schemaVersion: 1, provider: 'cloudinary',
+      providerAssetId: providerAsset.providerAssetId,
+      providerPublicId: providerAsset.providerPublicId,
+      resourceType: providerAsset.resourceType,
+      deliveryType: providerAsset.deliveryType,
+      version: providerAsset.version,
+      originalFilename: providerAsset.originalFilename,
+      format: providerAsset.format,
+      width: providerAsset.width,
+      height: providerAsset.height,
+      bytes: providerAsset.bytes,
+      ...(providerAsset.checksum ? { checksum: providerAsset.checksum } : {}),
+      tags: providerAsset.tags,
+      showInPhotos: false,
+      status: 'ready', createdAt: now, updatedAt: now,
+    });
+    const result = await this.mediaAssets.updateOne(
+      { provider: 'cloudinary', providerAssetId: candidate.providerAssetId },
+      { $setOnInsert: candidate },
+      { upsert: true },
+    );
+    return result.upsertedCount === 1;
+  }
+
   async deleteById(mediaId: string): Promise<void> {
     const result = await this.mediaAssets.deleteOne({ _id: mediaId });
     if (!result.deletedCount) throw new MediaNotFoundError(mediaId);

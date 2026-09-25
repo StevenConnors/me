@@ -15,6 +15,7 @@ export type UnifiedMedia = {
   caption?: string;
   altText?: string;
   previewUrl?: string;
+  playbackUrl?: string;
   status: string;
   resourceType: 'image' | 'video';
 };
@@ -107,9 +108,9 @@ export function UnifiedMediaPicker({ variant, placedMediaIds, onClose, onInsert,
   }, [load, nextCursor]);
 
   const isDialog = variant === 'dialog';
-  const searchLabel = isDialog ? 'Search media uploads' : 'Search library photographs';
+  const searchLabel = isDialog ? 'Search media uploads' : 'Search library media';
   const addLabel = isDialog ? 'Insert selected' : 'Add selected';
-  const moreLabel = isDialog ? 'Load more' : 'Load more photographs';
+  const moreLabel = isDialog ? 'Load more' : 'Load more media';
   const content = <>
     <form className={styles.search} onSubmit={(event) => { event.preventDefault(); void load(null, true); }}>
       <input aria-label={searchLabel} autoFocus={!isDialog} onChange={(event) => { queryRef.current = event.target.value; setQuery(event.target.value); }} placeholder="Search filenames, titles, captions, or tags" type="search" value={query} />
@@ -121,7 +122,7 @@ export function UnifiedMediaPicker({ variant, placedMediaIds, onClose, onInsert,
       {isDialog && onUpload ? <label className={styles.uploadLabel}>Upload new<input accept="image/jpeg,image/png,image/webp,image/heic,image/heif,video/mp4,video/quicktime,video/webm" hidden multiple onChange={(event) => { const files = Array.from(event.target.files ?? []); if (files.length) onUpload(files); event.currentTarget.value = ''; }} type="file" /></label> : null}
       {!isDialog ? <button onClick={onClose} type="button">Close library</button> : null}
     </form>
-    {!isDialog ? <p className={styles.help}>Select photographs to add them in the order you choose.</p> : null}
+    {!isDialog ? <p className={styles.help}>Select media to add them in the order you choose.</p> : null}
     {state === 'error' ? <p role="alert">The media library could not load. <button onClick={() => void load(items.length ? nextCursor : null, !items.length)} type="button">Try again</button></p> : null}
     <div className={isDialog ? styles.pickerItems : styles.grid} ref={itemsRef}>
       {items.map((item) => {
@@ -132,7 +133,7 @@ export function UnifiedMediaPicker({ variant, placedMediaIds, onClose, onInsert,
         return <label className={isDialog ? styles.pickerItem : styles.tile} data-selected={checked || undefined} data-disabled={placed || unavailable || undefined} key={item._id}>
           {isDialog ? <input checked={checked} disabled={placed || unavailable} onChange={() => setSelected((current) => toggleSelection(current, item))} type="checkbox" value={item._id} /> : null}
           <span className={isDialog ? styles.dialogPreview : styles.preview}>
-            {item.previewUrl ? <Image alt="" draggable={false} height={240} src={item.previewUrl} unoptimized width={320} /> : <span>Image unavailable</span>}
+            {item.previewUrl ? <Image alt="" draggable={false} height={240} src={item.previewUrl} unoptimized width={320} /> : <span>Preview unavailable</span>}
             {!isDialog ? <input aria-label={title} checked={checked} disabled={placed || unavailable} onChange={() => setSelected((current) => toggleSelection(current, item))} type="checkbox" value={item._id} /> : null}
           </span>
           <span className={styles.metadata}><strong>{title}</strong><small>{item.resourceType === 'video' ? 'Video · ' : ''}{item.width} × {item.height}{item.captureDate ? ` · ${item.captureDate}` : ''}</small><small>{placed ? (isDialog ? 'Already on this page' : 'Already in this chapter') : unavailable ? 'Not ready' : item.status}</small></span>
@@ -141,7 +142,7 @@ export function UnifiedMediaPicker({ variant, placedMediaIds, onClose, onInsert,
       {!items.length && state !== 'loading' ? <p>No matching uploads.</p> : null}
       {nextCursor ? <div aria-hidden="true" className={styles.pickerSentinel} ref={sentinelRef} /> : null}
     </div>
-    {state === 'loading' ? <p role="status">Loading {isDialog ? 'media' : 'photographs'}…</p> : null}
+    {state === 'loading' ? <p role="status">Loading media…</p> : null}
     <footer className={styles.footer}>
       {nextCursor ? <button disabled={state === 'loading'} onClick={() => void load(nextCursor)} type="button">{state === 'loading' ? 'Loading…' : moreLabel}</button> : <span />}
       <span>{selected.size} selected</span>
@@ -149,7 +150,7 @@ export function UnifiedMediaPicker({ variant, placedMediaIds, onClose, onInsert,
     </footer>
   </>;
 
-  if (!isDialog) return <section aria-label="Photograph library" className={styles.picker} role="region">{content}</section>;
+  if (!isDialog) return <section aria-label="Media library" className={styles.picker} role="region">{content}</section>;
   return <div aria-label="Add media from library" aria-modal="true" className={styles.dialogBackdrop} role="dialog"><section className={styles.pickerDialog}>
     <header><div><p className={styles.eyebrow}>Media library</p><h2>Add media</h2></div><button aria-label="Close media library" onClick={onClose} type="button">×</button></header>
     {content}

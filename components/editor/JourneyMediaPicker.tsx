@@ -17,14 +17,15 @@ export function JourneyMediaPicker({
     onClose={onClose}
     onInsert={(media: UnifiedMedia[]) => onInsert(media.map((asset) => ({
       id: asset._id,
+      resourceType: asset.resourceType,
       title: asset.title || asset.originalFilename,
       width: asset.width,
       height: asset.height,
       altText: asset.altText,
       previewUrl: asset.previewUrl,
+      playbackUrl: asset.playbackUrl,
     })))}
     placedMediaIds={placedMediaIds}
-    resourceType="image"
     variant="region"
   />;
 }

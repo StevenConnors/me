@@ -39,12 +39,12 @@ export function MediaUploadPanel({ onUploaded }: { onUploaded?: () => void } = {
 
   return (
     <section className={styles.panel}>
-      <p className={styles.eyebrow}>New image</p>
-      <p className={styles.empty}>Choose a photograph to upload directly from this browser. Its storage path stays out of your writing workflow.</p>
+      <p className={styles.eyebrow}>New media</p>
+      <p className={styles.empty}>Choose photographs or videos to upload directly from this browser. Their storage paths stay out of your writing workflow.</p>
       <input
         ref={inputRef}
         type="file"
-        accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+        accept="image/jpeg,image/png,image/webp,image/heic,image/heif,video/mp4,video/quicktime,video/webm"
         hidden
         multiple
         onChange={(event) => {
@@ -59,7 +59,7 @@ export function MediaUploadPanel({ onUploaded }: { onUploaded?: () => void } = {
         disabled={state !== 'idle' && state !== 'complete' && state !== 'error'}
         onClick={() => inputRef.current?.click()}
       >
-        Upload images
+        Upload images or videos
       </button>
       {state !== 'idle' && <p className={styles.status} data-state={state === 'error' ? 'error' : undefined}>{message}</p>}
     </section>

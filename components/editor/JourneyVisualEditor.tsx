@@ -15,8 +15,10 @@ import { uploadMedia } from '@/lib/client/upload-media';
 
 export type EditorMedia = {
   id: string;
+  resourceType?: 'image' | 'video';
   title: string;
   previewUrl?: string;
+  playbackUrl?: string;
   width: number;
   height: number;
   altText?: string;
@@ -24,7 +26,7 @@ export type EditorMedia = {
 
 type MediaMap = Record<string, EditorMedia>;
 
-const imageMimeTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+const mediaMimeTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'video/mp4', 'video/quicktime', 'video/webm'];
 
 function defaultPlacement(mediaAssetId: string): MediaPlacement {
   return {
@@ -71,7 +73,9 @@ function PhotographNodeView({ node, updateAttributes, selected, extension }: Nod
 
   return (
     <NodeViewWrapper className={NodeClassName({ selected, className: styles.photo })} data-layout={placement.layout.desktop}>
-      {media?.previewUrl ? (
+      {media?.resourceType === 'video' && media.playbackUrl ? (
+        <video aria-label={placement.altTextOverride ?? media.altText ?? media.title} controls playsInline poster={media.previewUrl} preload="none" src={media.playbackUrl} />
+      ) : media?.previewUrl ? (
         <Image src={media.previewUrl} alt={placement.decorative !== false ? '' : placement.altTextOverride ?? media.altText ?? ''} width={media.width} height={media.height} unoptimized style={{ objectPosition }} />
       ) : (
         <div className={styles.missingMedia}>Media {placement.mediaAssetId} is saved, but its editor preview is unavailable.</div>
@@ -116,7 +120,7 @@ function GalleryNodeView({ node, selected, extension }: NodeViewProps) {
       <div className={styles.gallery} data-template={template}>
         {items.map((placement) => {
           const media = getMedia(placement.mediaAssetId);
-          return <figure key={placement.mediaAssetId}>{media?.previewUrl ? <Image src={media.previewUrl} alt={placement.decorative !== false ? '' : placement.altTextOverride ?? media.altText ?? ''} width={media.width} height={media.height} unoptimized /> : <div className={styles.galleryEmpty}>{media?.title ?? placement.mediaAssetId}</div>}</figure>;
+          return <figure key={placement.mediaAssetId}>{media?.resourceType === 'video' && media.playbackUrl ? <video aria-label={media.title} controls playsInline poster={media.previewUrl} preload="none" src={media.playbackUrl} /> : media?.previewUrl ? <Image src={media.previewUrl} alt={placement.decorative !== false ? '' : placement.altTextOverride ?? media.altText ?? ''} width={media.width} height={media.height} unoptimized /> : <div className={styles.galleryEmpty}>{media?.title ?? placement.mediaAssetId}</div>}</figure>;
         })}
       </div>
       <div className={styles.nodeInspector} contentEditable={false}><span className={styles.nodeLabel}>Gallery · {items.length} photographs</span><span /></div>
@@ -125,7 +129,7 @@ function GalleryNodeView({ node, selected, extension }: NodeViewProps) {
 }
 
 function UploadNodeView({ node, selected }: NodeViewProps) {
-  return <NodeViewWrapper className={NodeClassName({ selected, className: styles.upload })} data-failed={node.attrs.status === 'failed' ? 'true' : undefined}>{node.attrs.status === 'failed' ? 'Image upload failed. Remove this block and try again.' : 'Uploading image…'}</NodeViewWrapper>;
+  return <NodeViewWrapper className={NodeClassName({ selected, className: styles.upload })} data-failed={node.attrs.status === 'failed' ? 'true' : undefined}>{node.attrs.status === 'failed' ? 'Media upload failed. Remove this block and try again.' : 'Uploading media…'}</NodeViewWrapper>;
 }
 
 function replacePendingUpload(editor: Editor, clientId: string, content: JSONContent) {
@@ -166,14 +170,14 @@ function createExtensions(getMedia: (id: string) => EditorMedia | undefined, jou
   });
 
   async function handleFiles(editor: Editor, files: File[], position: number) {
-    for (const file of files.filter((candidate) => imageMimeTypes.includes(candidate.type))) {
+    for (const file of files.filter((candidate) => mediaMimeTypes.includes(candidate.type))) {
       const clientId = crypto.randomUUID();
       editor.commands.insertContentAt(position, { type: 'mediaUpload', attrs: { uploadSessionId: clientId, status: 'pending' } });
       onStatus(`Uploading ${file.name}…`);
       try {
         const uploaded = await uploadMedia(file, { intendedJourneyId: journeyId });
         const previewUrl = URL.createObjectURL(file);
-        const media = { id: uploaded._id, title: uploaded.originalFilename, width: uploaded.width, height: uploaded.height, previewUrl };
+        const media = { id: uploaded._id, resourceType: uploaded.resourceType, title: uploaded.originalFilename, width: uploaded.width, height: uploaded.height, ...(uploaded.resourceType === 'video' ? { playbackUrl: previewUrl } : { previewUrl }) };
         onUpload(media);
         replacePendingUpload(editor, clientId, { type: 'photograph', attrs: { placement: defaultPlacement(uploaded._id) } });
         onStatus(`${file.name} is ready.`);
@@ -184,7 +188,7 @@ function createExtensions(getMedia: (id: string) => EditorMedia | undefined, jou
           if (failedAt !== null) tr.setNodeMarkup(failedAt, state.schema.nodes.mediaUpload, { uploadSessionId: clientId, status: 'failed' });
           return true;
         });
-        onStatus(error instanceof Error ? error.message : 'The image upload failed.', true);
+        onStatus(error instanceof Error ? error.message : 'The media upload failed.', true);
       }
       position += 1;
     }
@@ -196,7 +200,7 @@ function createExtensions(getMedia: (id: string) => EditorMedia | undefined, jou
     Gallery,
     MediaUpload,
     FileHandler.configure({
-      allowedMimeTypes: imageMimeTypes,
+      allowedMimeTypes: mediaMimeTypes,
       onDrop: (editor, files, pos) => { void handleFiles(editor, files, pos); },
       onPaste: (editor, files) => { void handleFiles(editor, files, editor.state.selection.from); },
     }),
@@ -260,7 +264,7 @@ export function JourneyVisualEditor({ document, media, journeyId, onChange }: { 
           <option value="">Select media…</option>
           {availableMedia.map((asset) => <option value={asset.id} key={asset.id}>{asset.title}</option>)}
         </select>
-        <button className={styles.tool} type="button" onClick={insertPhoto} disabled={!selectedMediaId}>Add photo</button>
+        <button className={styles.tool} type="button" onClick={insertPhoto} disabled={!selectedMediaId}>Add media</button>
         <button className={styles.tool} type="button" onClick={insertGallery} disabled={!selectedMediaId}>Add gallery</button>
       </div>
       <div className={styles.canvas}><EditorContent editor={editor} /></div>

@@ -30,14 +30,14 @@ describe('Held Places image selection', () => {
       return <HeldPlacesEditor document={document} journeyId="journey-1" media={[]} onChange={(next) => { setDocument(next); onChange(next); }} />;
     }
     render(<Harness />);
-    fireEvent.click(screen.getByRole('button', { name: 'Choose photographs' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Choose media' }));
     fireEvent.click(await screen.findByRole('checkbox', { name: 'Coast.jpg' }));
     fireEvent.click(screen.getByRole('button', { name: 'Add selected' }));
 
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ chapters: [expect.objectContaining({
       media: [{ mediaAssetId: 'media-1', decorative: true }],
     })] }));
-    await waitFor(() => expect(screen.queryByRole('region', { name: 'Photograph library' })).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole('region', { name: 'Media library' })).not.toBeInTheDocument());
     expect(screen.getByRole('presentation')).toHaveAttribute('src', 'https://images.example/coast.jpg');
     expect(screen.queryByText('Preview unavailable')).not.toBeInTheDocument();
   });

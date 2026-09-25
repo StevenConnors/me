@@ -93,8 +93,20 @@ export class E2EMediaProvider implements MediaProvider {
     return TRANSPARENT_PIXEL;
   }
 
-  async listAssets(): Promise<ProviderAssetPage> {
-    return ProviderAssetPageSchema.parse({ assets: [] });
+  async listAssets(cursor?: string, resourceType?: 'image' | 'video'): Promise<ProviderAssetPage> {
+    return ProviderAssetPageSchema.parse({ assets: !cursor && resourceType === 'video' ? [{
+      providerAssetId: 'e2e-existing-video',
+      providerPublicId: 'e2e/existing-video',
+      resourceType: 'video',
+      deliveryType: 'upload',
+      version: 1,
+      originalFilename: 'existing-video.mp4',
+      format: 'mp4',
+      width: 640,
+      height: 360,
+      bytes: 1024,
+      tags: [],
+    }] : [] });
   }
 
   async getOriginalExportReference(providerAssetId: string): Promise<ExportReference> {

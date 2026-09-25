@@ -110,8 +110,11 @@ export function HeldPlacesEditor({ document, media, journeyId, onChange }: Props
         const uploaded = await uploadMedia(file, { intendedJourneyId: journeyId });
         const editorMedia: EditorMedia = {
           id: uploaded._id,
+          resourceType: uploaded.resourceType,
           title: uploaded.originalFilename,
-          previewUrl: URL.createObjectURL(file),
+          ...(uploaded.resourceType === 'video'
+            ? { playbackUrl: URL.createObjectURL(file) }
+            : { previewUrl: URL.createObjectURL(file) }),
           width: uploaded.width,
           height: uploaded.height,
         };
@@ -136,8 +139,8 @@ export function HeldPlacesEditor({ document, media, journeyId, onChange }: Props
       <div className={styles.intro}>
         <div>
           <p className={styles.kicker}>Held Places template</p>
-          <h2>Chapters, prose, and photographs.</h2>
-          <p>The page composition is fixed. Fill each chapter, arrange its photographs, and preview at both widths.</p>
+          <h2>Chapters, prose, photographs, and video.</h2>
+          <p>The page composition is fixed. Fill each chapter, arrange its media, and preview at both widths.</p>
         </div>
         <button className={styles.primaryButton} onClick={addChapter} type="button">Add chapter</button>
       </div>
@@ -189,12 +192,12 @@ export function HeldPlacesEditor({ document, media, journeyId, onChange }: Props
 
             <div className={styles.mediaSection}>
               <div className={styles.mediaPicker}>
-                <span className={styles.fieldLabel}>Add photographs from the library</span>
+                <span className={styles.fieldLabel}>Add media from the library</span>
                 <div className={styles.mediaPickerActions}>
-                  <button aria-expanded={pickingChapterId === chapter.id} onClick={() => setPickingChapterId((current) => current === chapter.id ? null : chapter.id)} type="button">Choose photographs</button>
+                  <button aria-expanded={pickingChapterId === chapter.id} onClick={() => setPickingChapterId((current) => current === chapter.id ? null : chapter.id)} type="button">Choose media</button>
                   <label className={styles.uploadButton}>
-                    Upload photographs
-                    <input accept="image/jpeg,image/png,image/webp,image/heic,image/heif" multiple onChange={(event) => void uploadFiles(chapter, event.target.files)} type="file" />
+                    Upload media
+                    <input accept="image/jpeg,image/png,image/webp,image/heic,image/heif,video/mp4,video/quicktime,video/webm" multiple onChange={(event) => void uploadFiles(chapter, event.target.files)} type="file" />
                   </label>
                 </div>
                 {pickingChapterId === chapter.id ? (
@@ -233,7 +236,7 @@ export function HeldPlacesEditor({ document, media, journeyId, onChange }: Props
                   ))}
                 </div>
               ) : (
-                <p className={styles.emptyMedia}>No photographs yet. One image stays still; two or more become the template carousel.</p>
+                <p className={styles.emptyMedia}>No media yet. One item stays still; two or more become the template carousel.</p>
               )}
             </div>
           </section>
@@ -339,25 +342,27 @@ function MediaEditor({
   return (
     <article className={styles.mediaCard}>
       <div className={styles.mediaPreview}>
-        {asset?.previewUrl ? (
+        {asset?.resourceType === 'video' && asset.playbackUrl ? (
+          <video aria-label={asset.title} controls playsInline poster={asset.previewUrl} preload="none" src={asset.playbackUrl} />
+        ) : asset?.previewUrl ? (
           <Image alt="" draggable={false} height={asset.height} sizes="(max-width: 720px) 90vw, 200px" src={asset.previewUrl} unoptimized width={asset.width} />
         ) : <span>Preview unavailable</span>}
       </div>
       <div className={styles.mediaFields}>
         <div className={styles.mediaCardHeader}>
-          <strong>{asset?.title ?? placement.mediaAssetId}</strong>
+          <strong>{asset?.resourceType === 'video' ? 'Video · ' : ''}{asset?.title ?? placement.mediaAssetId}</strong>
           <span>{index + 1} / {total}</span>
         </div>
         <label>Alt text <span>(optional)</span>
           <textarea maxLength={1000} onChange={(event) => {
             const altTextOverride = event.target.value || undefined;
             onChange({ ...placement, altTextOverride, decorative: !altTextOverride });
-          }} placeholder={asset?.altText ?? 'Describe what matters in the photograph'} value={placement.altTextOverride ?? ''} />
+          }} placeholder={asset?.altText ?? 'Describe what matters in this media'} value={placement.altTextOverride ?? ''} />
         </label>
         <label>Caption <span>(optional)</span>
-          <input maxLength={2000} onChange={(event) => onChange({ ...placement, captionOverride: event.target.value || undefined })} placeholder="A quiet note beneath the photograph" value={placement.captionOverride ?? ''} />
+          <input maxLength={2000} onChange={(event) => onChange({ ...placement, captionOverride: event.target.value || undefined })} placeholder="A quiet note beneath the media" value={placement.captionOverride ?? ''} />
         </label>
-        <div className={styles.focalGrid}>
+        {asset?.resourceType !== 'video' ? <div className={styles.focalGrid}>
           {(['desktop', 'mobile'] as const).map((viewport) => (
             <fieldset key={viewport}>
               <legend>{viewport} focal point</legend>
@@ -365,10 +370,10 @@ function MediaEditor({
               <label>Y <input aria-label={`${viewport} focal point vertical`} max="100" min="0" onChange={(event) => setFocal(viewport, 'y', Number(event.target.value) / 100)} type="range" value={(placement.crop?.[viewport]?.focalPoint?.y ?? .5) * 100} /></label>
             </fieldset>
           ))}
-        </div>
+        </div> : null}
         <div className={styles.mediaActions}>
-          <button aria-label={`Move photograph ${index + 1} earlier`} disabled={index === 0} onClick={() => onMove(-1)} type="button">← Earlier</button>
-          <button aria-label={`Move photograph ${index + 1} later`} disabled={index === total - 1} onClick={() => onMove(1)} type="button">Later →</button>
+          <button aria-label={`Move media ${index + 1} earlier`} disabled={index === 0} onClick={() => onMove(-1)} type="button">← Earlier</button>
+          <button aria-label={`Move media ${index + 1} later`} disabled={index === total - 1} onClick={() => onMove(1)} type="button">Later →</button>
           <button onClick={onRemove} type="button">Remove</button>
         </div>
       </div>

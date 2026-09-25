@@ -189,8 +189,27 @@ function prepareSlide(
   role: 'cover' | 'story',
 ): HeldPlacesSlide | null {
   const asset = assetFromMap(context.assets, media.mediaAssetId);
-  if (!asset || asset.resourceType !== 'image') return null;
+  if (!asset) return null;
   const placement = heldPlacesMediaToPlacement(media, role);
+  const alt = media.decorative !== false
+    ? ''
+    : media.altTextOverride ?? asset.altText ?? asset.title ?? '';
+  if (asset.resourceType === 'video') {
+    const src = context.buildMediaUrl({ asset, placement, viewport: 'desktop', width: 1024 });
+    if (!src) return null;
+    return {
+      id: media.mediaAssetId,
+      kind: 'video',
+      src,
+      poster: context.buildMediaUrl({ asset, placement, viewport: 'desktop', width: 1024, purpose: 'poster' }) ?? undefined,
+      alt,
+      caption: media.captionOverride ?? asset.caption,
+      width: asset.width,
+      height: asset.height,
+      desktopPosition: '50% 50%',
+      mobilePosition: '50% 50%',
+    };
+  }
   const widths = [480, 768, 1024, 1440, 1920] as const;
   const desktop = widths.flatMap((width) => {
     const url = context.buildMediaUrl({ asset, placement, viewport: 'desktop', width });
@@ -209,12 +228,11 @@ function prepareSlide(
 
   return {
     id: media.mediaAssetId,
+    kind: 'image',
     src,
     srcSet: desktop.map(({ url, width }) => `${url} ${width}w`).join(', ') || undefined,
     mobileSrcSet: mobile.map(({ url, width }) => `${url} ${width}w`).join(', ') || undefined,
-    alt: media.decorative !== false
-      ? ''
-      : media.altTextOverride ?? asset.altText ?? asset.title ?? '',
+    alt,
     caption: media.captionOverride ?? asset.caption,
     width: asset.width,
     height: asset.height,

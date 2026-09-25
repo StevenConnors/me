@@ -9,7 +9,7 @@ import type { MediaAsset, MediaPlacement } from '@/lib/media/schemas';
 export async function loadJourneyEditorMedia(
   journey: { draftDocument: JourneyDocument; cover?: MediaPlacement | null },
   repository: Pick<MediaRepository, 'list' | 'findByIds'>,
-  provider: Pick<MediaProvider, 'buildImageUrl'> | null,
+  provider: Pick<MediaProvider, 'buildImageUrl'> & Partial<Pick<MediaProvider, 'buildVideoPosterUrl' | 'buildVideoUrl'>> | null,
 ): Promise<EditorMedia[]> {
   const referencedIds = new Set([
     ...(journey.cover ? [journey.cover.mediaAssetId] : []),
@@ -21,26 +21,41 @@ export async function loadJourneyEditorMedia(
     repository.findByIds(referencedIds),
   ]);
   const assets = Array.from(new Map([...recentAssets, ...referencedAssets].map((asset) => [asset._id, asset])).values());
-  return assets.filter((asset) => asset.resourceType === 'image').map((asset) => serializeJourneyEditorMedia(asset, provider));
+  return assets.map((asset) => serializeJourneyEditorMedia(asset, provider));
 }
 
 export function serializeJourneyEditorMedia(
   asset: MediaAsset,
-  provider: Pick<MediaProvider, 'buildImageUrl'> | null,
+  provider: Pick<MediaProvider, 'buildImageUrl'> & Partial<Pick<MediaProvider, 'buildVideoPosterUrl' | 'buildVideoUrl'>> | null,
 ): EditorMedia {
   return {
     id: asset._id,
+    resourceType: asset.resourceType,
     title: asset.title || asset.originalFilename,
     width: asset.width,
     height: asset.height,
     altText: asset.altText,
-    previewUrl: provider && asset.resourceType === 'image' && asset.status === 'ready'
-      ? provider.buildImageUrl({
+    previewUrl: provider && asset.status === 'ready'
+      ? asset.resourceType === 'video'
+        ? provider.buildVideoPosterUrl?.({
+          providerPublicId: asset.providerPublicId,
+          version: asset.version,
+          width: 768,
+        })
+        : provider.buildImageUrl({
         providerPublicId: asset.providerPublicId,
         version: asset.version,
         width: 768,
         sourceWidth: asset.width,
         sourceHeight: asset.height,
+        })
+      : undefined,
+    playbackUrl: provider?.buildVideoUrl && asset.status === 'ready' && asset.resourceType === 'video'
+      ? provider.buildVideoUrl({
+        providerPublicId: asset.providerPublicId,
+        version: asset.version,
+        width: 1024,
+        format: asset.format === 'webm' ? 'webm' : 'mp4',
       })
       : undefined,
   };

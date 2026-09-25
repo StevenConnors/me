@@ -65,7 +65,7 @@ test('the media library uploads, organizes, finds, and reuses one original', asy
     await item.locator('summary').click();
     await expect(item.getByLabel('Date taken')).toHaveValue('2024-04-18');
     await item.getByRole('button', { name: `Remove from ${collectionName}` }).click();
-    await expect(page.getByText('No matching media. Upload a photo or change your filters.')).toBeVisible();
+    await expect(page.getByText('No matching media. Upload media or change your filters.')).toBeVisible();
   } finally {
     if (collectionId) await page.request.delete(`/api/admin/collections/${collectionId}`);
     if (mediaId) await page.request.delete(`/api/admin/media/${mediaId}`);

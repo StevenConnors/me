@@ -22,11 +22,11 @@ describe('Journey photograph library', () => {
     const coast = await screen.findByRole('checkbox', { name: 'coast.jpg' });
     expect(within(coast.closest('label')!).getByRole('presentation')).toHaveAttribute('src', 'https://images.example/coast.jpg');
     fireEvent.click(coast);
-    fireEvent.click(screen.getByRole('button', { name: 'Load more photographs' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Load more media' }));
     fireEvent.click(await screen.findByRole('checkbox', { name: 'forest.jpg' }));
     fireEvent.click(screen.getByRole('button', { name: 'Add selected' }));
 
-    expect(String(fetchMock.mock.calls[0][0])).toContain('resourceType=image');
+    expect(String(fetchMock.mock.calls[0][0])).not.toContain('resourceType=');
     expect(String(fetchMock.mock.calls[1][0])).toContain('cursor=older');
     expect(onInsert).toHaveBeenCalledWith([
       expect.objectContaining({ id: 'coast', previewUrl: 'https://images.example/coast.jpg' }),
@@ -42,7 +42,7 @@ describe('Journey photograph library', () => {
     render(<JourneyMediaPicker onClose={vi.fn()} onInsert={vi.fn()} placedMediaIds={new Set(['existing'])} />);
     expect(await screen.findByRole('checkbox', { name: 'existing.jpg' })).toBeDisabled();
     expect(screen.getByRole('checkbox', { name: 'processing.jpg' })).toBeDisabled();
-    fireEvent.change(screen.getByRole('searchbox', { name: 'Search library photographs' }), { target: { value: 'old coast' } });
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search library media' }), { target: { value: 'old coast' } });
     fireEvent.click(screen.getByRole('button', { name: 'Search' }));
     expect(await screen.findByRole('checkbox', { name: 'old-coast.jpg' })).toBeEnabled();
     expect(String(fetchMock.mock.calls[1][0])).toContain('q=old+coast');

@@ -37,6 +37,7 @@ export function MediaLibraryWorkspace() {
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
   const [refresh, setRefresh] = useState(0);
+  const [importing, setImporting] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const loadingMoreRef = useRef(false);
 
@@ -136,8 +137,41 @@ export function MediaLibraryWorkspace() {
     finally { setBusy(false); }
   }
 
+  async function importCloudinaryVideos() {
+    setImporting(true); setError(''); setNotice('');
+    let cursor: string | null = null;
+    let imported = 0;
+    let examined = 0;
+    const seen = new Set<string>();
+    try {
+      do {
+        const response = await fetch('/api/admin/media/import-cloudinary-videos', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(cursor ? { cursor } : {}),
+        });
+        const payload = await response.json();
+        if (!response.ok) throw new Error(errorMessage(payload, 'Unable to import Cloudinary videos'));
+        imported += payload.imported as number;
+        examined += payload.examined as number;
+        cursor = payload.nextCursor as string | null;
+        if (cursor && seen.has(cursor)) throw new Error('Cloudinary returned a repeated page');
+        if (cursor) seen.add(cursor);
+        setNotice(`Cloudinary videos: ${imported} imported from ${examined} checked…`);
+      } while (cursor);
+      setNotice(`Cloudinary videos: ${imported} imported from ${examined} checked.`);
+      setRefresh((value) => value + 1);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to import Cloudinary videos');
+    } finally { setImporting(false); }
+  }
+
   return <div className={styles.workspace}>
     <MediaUploadPanel onUploaded={() => { setSearch(''); setQuery(''); setCollectionId(''); setRefresh((value) => value + 1); }} />
+    <section className={styles.collections} aria-label="Cloudinary imports">
+      <h2>Already in Cloudinary?</h2>
+      <p>Register existing uploaded videos so they can be chosen for journeys. Existing library details are preserved.</p>
+      <button disabled={importing} onClick={() => void importCloudinaryVideos()} type="button">{importing ? 'Importing videos…' : 'Import Cloudinary videos'}</button>
+    </section>
     <section aria-label="Collections" className={styles.collections}>
       <h2>Collections</h2>
       <p>Group originals by trip, event, or subject. The same photo can belong to several collections.</p>
@@ -177,7 +211,7 @@ export function MediaLibraryWorkspace() {
           <details className={styles.details}><summary>Edit details</summary><MediaMetadataForm media={{ id: asset._id, title: asset.title, caption: asset.caption, altText: asset.altText, captureDate: asset.captureDate, tags: asset.tags }} /></details>
         </div>
       </article>)}</div>
-      {!items.length && !loading && !error ? <p className={styles.empty}>No matching media. Upload a photo or change your filters.</p> : null}
+      {!items.length && !loading && !error ? <p className={styles.empty}>No matching media. Upload media or change your filters.</p> : null}
       {cursor ? <div className={styles.more} ref={sentinelRef}>
         {loading ? <span role="status">Loading more media…</span> : null}
         {error ? <button onClick={() => void load(cursor, true)} type="button">Try again</button> : <button disabled={loading} onClick={() => void load(cursor, true)} type="button">Load more</button>}
