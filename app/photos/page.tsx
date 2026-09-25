@@ -18,15 +18,13 @@ export default async function PhotosPage() {
       PhotosPageRepository.connect(),
       Promise.resolve(getCloudinaryMediaProvider()),
     ]);
-    const page = await loadPublicPhotosPage(
-      await photosPageRepository.get(), mediaRepository, provider, { limit: 24 },
-    );
+    const page = await loadPublicPhotosPage(await photosPageRepository.get(), mediaRepository, provider, { limit: 24 });
     photos = page.items;
     if (page.unavailable.length) console.error('Photos page skipped unavailable published media', page.unavailable);
     return (
       <main className={`${styles.paper} ${styles.photosPaper}`}>
         <HeldPlacesHeader />
-        {photos.length ? <PhotosGallery initialCursor={page.nextCursor} initialItems={photos} /> : <section className={styles.indexEmpty}><h1>Photos, soon.</h1><p>The next collection is being prepared.</p></section>}
+        {photos.length ? <PhotosGallery initialCursor={page.nextCursor} initialItems={photos} sections={page.sections} /> : <section className={styles.indexEmpty}><h1>Photos, soon.</h1><p>The next collection is being prepared.</p></section>}
       </main>
     );
   } catch (error) {

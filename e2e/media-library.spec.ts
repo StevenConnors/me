@@ -32,6 +32,7 @@ test('the media library uploads, organizes, finds, and reuses one original', asy
 
     const item = page.locator('article').filter({ has: page.locator(`#media-date-${mediaId}`) });
     await expect(item).toBeVisible();
+    await item.locator('summary').click();
     await item.getByLabel('Display title').fill(title);
     await item.getByLabel('Date taken').fill('2024-04-18');
     await item.getByRole('button', { name: 'Save media details' }).click();
@@ -61,6 +62,7 @@ test('the media library uploads, organizes, finds, and reuses one original', asy
     await page.reload();
     await page.getByLabel('Filter by collection').selectOption(collectionId);
     await expect(item).toBeVisible();
+    await item.locator('summary').click();
     await expect(item.getByLabel('Date taken')).toHaveValue('2024-04-18');
     await item.getByRole('button', { name: `Remove from ${collectionName}` }).click();
     await expect(page.getByText('No matching media. Upload a photo or change your filters.')).toBeVisible();

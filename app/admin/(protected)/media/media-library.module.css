@@ -7,8 +7,8 @@
 .collections form { margin-top: 20px; }
 .collections input, .header input, .filters select, .batch select { min-height: 42px; border: 1px solid #cfc7ba; background: #fffefa; color: #201e1a; padding: 8px 10px; font: 14px/1.3 Georgia, serif; }
 .collections input { flex: 1; min-width: 180px; }
-.collections form button, .header button, .batch button, .more { min-height: 42px; border: 0; background: #201e1a; color: #fffcf7; padding: 9px 15px; }
-.collections button:disabled, .batch button:disabled, .more:disabled { opacity: .55; cursor: wait; }
+.collections form button, .header button, .batch button, .more button { min-height: 42px; border: 0; background: #201e1a; color: #fffcf7; padding: 9px 15px; }
+.collections button:disabled, .batch button:disabled, .more button:disabled { opacity: .55; cursor: wait; }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
 .chips button { border: 1px solid #cfc7ba; background: #f5f0e8; color: #201e1a; padding: 8px 12px; }
 .chips button[aria-pressed='true'] { border-color: #9d4d3d; background: #e7d9cd; }
@@ -31,9 +31,13 @@
 .assetCollections button { margin-left: 5px; border: 0; background: none; color: #625b50; font: inherit; }
 .select { justify-self: end; color: #625b50; font: 12px/1 ui-monospace, monospace; }
 .select input { accent-color: #9d4d3d; }
+.details { margin-top: 12px; border-top: 1px solid #e0d8cd; }
+.details summary { padding: 14px 0 4px; color: #625b50; cursor: pointer; font: 12px/1.3 ui-monospace, monospace; }
+.details summary:focus-visible { outline: 2px solid #9d4d3d; outline-offset: 3px; }
+.details :global(form) { margin-top: 8px; padding-top: 0; border-top: 0; }
 .success { color: #427553; }
 .error { color: #a13b2b; }
 .error button { border: 0; background: none; color: inherit; text-decoration: underline; }
 .empty { color: #625b50; }
-.more { display: block; margin: 24px auto 0; }
+.more { display: grid; gap: 8px; place-items: center; margin: 24px auto 0; color: #625b50; font-size: 13px; }
 @media (max-width: 720px) { .collections, .library { padding: 16px; } .header { display: block; } .header form { margin-top: 16px; } .header input { flex: 1; min-width: 0; } .filters span { margin-left: 0; } }

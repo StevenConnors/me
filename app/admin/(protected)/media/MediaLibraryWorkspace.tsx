@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import React from 'react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { MediaMetadataForm } from './MediaMetadataForm';
 import { MediaUploadPanel } from './MediaUploadPanel';
@@ -37,6 +37,8 @@ export function MediaLibraryWorkspace() {
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
   const [refresh, setRefresh] = useState(0);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const loadingMoreRef = useRef(false);
 
   const loadCollections = useCallback(async () => {
     const response = await fetch('/api/admin/collections');
@@ -46,6 +48,8 @@ export function MediaLibraryWorkspace() {
   }, []);
 
   const load = useCallback(async (next: string | null, append: boolean, signal?: AbortSignal) => {
+    if (append && loadingMoreRef.current) return;
+    if (append) loadingMoreRef.current = true;
     setLoading(true);
     setError('');
     try {
@@ -64,7 +68,10 @@ export function MediaLibraryWorkspace() {
       setTotal(typeof payload.total === 'number' ? payload.total : null);
     } catch (cause) {
       if ((cause as DOMException).name !== 'AbortError') setError(cause instanceof Error ? cause.message : 'Unable to load media');
-    } finally { if (!signal?.aborted) setLoading(false); }
+    } finally {
+      if (append) loadingMoreRef.current = false;
+      if (!signal?.aborted) setLoading(false);
+    }
   }, [search, kind, collectionId]);
 
   useEffect(() => {
@@ -74,6 +81,14 @@ export function MediaLibraryWorkspace() {
     return () => controller.abort();
   }, [load, refresh]);
   useEffect(() => { void loadCollections().catch((cause) => setError(cause instanceof Error ? cause.message : 'Unable to load collections')); }, [loadCollections]);
+  useEffect(() => {
+    if (!cursor || !sentinelRef.current || typeof IntersectionObserver === 'undefined' || error) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) void load(cursor, true);
+    }, { rootMargin: '600px 0px' });
+    observer.observe(sentinelRef.current);
+    return () => observer.disconnect();
+  }, [cursor, error, load]);
 
   async function createCollection(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -159,11 +174,14 @@ export function MediaLibraryWorkspace() {
           <strong>{asset.title || asset.originalFilename}</strong>
           <small>{asset.width} × {asset.height} · {asset.format.toUpperCase()} · {asset.status}</small>
           <div className={styles.assetCollections}>{collections.filter((collection) => collection.mediaAssetIds.includes(asset._id)).map((collection) => <span key={collection._id}>{collection.name}<button aria-label={`Remove from ${collection.name}`} disabled={busy} onClick={() => void removeFromCollection(asset._id, collection)} type="button">×</button></span>)}</div>
-          <MediaMetadataForm media={{ id: asset._id, title: asset.title, caption: asset.caption, altText: asset.altText, captureDate: asset.captureDate, tags: asset.tags }} />
+          <details className={styles.details}><summary>Edit details</summary><MediaMetadataForm media={{ id: asset._id, title: asset.title, caption: asset.caption, altText: asset.altText, captureDate: asset.captureDate, tags: asset.tags }} /></details>
         </div>
       </article>)}</div>
       {!items.length && !loading && !error ? <p className={styles.empty}>No matching media. Upload a photo or change your filters.</p> : null}
-      {cursor ? <button className={styles.more} disabled={loading} onClick={() => void load(cursor, true)} type="button">{loading ? 'Loading…' : 'Load more'}</button> : null}
+      {cursor ? <div className={styles.more} ref={sentinelRef}>
+        {loading ? <span role="status">Loading more media…</span> : null}
+        {error ? <button onClick={() => void load(cursor, true)} type="button">Try again</button> : <button disabled={loading} onClick={() => void load(cursor, true)} type="button">Load more</button>}
+      </div> : null}
     </section>
   </div>;
 }

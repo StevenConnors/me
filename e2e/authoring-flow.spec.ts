@@ -47,6 +47,7 @@ test('an author can create, revise, publish, view, and delete a journey', async 
     expect(finalized.ok()).toBe(true);
     mediaId = (await finalized.json() as { media: { _id: string } }).media._id;
     const mediaForm = page.locator('form').filter({ has: page.locator(`#media-alt-${mediaId}`) });
+    await page.locator('article').filter({ has: mediaForm }).locator('summary').click();
     await expect(mediaForm).toBeVisible();
     await mediaForm.getByLabel('Alt text').fill('A small cove after rain');
     await mediaForm.getByRole('button', { name: 'Save media details' }).click();

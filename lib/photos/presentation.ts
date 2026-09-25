@@ -168,6 +168,6 @@ export function resolveLegacyPhotos(
 ): PublicPhoto[] {
   return mediaAssets.map((asset) => publicPhotoFromAsset(asset, {
     provider,
-    ...(asset.photoSectionBreak ? { sectionBreak: asset.photoSectionBreak } : {}),
+    ...(asset.photoSectionBreak ? { sectionBreak: asset.photoSectionBreak, sectionBlockId: asset._id } : {}),
   }));
 }

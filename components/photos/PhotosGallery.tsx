@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 
 import styles from './photos-gallery.module.css';
-import { PhotosPageView, type PublicPhoto } from './PhotosPageView';
+import { PhotosPageView, type PublicPhoto, type PublicPhotoSection } from './PhotosPageView';
 
 export type { PublicPhoto } from './PhotosPageView';
 
@@ -16,9 +16,11 @@ type LoadFailure = {
 export function PhotosGallery({
   initialItems,
   initialCursor,
+  sections = [],
 }: {
   initialItems: PublicPhoto[];
   initialCursor: string | null;
+  sections?: PublicPhotoSection[];
 }) {
   const [photos, setPhotos] = useState(initialItems);
   const [nextCursor, setNextCursor] = useState(initialCursor);
@@ -26,6 +28,8 @@ export function PhotosGallery({
   const [loadFailure, setLoadFailure] = useState<LoadFailure | null>(null);
   const [loadedMessage, setLoadedMessage] = useState('');
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+  const [pendingSectionId, setPendingSectionId] = useState<string | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const lightboxRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
@@ -146,6 +150,26 @@ export function PhotosGallery({
     if (activeIndex !== null && nextCursor && activeIndex >= photos.length - 4) void loadMore();
   }, [activeIndex, loadMore, nextCursor, photos.length]);
 
+  useEffect(() => {
+    if (!pendingSectionId) return;
+    const target = document.getElementById(`section-${pendingSectionId}`);
+    if (target) {
+      target.scrollIntoView({ block: 'start' });
+      setPendingSectionId(null);
+    } else if (nextCursor && loadState === 'idle') {
+      void loadMore();
+    } else if (!nextCursor) {
+      setPendingSectionId(null);
+    }
+  }, [pendingSectionId, photos, nextCursor, loadState, loadMore]);
+
+  function jumpToSection(event: React.MouseEvent<HTMLAnchorElement>, id: string) {
+    if (document.getElementById(`section-${id}`)) return;
+    event.preventDefault();
+    window.history.pushState(null, '', `#section-${id}`);
+    setPendingSectionId(id);
+  }
+
   function onTouchStart(event: React.TouchEvent<HTMLDivElement>) {
     const touch = event.changedTouches[0];
     touchStartRef.current = { x: touch.clientX, y: touch.clientY };
@@ -165,7 +189,7 @@ export function PhotosGallery({
 
   return (
     <>
-      <PhotosPageView onOpen={open} photos={photos} />
+      <PhotosPageView collapsedSections={collapsedSections} onOpen={open} onSectionLinkClick={jumpToSection} onToggleSection={(id) => setCollapsedSections((current) => { const next = new Set(current); if (next.has(id)) next.delete(id); else next.add(id); return next; })} photos={photos} sectionLinks={sections} />
       {nextCursor ? <div className={styles.loader} ref={sentinelRef}>
         {loadState === 'error' ? <p>{loadFailure?.message ?? 'More photos could not be loaded.'}</p> : null}
         {loadFailure?.reloadRequired

@@ -1,10 +1,12 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import React from 'react';
 import type { ReactNode } from 'react';
 
 import { HeldPlacesCarousel, HeldPlacesPicture } from './HeldPlacesCarousel';
 import styles from './held-places.module.css';
 import type { HeldPlacesSlide } from './types';
+import type { PublicPhoto } from '@/lib/photos/presentation';
 import type {
   BuildMediaUrl,
   JourneyMediaAsset,
@@ -122,62 +124,42 @@ export function HeldPlacesJourneyPage({
 
 export function HeldPlacesIndex({
   journeys,
-  assets,
-  buildMediaUrl,
+  photos,
   failed = false,
   legacyJourneys = [],
 }: {
   journeys: PublishedJourneySummary[];
-  assets: JourneyMediaAssetMap;
-  buildMediaUrl: BuildMediaUrl;
+  photos: PublicPhoto[];
   failed?: boolean;
   legacyJourneys?: { slug: string; title: string }[];
 }) {
-  const [newest, ...archive] = journeys;
-  const archiveRows = newest
-    ? archive.map((journey) => ({ ...journey, legacy: false as const }))
+  const archiveRows = journeys.length
+    ? journeys.map((journey) => ({ ...journey, legacy: false as const }))
     : legacyJourneys.map((journey) => ({
         ...journey,
         id: `legacy-${journey.slug}`,
         summary: 'Read the original journey.',
         legacy: true as const,
       }));
-  const cover = newest
-    ? prepareSlide(newest.cover, { assets, buildMediaUrl }, 'cover')
-    : null;
-
   return (
     <main className={`${styles.paper} ${styles.indexPage}`}>
       <HeldPlacesHeader />
-      {newest ? (
-        <section className={styles.indexHero}>
-          <div className={styles.indexHeroCopy}>
-            <p className={styles.kicker}>Newest journey</p>
-            <h1>{newest.title}</h1>
-            <p className={styles.indexSummary}>{newest.summary}</p>
-            <Link className={styles.enterLink} href={`/stories/${newest.slug}`} passHref>
-              Enter the journey <span aria-hidden="true">→</span>
-            </Link>
-          </div>
-          <div className={styles.indexCover}>
-            {cover ? <HeldPlacesPicture eager slide={cover} /> : <MissingPhotograph />}
-          </div>
-        </section>
-      ) : (
-        <section className={styles.indexEmpty}>
-          <p className={styles.kicker}>{failed ? 'Archive unavailable' : 'Journeys'}</p>
-          <h1>{failed ? 'The archive is resting.' : 'New journeys are being prepared.'}</h1>
-          <p>
-            {failed
-              ? 'Please return soon. The published stories remain unchanged.'
-              : 'Published field notes and photographs will appear here.'}
-          </p>
-        </section>
-      )}
+      <section className={styles.homePhotos} aria-labelledby="home-photos-title">
+        <div className={styles.homePhotosHeading}>
+          <div><p className={styles.kicker}>Selected photographs</p><h1 id="home-photos-title">Photos</h1></div>
+          <Link className={styles.enterLink} href="/photos" passHref>See all photos <span aria-hidden="true">→</span></Link>
+        </div>
+        {photos.length ? <div className={styles.homePhotoGrid}>
+          {photos.map((photo, index) => <Link aria-label={`See all photos, selected photo ${index + 1}`} className={styles.homePhoto} data-home-photo key={photo.id} href="/photos" passHref>
+            <Image alt={photo.alt} fill priority={index < 2} sizes="(max-width: 700px) 50vw, (max-width: 1100px) 33vw, 25vw" src={photo.kind === 'video' ? photo.posterUrl : photo.thumbnailUrl} />
+            {photo.kind === 'video' ? <span aria-hidden="true" className={styles.homeVideo}>▶</span> : null}
+          </Link>)}
+        </div> : <p className={styles.homePhotosEmpty}>Photographs are being prepared.</p>}
+      </section>
       <section className={styles.archive} id="journeys">
         <div className={styles.archiveHeading}>
           <h2>Journeys</h2>
-          <span>{String(newest ? journeys.length : legacyJourneys.length).padStart(2, '0')}</span>
+          <span>{String(journeys.length || legacyJourneys.length).padStart(2, '0')}</span>
         </div>
         {archiveRows.length ? (
           <div className={styles.archiveList}>
@@ -195,9 +177,7 @@ export function HeldPlacesIndex({
               </Link>
             ))}
           </div>
-        ) : newest ? (
-          <p className={styles.archiveEmpty}>The newest journey is the first in the archive.</p>
-        ) : null}
+        ) : <p className={styles.archiveEmpty}>{failed ? 'Journeys are temporarily unavailable.' : 'New journeys are being prepared.'}</p>}
       </section>
     </main>
   );

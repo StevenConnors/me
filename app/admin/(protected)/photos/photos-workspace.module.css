@@ -38,6 +38,8 @@
 .dragHandle { right: 8px; display: grid; width: 28px; height: 28px; padding: 0; place-items: center; border: 0; border-radius: 3px; background: #fff; color: #25231e; cursor: grab; font: 18px/1 Arial, sans-serif; }
 .dragHandle:active { cursor: grabbing; }
 .videoBadge { position: absolute; right: 8px; bottom: 8px; z-index: 1; padding: 4px 6px; background: rgba(24, 23, 20, .85); color: #fff; font: 10px/1 Arial, sans-serif; letter-spacing: .06em; text-transform: uppercase; }
+.homeBadge { position: absolute; left: 8px; bottom: 8px; z-index: 1; padding: 4px 6px; background: rgba(255, 252, 247, .94); color: #25231e; font: 10px/1 Arial, sans-serif; letter-spacing: .06em; text-transform: uppercase; pointer-events: none; }
+.homeSelectionHint { flex: 1 0 100%; margin: 0; color: #4d493f; font: 12px/1.4 Arial, sans-serif; }
 .unavailable { display: grid; min-height: 160px; padding: 18px; place-items: center; background: repeating-linear-gradient(-45deg, #e2dfd5, #e2dfd5 10px, #d4d0c4 10px, #d4d0c4 20px); color: #4d483e; font: 13px/1.35 Arial, sans-serif; text-align: center; }
 .sectionEditor { margin-bottom: 16px; }
 .sectionEditor[data-drag-active] { outline: 1px dashed #8d887d; outline-offset: 6px; }

@@ -37,6 +37,7 @@ type EditorMedia = {
 type EditorCanvasPhoto = PublicPhoto & {
   blockId: string;
   originalFilename: string;
+  featuredOnHome?: boolean;
   unavailable?: boolean;
   loading?: boolean;
 };
@@ -97,6 +98,7 @@ function documentCanvas(
       width: asset?.width ?? 1,
       height: asset?.height ?? 1,
       originalFilename: asset?.originalFilename ?? `Unavailable upload (${block.mediaAssetId})`,
+      featuredOnHome: block.featuredOnHome,
       ...(block.caption ? { caption: block.caption } : {}),
       ...(block.displayDate ? { captureDate: block.displayDate } : {}),
       kind: asset?.resourceType ?? 'image',
@@ -175,6 +177,7 @@ export function PhotosWorkspace({
 
   const mediaById = useMemo(() => new Map(media.map((asset) => [asset.id, asset])), [media]);
   const totalPhotoCount = document.blocks.filter(isMediaBlock).length;
+  const featuredPhotoCount = document.blocks.filter((block) => block.type === 'media' && block.featuredOnHome).length;
   const visibleDocument = useMemo(() => {
     let count = 0;
     const end = document.blocks.findIndex((block) => block.type === 'media' && ++count > visiblePhotoCount);
@@ -827,6 +830,7 @@ export function PhotosWorkspace({
         {editorPhoto.loading ? <span className={styles.loadingPhoto}>Loading photo…</span> : editorPhoto.unavailable ? <span className={styles.unavailable}>This upload is unavailable. Remove it before publishing.</span> : <Image draggable={false} loading="lazy" alt={editorPhoto.alt} height={editorPhoto.height} sizes="(max-width: 700px) 50vw, (max-width: 1100px) 33vw, 25vw" src={editorPhoto.source} width={editorPhoto.width} />}
       </button>
       <label className={styles.selectTile}><input checked={selected} onChange={() => toggleMediaSelection(editorPhoto.blockId)} type="checkbox" /><span className="sr-only">Select {editorPhoto.originalFilename}</span></label>
+      {editorPhoto.featuredOnHome ? <span className={styles.homeBadge}>Homepage</span> : null}
       {editorPhoto.kind === 'video' ? <span className={styles.videoBadge}>Video</span> : null}
       <button aria-label={`Edit ${editorPhoto.kind === 'video' ? 'video' : 'photo'} ${editorPhoto.originalFilename}`} className={styles.editTile} onClick={() => { if (!suppressClickRef.current) selectBlock(editorPhoto.blockId); }} type="button">Edit</button>
       <button aria-label={`Reorder ${editorPhoto.originalFilename}; drag or use arrow keys`} className={styles.dragHandle} draggable onPointerDown={(event) => startPointerDrag(event, editorPhoto.blockId)} onDragEnd={clearDragState} onDragStart={(event) => startMediaDrag(event, editorPhoto.blockId)} onKeyDown={(event) => reorderWithKeyboard(event, editorPhoto.blockId)} title="Drag or use arrow keys to reorder" type="button">↕</button>
@@ -869,6 +873,7 @@ export function PhotosWorkspace({
         </span>
       </div>
       <div className={styles.toolbarContext}>
+        <p className={styles.homeSelectionHint}>Homepage: {featuredPhotoCount}/8 selected. Edit a photo to include it. Picks follow the Photos order when published; until then, the first eight photos appear.</p>
         {insertionTarget ? <div className={styles.insertionNotice} role="status">Section will be inserted {insertionTarget.position} {mediaFilename(insertionTarget.blockId)}.<button onClick={addSection} type="button">Insert section here</button><button onClick={() => setInsertionTarget(null)} type="button">Cancel</button></div> : selectedMediaBlockIds.size ? <>
           <strong>{selectedMediaBlockIds.size} selected</strong>
           <span>Drag any selected photo to move the selection together.</span>
@@ -895,6 +900,7 @@ export function PhotosWorkspace({
       <label>Display date<input max="9999-12-31" onChange={(event) => applyDocument(updateMediaBlock(documentRef.current, activeMediaBlock.id, { displayDate: event.target.value || undefined }))} type="date" value={activeMediaBlock.displayDate ?? ''} /></label>
       <label>Caption<input maxLength={2_000} onChange={(event) => applyDocument(updateMediaBlock(documentRef.current, activeMediaBlock.id, { caption: event.target.value.trim() || undefined }))} placeholder="Optional text beneath the photo" value={activeMediaBlock.caption ?? ''} /></label>
       <label>Alt text<input aria-invalid={!activeMediaBlock.decorative && !activeMediaBlock.altText || undefined} maxLength={1_000} onChange={(event) => applyDocument(updateMediaBlock(documentRef.current, activeMediaBlock.id, { altText: event.target.value.trim() || undefined }))} placeholder="Describe the image" value={activeMediaBlock.altText ?? ''} /></label>
+      <label className={styles.decorative}><input checked={Boolean(activeMediaBlock.featuredOnHome)} disabled={!activeMediaBlock.featuredOnHome && featuredPhotoCount >= 8} onChange={(event) => applyDocument(updateMediaBlock(documentRef.current, activeMediaBlock.id, { featuredOnHome: event.target.checked }))} type="checkbox" /> Show on homepage</label>
       <label className={styles.decorative}><input checked={activeMediaBlock.decorative} onChange={(event) => applyDocument(updateMediaBlock(documentRef.current, activeMediaBlock.id, { decorative: event.target.checked }))} type="checkbox" /> Decorative image</label>
       {!activeMediaBlock.decorative && !activeMediaBlock.altText ? <p className={styles.fieldError}>Alt text is required before publishing.</p> : null}
       <span className={styles.inspectorActions}><button onClick={() => applyDocument(moveMedia(documentRef.current, activeMediaBlock.id, 'before'))} type="button">Move earlier</button><button onClick={() => applyDocument(moveMedia(documentRef.current, activeMediaBlock.id, 'after'))} type="button">Move later</button><button onClick={() => { applyDocument(removeMediaBlocks(documentRef.current, [activeMediaBlock.id])); setActiveBlockId(null); }} type="button">Remove from page</button></span>

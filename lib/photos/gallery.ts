@@ -3,13 +3,14 @@ import 'server-only';
 import type { MediaProvider } from '@/lib/media/providers/MediaProvider';
 import type { MediaRepository } from '@/lib/media/repository';
 import { decodeGalleryCursor, encodeGalleryCursor, StaleGalleryCursorError } from '@/lib/photos/cursor';
-import { resolveLegacyPhotos, resolvePublishedPhotos, type PublicPhoto, type UnavailablePhotosBlock } from '@/lib/photos/presentation';
-import type { PhotosPage, PhotosPageBlock } from '@/lib/photos/schemas';
+import { resolveLegacyPhotos, resolvePublishedPhotos, type PublicPhoto, type PublicPhotoSectionBreak, type UnavailablePhotosBlock } from '@/lib/photos/presentation';
+import type { PhotosMediaBlock, PhotosPage, PhotosPageBlock } from '@/lib/photos/schemas';
 
 export type PublicPhotosPage = {
   items: PublicPhoto[];
   nextCursor: string | null;
   unavailable: UnavailablePhotosBlock[];
+  sections: Array<PublicPhotoSectionBreak & { id: string }>;
 };
 
 const legacyPublishedAt = new Date(0).toISOString();
@@ -52,6 +53,8 @@ export async function loadPublicPhotosPage(
     return {
       ...pageResolvedPhotos(legacy, legacyPublishedAt, limit, cursor?.mediaAssetId),
       unavailable: [],
+      sections: legacy.flatMap((photo) => photo.sectionBreak && photo.sectionBlockId
+        ? [{ id: photo.sectionBlockId, ...photo.sectionBreak }] : []),
     };
   }
 
@@ -95,5 +98,22 @@ export async function loadPublicPhotosPage(
       ? encodeGalleryCursor({ version: 1, publishedAt, mediaAssetId: last.id })
       : null,
     unavailable: resolved.unavailable,
+    sections: publishedBlocks.flatMap((block) => block.type === 'section'
+      ? [{ id: block.id, title: block.title, text: block.text }] : []),
   };
+}
+
+/** Homepage picks follow the published Photos order, independently of pagination. */
+export async function loadHomepagePhotos(
+  page: PhotosPage | null,
+  mediaRepository: Pick<MediaRepository, 'findByIds' | 'listPhotos'>,
+  provider: Pick<MediaProvider, 'buildImageUrl' | 'buildVideoPosterUrl' | 'buildVideoUrl'>,
+): Promise<PublicPhoto[]> {
+  const featuredBlocks = page?.publishedDocument?.blocks.filter((block): block is PhotosMediaBlock => block.type === 'media' && Boolean(block.featuredOnHome)) ?? [];
+  if (!featuredBlocks.length) {
+    return (await loadPublicPhotosPage(page, mediaRepository, provider, { limit: 8 })).items;
+  }
+  const blocks = featuredBlocks.slice(0, 8);
+  const assets = await mediaRepository.findByIds(blocks.map((block) => block.mediaAssetId));
+  return resolvePublishedPhotos({ schemaVersion: 1, blocks }, assets, provider).photos;
 }

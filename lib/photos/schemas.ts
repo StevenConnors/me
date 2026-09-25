@@ -34,6 +34,7 @@ export const PhotosMediaBlockSchema = z
     caption: OptionalLongCopySchema,
     altText: OptionalAltTextSchema,
     decorative: z.boolean(),
+    featuredOnHome: z.boolean().optional(),
     displayDate: z.string().date().optional(),
   })
   .strict();
@@ -137,6 +138,13 @@ export function validatePhotosDocumentForPublishing(
   document: PhotosPageDocument,
 ): PhotosPublishIssue[] {
   const issues: PhotosPublishIssue[] = [];
+  const featuredBlocks = document.blocks.filter((block) => block.type === 'media' && block.featuredOnHome);
+  if (featuredBlocks.length > 8) {
+    featuredBlocks.slice(8).forEach((block) => issues.push({
+      blockId: block.id,
+      message: 'Choose at most eight homepage photos.',
+    }));
+  }
 
   document.blocks.forEach((block, index) => {
     if (block.type === 'section') {

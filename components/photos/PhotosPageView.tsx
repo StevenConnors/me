@@ -7,6 +7,7 @@ import styles from './photos-gallery.module.css';
 import { MasonryGrid } from './MasonryGrid';
 
 export type PublicPhotoSectionBreak = { title?: string; text?: string };
+export type PublicPhotoSection = PublicPhotoSectionBreak & { id: string };
 
 export type PublicPhoto = {
   id: string;
@@ -75,6 +76,10 @@ export function PhotosPageView({
   onOpen,
   renderTile,
   renderSection,
+  sectionLinks,
+  collapsedSections,
+  onToggleSection,
+  onSectionLinkClick,
   title = 'Photos',
   intro = 'A collection of moments, arranged in the order they belong.',
 }: {
@@ -84,6 +89,10 @@ export function PhotosPageView({
   onOpen: (index: number) => void;
   renderTile?: (photo: PublicPhoto & { index: number }) => ReactNode;
   renderSection?: (section: PhotoSection, sectionIndex: number) => ReactNode;
+  sectionLinks?: PublicPhotoSection[];
+  collapsedSections?: ReadonlySet<string>;
+  onToggleSection?: (id: string) => void;
+  onSectionLinkClick?: (event: React.MouseEvent<HTMLAnchorElement>, id: string) => void;
   title?: string;
   intro?: string;
 }) {
@@ -92,21 +101,26 @@ export function PhotosPageView({
     <section aria-labelledby="photos-title" className={styles.gallery}>
       <h1 id="photos-title">{title}</h1>
       {intro ? <p className={styles.intro}>{intro}</p> : null}
-      {sections.map((section, sectionIndex) => (
-        <section aria-label={section.sectionBreak?.title ?? 'Photographs'} className={styles.section} key={section.sectionBlockId ?? `opening-${sectionIndex}`}>
+      {sectionLinks?.length ? <nav aria-label="Photo sections" className={styles.sectionLinks}>
+        {sectionLinks.map((section, index) => <a href={`#section-${section.id}`} key={section.id} onClick={(event) => onSectionLinkClick?.(event, section.id)}>{section.title ?? `Section ${index + 1}`}</a>)}
+      </nav> : null}
+      {sections.map((section, sectionIndex) => {
+        const sectionNumber = sectionLinks?.findIndex((item) => item.id === section.sectionBlockId);
+        const sectionTitle = section.sectionBreak?.title ?? (section.sectionBreak ? `Section ${sectionNumber !== undefined && sectionNumber >= 0 ? sectionNumber + 1 : sectionIndex + 1}` : undefined);
+        return <section aria-label={sectionTitle ?? 'Photographs'} className={styles.section} id={section.sectionBlockId ? `section-${section.sectionBlockId}` : undefined} key={section.sectionBlockId ?? `opening-${sectionIndex}`}>
           {renderSection ? renderSection(section, sectionIndex) : <>
-            {section.sectionBreak?.title ? <h2>{section.sectionBreak.title}</h2> : null}
+            {sectionTitle ? <h2>{onToggleSection && section.sectionBlockId ? <button aria-label={`${collapsedSections?.has(section.sectionBlockId) ? 'Expand' : 'Collapse'} ${sectionTitle}`} aria-expanded={!collapsedSections?.has(section.sectionBlockId)} className={styles.sectionToggle} onClick={() => onToggleSection(section.sectionBlockId!)} type="button">{sectionTitle}<span aria-hidden="true">{collapsedSections?.has(section.sectionBlockId) ? '+' : '−'}</span></button> : sectionTitle}</h2> : null}
             {section.sectionBreak?.text ? <p className={styles.sectionNote}>{section.sectionBreak.text}</p> : null}
           </>}
-          <MasonryGrid
+          {!section.sectionBlockId || !collapsedSections?.has(section.sectionBlockId) ? <MasonryGrid
             items={section.photos.map((photo) => ({ id: photo.id, width: photo.width, height: photo.height }))}
             renderItem={(item) => {
               const photo = section.photos.find((candidate) => candidate.id === item.id)!;
               return renderTile ? renderTile(photo) : <GalleryImageTile onOpen={onOpen} photo={photo} />;
             }}
-          />
-        </section>
-      ))}
+          /> : null}
+        </section>;
+      })}
     </section>
   );
 }

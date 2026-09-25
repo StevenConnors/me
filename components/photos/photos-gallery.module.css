@@ -2,9 +2,15 @@
 .gallery h1, .section h2 { margin: 0; font-family: Georgia, 'Times New Roman', serif; font-weight: 400; letter-spacing: -.045em; }
 .gallery h1 { font-size: clamp(62px, 9vw, 132px); line-height: .85; }
 .intro { max-width: 360px; margin: 22px 0 72px; color: #615f58; font: 20px/1.35 Georgia, 'Times New Roman', serif; }
+.sectionLinks { display: flex; flex-wrap: wrap; gap: 10px 22px; margin: -42px 0 70px; font: 14px/1.4 Arial, sans-serif; }
+.sectionLinks a { color: #25231e; text-decoration-color: #aaa69c; text-underline-offset: 4px; }
+.sectionLinks a:hover { text-decoration-color: currentColor; }
+.sectionLinks a:focus-visible, .sectionToggle:focus-visible { outline: 2px solid #161510; outline-offset: 4px; }
 .section { margin-top: 72px; }
 .section:first-of-type { margin-top: 0; }
 .section h2 { font-size: clamp(36px, 5vw, 64px); line-height: .95; }
+.sectionToggle { display: flex; align-items: center; justify-content: space-between; gap: 24px; width: 100%; padding: 0; border: 0; background: none; color: inherit; cursor: pointer; font: inherit; letter-spacing: inherit; text-align: left; }
+.sectionToggle span { font: 300 36px/1 Arial, sans-serif; }
 .sectionNote { max-width: 600px; margin: 14px 0 28px; color: #615f58; font: 18px/1.45 Georgia, 'Times New Roman', serif; }
 .masonryGrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; grid-auto-flow: row dense; }
 .masonryItem { min-width: 0; overflow: hidden; }
@@ -32,6 +38,6 @@
 .previousButton { left: 24px; }
 .nextButton { right: 24px; }
 .position { position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%); }
-@container (max-width: 700px) { .gallery { padding: 0 16px 48px; } .intro { margin-bottom: 48px; } .section { margin-top: 52px; } }
+@container (max-width: 700px) { .gallery { padding: 0 16px 48px; } .intro { margin-bottom: 48px; } .sectionLinks { margin: -24px 0 48px; } .section { margin-top: 52px; } }
 @media (max-width: 700px) { .lightbox { padding: 78px 16px 72px; } .lightboxImage, .lightboxVideo { width: calc(100vw - 32px); height: min(70vh, 600px); } .directionButton { display: none; } .closeButton { top: 18px; right: 18px; } }
 @media (prefers-reduced-motion: reduce) { .tile :global(img) { transition: none; } }
