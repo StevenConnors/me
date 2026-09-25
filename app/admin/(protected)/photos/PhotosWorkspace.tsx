@@ -53,7 +53,7 @@ type PhotosApiPage = {
 type DeletionPlanItem = {
   id: string;
   filename: string;
-  classification: 'ready_to_delete' | 'publish_removal_first' | 'used_by_journey' | 'not_found';
+  classification: 'ready_to_delete' | 'publish_removal_first' | 'used_by_journey' | 'used_by_collection' | 'not_found';
   result?: 'deleted' | 'protected' | 'not_found' | 'failed';
 };
 
