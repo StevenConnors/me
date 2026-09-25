@@ -1,3 +1,4 @@
+import { loadMostOpenedPhotos, type MostOpenedPhoto } from '@/lib/analytics/photo-opens';
 import { loadVercelWebAnalytics, type AnalyticsBreakdown } from '@/lib/analytics/vercel-web-analytics';
 
 import styles from './analytics.module.css';
@@ -8,20 +9,21 @@ function formatCount(value: number): string {
   return new Intl.NumberFormat('en-US').format(value);
 }
 
-function Breakdown({ items, empty }: {
-  items: AnalyticsBreakdown[];
+function Breakdown({ items, empty, photo = false }: {
+  items: AnalyticsBreakdown[] | MostOpenedPhoto[];
   empty: string;
+  photo?: boolean;
 }) {
   if (!items.length) return <p className={styles.empty}>{empty}</p>;
-  const max = Math.max(...items.map((item) => item.pageviews), 1);
+  const max = Math.max(...items.map((item) => photo ? (item as MostOpenedPhoto).opens : (item as AnalyticsBreakdown).pageviews), 1);
   return (
     <ol className={styles.ranking}>
       {items.map((item) => {
-        const value = item.pageviews;
+        const value = photo ? (item as MostOpenedPhoto).opens : (item as AnalyticsBreakdown).pageviews;
         return (
-          <li className={styles.rankingItem} key={item.label}>
-            <span className={styles.itemName}>{item.label}</span>
-            <span aria-label={`${formatCount(value)} page views`} className={styles.itemValue}>{formatCount(value)} views</span>
+          <li className={styles.rankingItem} key={photo ? (item as MostOpenedPhoto).photoId : (item as AnalyticsBreakdown).label}>
+            <span className={styles.itemName}>{photo ? (item as MostOpenedPhoto).name : (item as AnalyticsBreakdown).label}</span>
+            <span aria-label={photo ? `${formatCount(value)} opens` : `${formatCount(value)} page views`} className={styles.itemValue}>{formatCount(value)} {photo ? 'opens' : 'views'}</span>
             <span className={styles.barTrack}><span className={styles.bar} style={{ width: `${Math.max(3, value / max * 100)}%` }} /></span>
           </li>
         );
@@ -31,14 +33,18 @@ function Breakdown({ items, empty }: {
 }
 
 export default async function AnalyticsPage() {
-  const [trafficResult] = await Promise.allSettled([loadVercelWebAnalytics()]);
+  const [trafficResult, photoResult] = await Promise.allSettled([
+    loadVercelWebAnalytics(),
+    loadMostOpenedPhotos(),
+  ]);
   const traffic = trafficResult.status === 'fulfilled' ? trafficResult.value : null;
+  const photos = photoResult.status === 'fulfilled' ? photoResult.value : [];
 
   return (
     <>
       <p className={styles.eyebrow}>Audience</p>
       <h1 className={styles.title}>Analytics</h1>
-      <p className={styles.lede}>Production visits from the last 30 days.</p>
+      <p className={styles.lede}>Production visits and photo openings from the last 30 days.</p>
 
       {traffic?.message ? <p className={styles.notice} role="status">{traffic.message}</p> : null}
       {trafficResult.status === 'rejected' ? <p className={styles.notice} role="status">Vercel Web Analytics could not be loaded. Check its server configuration and try again.</p> : null}
@@ -85,6 +91,12 @@ export default async function AnalyticsPage() {
           <Breakdown items={traffic?.journeys ?? []} empty={traffic ? 'No journey visits were reported in this period.' : 'Journey data is temporarily unavailable.'} />
         </section>
 
+        <section aria-labelledby="photos-title" className={styles.panel}>
+          <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Gallery engagement</p><h2 id="photos-title">Most-opened photos</h2></div></div>
+          {photoResult.status === 'rejected'
+            ? <p className={styles.empty}>Photo opening counts are temporarily unavailable.</p>
+            : <Breakdown items={photos} empty="No photo openings were recorded in this period." photo />}
+        </section>
       </div>
       <p className={styles.footnote}>Vercel Web Analytics data uses its plan reporting window. Visitor counts are unique within the full period.</p>
     </>

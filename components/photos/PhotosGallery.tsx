@@ -37,7 +37,18 @@ export function PhotosGallery({
   const open = useCallback((index: number) => {
     triggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setActiveIndex(index);
-  }, []);
+    const photo = photos[index];
+    if (photo) {
+      try {
+        navigator.sendBeacon(
+          '/api/photos/open',
+          new Blob([JSON.stringify({ photoId: photo.id })], { type: 'application/json' }),
+        );
+      } catch {
+        // Photo-open analytics must never block the gallery interaction.
+      }
+    }
+  }, [photos]);
   const close = useCallback(() => {
     setActiveIndex(null);
     requestAnimationFrame(() => triggerRef.current?.focus());
