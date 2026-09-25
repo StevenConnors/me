@@ -6,6 +6,7 @@ import { planMediaDeletion } from '@/lib/media/bulk-delete-service';
 import { MediaRepository } from '@/lib/media/repository';
 import { JourneyRepository } from '@/lib/journeys/repository';
 import { PhotosPageRepository } from '@/lib/photos/repository';
+import { MediaCollectionRepository } from '@/lib/media/collections';
 
 export const runtime = 'nodejs';
 
@@ -16,10 +17,10 @@ export async function POST(request: NextRequest) {
   if (authorization.response) return authorization.response;
   try {
     const { mediaIds } = RequestSchema.parse(await request.json());
-    const [mediaRepository, journeyRepository, photosPageRepository] = await Promise.all([
-      MediaRepository.connect(), JourneyRepository.connect(), PhotosPageRepository.connect(),
+    const [mediaRepository, journeyRepository, photosPageRepository, collectionRepository] = await Promise.all([
+      MediaRepository.connect(), JourneyRepository.connect(), PhotosPageRepository.connect(), MediaCollectionRepository.connect(),
     ]);
-    const plan = await planMediaDeletion(mediaIds, { mediaRepository, journeyRepository, photosPageRepository });
+    const plan = await planMediaDeletion(mediaIds, { mediaRepository, journeyRepository, photosPageRepository, collectionRepository });
     return NextResponse.json({ plan });
   } catch (error) {
     if (error instanceof ZodError) return apiError('INVALID_BULK_DELETE', 'Select between 1 and 500 uploads', 400, error.issues);

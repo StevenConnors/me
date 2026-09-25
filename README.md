@@ -24,6 +24,10 @@ byte-for-byte duplicates. It never deletes an image already registered in
 before applying it. `media:import-photos` creates missing media-library records
 without changing the public Photos page or existing records. Add imported media
 to the draft from `/admin/photos`, then publish it explicitly.
+Imports leave the date taken blank because Cloudinary upload time is not a
+reliable capture date. Confirm dates in the Media library before using them for
+chronology. Run `npm run media:audit` for a read-only report of existing dates,
+duplicates, and unmatched records.
 
 The one-time Photos migration supports the page document's full 500-media
 capacity. For a page that was already migrated with the former 200-item bound,

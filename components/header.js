@@ -18,7 +18,7 @@ export default function Header() {
           <div className={styles.titleText}>thoughts aloud</div>
         </Link>
 
-        <Link href="/gallery" passHref style={{ textDecoration: 'none' }}>
+        <Link href="/photos" passHref style={{ textDecoration: 'none' }}>
           <div className={styles.titleText}>photos</div>
         </Link>
       </div>

@@ -9,6 +9,7 @@ import { MediaNotFoundError, MediaRepository } from '@/lib/media/repository';
 import { JourneyRepository } from '@/lib/journeys/repository';
 import { MediaProviderError } from '@/lib/media/providers/CloudinaryProvider';
 import { PhotosPageRepository } from '@/lib/photos/repository';
+import { MediaCollectionRepository } from '@/lib/media/collections';
 
 export const runtime = 'nodejs';
 
@@ -20,11 +21,11 @@ export async function POST(request: NextRequest) {
   if (authorization.response) return authorization.response;
   try {
     const { mediaIds } = RequestSchema.parse(await request.json());
-    const [mediaRepository, journeyRepository, photosPageRepository] = await Promise.all([
-      MediaRepository.connect(), JourneyRepository.connect(), PhotosPageRepository.connect(),
+    const [mediaRepository, journeyRepository, photosPageRepository, collectionRepository] = await Promise.all([
+      MediaRepository.connect(), JourneyRepository.connect(), PhotosPageRepository.connect(), MediaCollectionRepository.connect(),
     ]);
     const provider = getCloudinaryMediaProvider();
-    const plan = await planMediaDeletion(mediaIds, { mediaRepository, journeyRepository, photosPageRepository });
+    const plan = await planMediaDeletion(mediaIds, { mediaRepository, journeyRepository, photosPageRepository, collectionRepository });
     const results: DeleteResult[] = [];
     for (const item of plan) {
       if (item.classification === 'not_found') {
@@ -36,7 +37,7 @@ export async function POST(request: NextRequest) {
         continue;
       }
       try {
-        await deleteMediaAsset(item.id, { mediaRepository, journeyRepository, photosPageRepository, mediaProvider: provider });
+        await deleteMediaAsset(item.id, { mediaRepository, journeyRepository, photosPageRepository, collectionRepository, mediaProvider: provider });
         results.push({ ...item, result: 'deleted' });
       } catch (error) {
         if (error instanceof MediaNotFoundError) results.push({ ...item, result: 'not_found' });

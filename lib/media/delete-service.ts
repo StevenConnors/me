@@ -3,12 +3,13 @@ import type { MediaProvider } from '@/lib/media/providers/MediaProvider';
 import { MediaNotFoundError, type MediaRepository } from '@/lib/media/repository';
 import type { MediaAsset } from '@/lib/media/schemas';
 import type { PhotosPageRepository } from '@/lib/photos/repository';
+import type { MediaCollectionRepository } from '@/lib/media/collections';
 
 export class MediaInUseError extends Error {
   readonly code = 'MEDIA_IN_USE';
 
   constructor(readonly mediaId: string) {
-    super(`Media asset ${mediaId} is still referenced by published content`);
+    super(`Media asset ${mediaId} is still referenced by a page, journey, or collection`);
     this.name = 'MediaInUseError';
   }
 }
@@ -16,6 +17,7 @@ export class MediaInUseError extends Error {
 type DeletableMediaRepository = Pick<MediaRepository, 'findById' | 'deleteById'>;
 type MediaReferenceRepository = Pick<JourneyRepository, 'isMediaReferenced'>;
 type PublishedPhotosReferenceRepository = Pick<PhotosPageRepository, 'isMediaReferencedByPublishedDocument'>;
+type CollectionReferenceRepository = Pick<MediaCollectionRepository, 'isMediaReferenced'>;
 type AssetDeletionProvider = Pick<MediaProvider, 'deleteAsset'>;
 
 /**
@@ -28,6 +30,7 @@ export async function deleteMediaAsset(
     mediaRepository: DeletableMediaRepository;
     journeyRepository: MediaReferenceRepository;
     photosPageRepository?: PublishedPhotosReferenceRepository;
+    collectionRepository?: CollectionReferenceRepository;
     mediaProvider: AssetDeletionProvider;
   },
 ): Promise<MediaAsset> {
@@ -37,6 +40,9 @@ export async function deleteMediaAsset(
     throw new MediaInUseError(mediaId);
   }
   if (await dependencies.photosPageRepository?.isMediaReferencedByPublishedDocument(mediaId)) {
+    throw new MediaInUseError(mediaId);
+  }
+  if (await dependencies.collectionRepository?.isMediaReferenced(mediaId)) {
     throw new MediaInUseError(mediaId);
   }
 

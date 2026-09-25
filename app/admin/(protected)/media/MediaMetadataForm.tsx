@@ -9,6 +9,7 @@ type EditableMedia = {
   title?: string;
   altText?: string;
   caption?: string;
+  captureDate?: string;
   tags: string[];
 };
 
@@ -16,6 +17,7 @@ export function MediaMetadataForm({ media }: { media: EditableMedia }) {
   const [title, setTitle] = useState(media.title ?? '');
   const [altText, setAltText] = useState(media.altText ?? '');
   const [caption, setCaption] = useState(media.caption ?? '');
+  const [captureDate, setCaptureDate] = useState(media.captureDate ?? '');
   const [tags, setTags] = useState(media.tags.join(', '));
   const [state, setState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [deleteState, setDeleteState] = useState<'idle' | 'deleting' | 'error'>('idle');
@@ -32,6 +34,7 @@ export function MediaMetadataForm({ media }: { media: EditableMedia }) {
           title: title.trim() || null,
           altText: altText.trim() || null,
           caption: caption.trim() || null,
+          captureDate: captureDate || null,
           tags: tags.split(',').map((tag) => tag.trim()).filter(Boolean),
         }),
       });
@@ -74,6 +77,11 @@ export function MediaMetadataForm({ media }: { media: EditableMedia }) {
       <div className={styles.field}>
         <label htmlFor={`media-caption-${media.id}`}>Default caption</label>
         <textarea id={`media-caption-${media.id}`} value={caption} onChange={(event) => setCaption(event.target.value)} maxLength={2_000} placeholder="Optional caption for reused placements" />
+      </div>
+      <div className={styles.field}>
+        <label htmlFor={`media-date-${media.id}`}>Date taken</label>
+        <input id={`media-date-${media.id}`} type="date" value={captureDate} onChange={(event) => setCaptureDate(event.target.value)} />
+        <span className={styles.fieldHint}>Imported dates may be upload dates. Verify this against the original photo before using it for chronology.</span>
       </div>
       <div className={styles.field}>
         <label htmlFor={`media-tags-${media.id}`}>Tags</label>

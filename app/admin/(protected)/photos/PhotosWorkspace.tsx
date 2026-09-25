@@ -53,7 +53,7 @@ type PhotosApiPage = {
 type DeletionPlanItem = {
   id: string;
   filename: string;
-  classification: 'ready_to_delete' | 'publish_removal_first' | 'used_by_journey' | 'not_found';
+  classification: 'ready_to_delete' | 'publish_removal_first' | 'used_by_journey' | 'used_by_collection' | 'not_found';
   result?: 'deleted' | 'protected' | 'not_found' | 'failed';
 };
 
@@ -63,14 +63,6 @@ function documentEqual(left: PhotosPageDocument, right: PhotosPageDocument) {
 
 function newBlockId() {
   return crypto.randomUUID().replace(/-/g, '');
-}
-
-function dateFromFile(file: File) {
-  if (!file.lastModified) return undefined;
-  const date = new Date(file.lastModified);
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${date.getFullYear()}-${month}-${day}`;
 }
 
 function documentCanvas(
@@ -553,7 +545,6 @@ export function PhotosWorkspace({
           width: result.width,
           height: result.height,
           resourceType: result.resourceType,
-          ...(dateFromFile(file) ? { captureDate: dateFromFile(file) } : {}),
         });
       } catch (error) {
         console.error(error);

@@ -13,7 +13,6 @@ import { ObjectId, MongoClient } from 'mongodb';
 import { pathToFileURL } from 'node:url';
 
 import {
-  captureDateFrom,
   cloudinaryCredentials,
   listAllImageUploads,
   loadEnvironment,
@@ -37,7 +36,6 @@ export function newMediaDocument(asset, now) {
     bytes: asset.bytes,
     ...(asset.checksum ? { checksum: asset.checksum } : {}),
     tags: asset.tags,
-    captureDate: captureDateFrom(asset.createdAt),
     showInPhotos: false,
     status: 'ready',
     createdAt: now,
