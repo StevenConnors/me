@@ -38,6 +38,8 @@
   gap: 22px;
 }
 
+.mobileNavigationButton { display: none; }
+
 .navLink,
 .identity,
 .button,
@@ -154,6 +156,10 @@
 .status { color: #7e7569; }
 .status[data-state='error'] { color: #a13b2b; }
 .status[data-state='saved'] { color: #427553; }
+.uploadStatus { margin: 16px 0 0; padding: 13px 15px; border-left: 3px solid #9d4d3d; background: #eee7da; line-height: 1.5; }
+.uploadStatus[data-state='saved'] { border-color: #427553; background: #e8f0e8; }
+.uploadStatus[data-state='error'] { border-color: #a13b2b; background: #f8eae6; }
+.uploadStatus a { display: block; margin-top: 7px; color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 .deleteError { margin: 0; color: #a13b2b; font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; }
 .notice { max-width: 720px; margin-top: 24px; padding: 15px 17px; border-left: 3px solid #9d4d3d; background: #eee7da; color: #625b50; font-size: 14px; line-height: 1.5; }
 .publishPanel { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 20px 32px; max-width: 720px; margin-top: 38px; padding: 28px; border: 1px solid #d7d0c4; background: #eee7da; }
@@ -177,8 +183,12 @@
 
 @media (max-width: 768px) {
   .shell, .signin { margin: -10px; }
-  .header { padding: 0 18px; }
-  .navigation { display: none; }
+  .header { padding: 0 18px; gap: 14px; }
+  .mobileNavigationButton { display: block; margin-left: auto; padding: 10px 12px; border: 1px solid #d7d0c4; background: transparent; color: #201e1a; font: 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace; cursor: pointer; }
+  .mobileNavigationButton:focus-visible { outline: 2px solid #9d4d3d; outline-offset: 2px; }
+  .navigation { display: none; position: absolute; top: 100%; left: 0; right: 0; flex-direction: column; align-items: stretch; gap: 0; padding: 8px 18px 14px; border-bottom: 1px solid #d7d0c4; background: #f5f2ec; box-shadow: 0 12px 18px rgba(32, 30, 26, .08); }
+  .navigationOpen { display: flex; }
+  .navigation .navLink { padding: 12px 2px; font-size: 14px; }
   .identity { display: none; }
   .main { width: min(100% - 32px, 1100px); padding-top: 44px; }
   .toolbar, .formFooter { align-items: flex-start; flex-direction: column; }

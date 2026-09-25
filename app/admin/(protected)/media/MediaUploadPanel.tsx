@@ -8,33 +8,47 @@ import { uploadMedia } from '@/lib/client/upload-media';
 
 type UploadState = 'idle' | 'authorizing' | 'uploading' | 'finalizing' | 'complete' | 'error';
 
+function uploadNoun(files: File[]) {
+  if (files.every((file) => file.type.startsWith('image/'))) return files.length === 1 ? 'photo' : 'photos';
+  if (files.every((file) => file.type.startsWith('video/'))) return files.length === 1 ? 'video' : 'videos';
+  return files.length === 1 ? 'file' : 'files';
+}
+
 export function MediaUploadPanel({ onUploaded }: { onUploaded?: () => void } = {}) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [state, setState] = useState<UploadState>('idle');
   const [message, setMessage] = useState('');
+  const [completedCount, setCompletedCount] = useState(0);
 
   async function upload(files: File[]) {
+    const noun = uploadNoun(files);
+    let completed = 0;
+    const failures: string[] = [];
+    setCompletedCount(0);
     setState('authorizing');
     setMessage(`Preparing ${files.length} file${files.length === 1 ? '' : 's'}…`);
-    try {
-      for (let index = 0; index < files.length; index += 1) {
-        const file = files[index];
+    for (let index = 0; index < files.length; index += 1) {
+      const file = files[index];
+      try {
         await uploadMedia(file, {
           onPhase: (phase) => {
             setState(phase);
-            setMessage(`${index + 1} of ${files.length}: ${phase === 'uploading' ? `Uploading ${file.name}` : phase === 'finalizing' ? `Saving ${file.name}` : `Preparing ${file.name}`}…`);
+            setMessage(`${completed} of ${files.length} ${noun} uploaded successfully. ${phase === 'uploading' ? `Uploading ${file.name}` : phase === 'finalizing' ? `Saving ${file.name}` : `Preparing ${file.name}`}…`);
           },
         });
+        completed += 1;
+        setCompletedCount(completed);
+        setMessage(`${completed} of ${files.length} ${noun} uploaded successfully.${index + 1 < files.length ? ` Preparing next file…` : ''}`);
+        if (onUploaded) onUploaded(); else router.refresh();
+      } catch (error) {
+        console.error(error);
+        failures.push(file.name);
+        setMessage(`${completed} of ${files.length} ${noun} uploaded successfully. ${failures.length} failed; continuing…`);
       }
-      setState('complete');
-      setMessage(`${files.length} file${files.length === 1 ? ' is' : 's are'} ready in the media library.`);
-      if (onUploaded) onUploaded(); else router.refresh();
-    } catch (error) {
-      console.error(error);
-      setState('error');
-      setMessage(error instanceof Error ? error.message : 'The upload did not complete. Try again.');
     }
+    setState(failures.length ? 'error' : 'complete');
+    setMessage(`${completed} of ${files.length} ${noun} uploaded successfully.${failures.length ? ` Failed: ${failures.join(', ')}. Try uploading those again.` : ' New uploads are at the top of the library.'}`);
   }
 
   return (
@@ -61,7 +75,7 @@ export function MediaUploadPanel({ onUploaded }: { onUploaded?: () => void } = {
       >
         Upload images or videos
       </button>
-      {state !== 'idle' && <p className={styles.status} data-state={state === 'error' ? 'error' : undefined}>{message}</p>}
+      {state !== 'idle' && <p className={`${styles.status} ${styles.uploadStatus}`} data-state={state === 'error' ? 'error' : state === 'complete' ? 'saved' : undefined} role="status">{message} {completedCount > 0 && (state === 'complete' || state === 'error') ? <a href="#media-library">View newest uploads ↓</a> : null}</p>}
     </section>
   );
 }

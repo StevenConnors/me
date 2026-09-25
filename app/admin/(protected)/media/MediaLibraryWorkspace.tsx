@@ -166,7 +166,7 @@ export function MediaLibraryWorkspace() {
   }
 
   return <div className={styles.workspace}>
-    <MediaUploadPanel onUploaded={() => { setSearch(''); setQuery(''); setCollectionId(''); setRefresh((value) => value + 1); }} />
+    <MediaUploadPanel onUploaded={() => { setSearch(''); setQuery(''); setKind(''); setCollectionId(''); setRefresh((value) => value + 1); }} />
     <section className={styles.collections} aria-label="Cloudinary imports">
       <h2>Already in Cloudinary?</h2>
       <p>Register existing uploaded videos so they can be chosen for journeys. Existing library details are preserved.</p>
@@ -181,7 +181,7 @@ export function MediaLibraryWorkspace() {
       </form>
       <div className={styles.chips}>{collections.map((collection) => <button aria-pressed={collectionId === collection._id} key={collection._id} onClick={() => setCollectionId(collectionId === collection._id ? '' : collection._id)} type="button">{collection.name} <span>{collection.mediaCount}</span></button>)}</div>
     </section>
-    <section aria-label="Media library" className={styles.library}>
+    <section aria-label="Media library" className={styles.library} id="media-library">
       <header className={styles.header}>
         <div><h2>Library</h2><p>{total === null ? 'Loading media…' : `${total} ${total === 1 ? 'asset' : 'assets'} in this view`}</p></div>
         <form role="search" onSubmit={(event) => { event.preventDefault(); setSearch(query); }}>
