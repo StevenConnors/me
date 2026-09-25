@@ -15,7 +15,7 @@ test('home previews published photos, section navigation reaches later pages, an
   const laterSectionId = new ObjectId().toHexString();
   let originalPhotosPage: Record<string, unknown> | null = null;
   let connected = false;
-  const artifact = { runId, mediaCount: mediaIds.length, laterSectionReached: false, collapsed: false, adminAutoLoaded: false, curatedHomepage: false };
+  const artifact = { runId, mediaCount: mediaIds.length, laterSectionReached: false, collapsed: false, adminAutoLoaded: false, curatedHomepage: false, draftRequestsAfterFirstPick: 0 };
 
   try {
     await mongo.connect();
@@ -34,7 +34,7 @@ test('home previews published photos, section navigation reaches later pages, an
       { id: firstSectionId, type: 'section', title: 'First light' },
       ...mediaIds.flatMap((id, index) => [
         ...(index === 25 ? [{ id: laterSectionId, type: 'section', title: 'Last light' }] : []),
-        { id: new ObjectId().toHexString(), type: 'media', mediaAssetId: id, decorative: false, altText: `E2E photo ${index + 1}` },
+        { id: new ObjectId().toHexString(), type: 'media', mediaAssetId: id, decorative: false, altText: `E2E photo ${index + 1}`, ...(index === 5 ? { displayDate: '2024-04-18' } : {}) },
       ]),
     ] };
     await db.collection('photos_pages').replaceOne({ _id: 'photos' }, {
@@ -70,9 +70,19 @@ test('home previews published photos, section navigation reaches later pages, an
 
     await page.goto('/admin/photos');
     await page.getByRole('button', { name: 'Load more photos' }).click();
+    const draftRequests: string[] = [];
+    page.on('request', (request) => {
+      if (request.url().endsWith('/api/admin/photos-page/draft') && request.method() === 'PATCH') draftRequests.push(request.postData() ?? '');
+    });
     for (const index of [5, 25]) {
       await page.getByRole('button', { name: `Edit photo homepage-e2e-${runId}-${index}.jpg` }).click();
       await page.getByRole('checkbox', { name: 'Show on homepage' }).check();
+      if (index === 5) {
+        await expect.poll(() => draftRequests.length).toBe(1);
+        await page.waitForTimeout(1700);
+        artifact.draftRequestsAfterFirstPick = draftRequests.length;
+        expect(draftRequests).toHaveLength(1);
+      }
     }
     const publishResponse = page.waitForResponse((response) => response.url().endsWith('/api/admin/photos-page/publish') && response.request().method() === 'POST');
     await page.getByRole('button', { name: 'Publish', exact: true }).click();

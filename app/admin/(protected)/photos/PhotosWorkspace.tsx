@@ -59,7 +59,11 @@ type DeletionPlanItem = {
 };
 
 function documentEqual(left: PhotosPageDocument, right: PhotosPageDocument) {
-  return JSON.stringify(left) === JSON.stringify(right);
+  const stableStringify = (document: PhotosPageDocument) => JSON.stringify(document, (_key, value: unknown) => {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return value;
+    return Object.fromEntries(Object.entries(value).sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey)));
+  });
+  return stableStringify(left) === stableStringify(right);
 }
 
 function newBlockId() {
