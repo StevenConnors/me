@@ -30,6 +30,7 @@
     "@tiptap/react": "^3.31.3",
     "@tiptap/starter-kit": "^3.31.3",
     "@types/mdx": "^2.0.13",
+    "@vercel/analytics": "^2.0.1",
     "autoprefixer": "^10.4.21",
     "dotenv": "^16.5.0",
     "mongodb": "^4.5.0",
