@@ -27,7 +27,8 @@ export function PhotosGallery({
   const [loadState, setLoadState] = useState<'idle' | 'loading' | 'error'>('idle');
   const [loadFailure, setLoadFailure] = useState<LoadFailure | null>(null);
   const [loadedMessage, setLoadedMessage] = useState('');
-  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const [requestedPhotoId, setRequestedPhotoId] = useState<string | null>(null);
+  const [pendingNextIndex, setPendingNextIndex] = useState<number | null>(null);
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
   const [pendingSectionId, setPendingSectionId] = useState<string | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -37,12 +38,20 @@ export function PhotosGallery({
   const sentinelRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const loadingRef = useRef(false);
-  const activePhoto = activeIndex === null ? null : photos[activeIndex];
+  const activeIndex = requestedPhotoId ? photos.findIndex((photo) => photo.id === requestedPhotoId) : -1;
+  const activePhoto = activeIndex < 0 ? null : photos[activeIndex];
+  const selectPhoto = useCallback((photo: PublicPhoto) => {
+    const url = new URL(window.location.href);
+    url.searchParams.set('photo', photo.id);
+    window.history.pushState(null, '', `${url.pathname}${url.search}${url.hash}`);
+    setPendingNextIndex(null);
+    setRequestedPhotoId(photo.id);
+  }, []);
   const open = useCallback((index: number) => {
     triggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    setActiveIndex(index);
     const photo = photos[index];
     if (photo) {
+      selectPhoto(photo);
       try {
         navigator.sendBeacon(
           '/api/photos/open',
@@ -52,21 +61,35 @@ export function PhotosGallery({
         // Photo-open analytics must never block the gallery interaction.
       }
     }
-  }, [photos]);
+  }, [photos, selectPhoto]);
   const close = useCallback(() => {
-    setActiveIndex(null);
+    const url = new URL(window.location.href);
+    url.searchParams.delete('photo');
+    window.history.pushState(null, '', `${url.pathname}${url.search}${url.hash}`);
+    setPendingNextIndex(null);
+    setRequestedPhotoId(null);
     requestAnimationFrame(() => triggerRef.current?.focus());
   }, []);
-  const previous = useCallback(() => setActiveIndex((current) => {
-    if (current === null) return 0;
-    if (current > 0) return current - 1;
-    return nextCursor ? current : photos.length - 1;
-  }), [nextCursor, photos.length]);
-  const next = useCallback(() => setActiveIndex((current) => {
-    if (current === null) return 0;
-    if (current < photos.length - 1) return current + 1;
-    return nextCursor ? current : 0;
-  }), [nextCursor, photos.length]);
+  const previous = useCallback(() => {
+    if (activeIndex > 0) selectPhoto(photos[activeIndex - 1]);
+    else if (activeIndex === 0 && !nextCursor) selectPhoto(photos[photos.length - 1]);
+  }, [activeIndex, nextCursor, photos, selectPhoto]);
+  const next = useCallback(() => {
+    if (activeIndex < 0) return;
+    if (activeIndex < photos.length - 1) selectPhoto(photos[activeIndex + 1]);
+    else if (nextCursor) setPendingNextIndex(photos.length);
+    else selectPhoto(photos[0]);
+  }, [activeIndex, nextCursor, photos, selectPhoto]);
+
+  useEffect(() => {
+    const syncFromUrl = () => {
+      setPendingNextIndex(null);
+      setRequestedPhotoId(new URL(window.location.href).searchParams.get('photo'));
+    };
+    syncFromUrl();
+    window.addEventListener('popstate', syncFromUrl);
+    return () => window.removeEventListener('popstate', syncFromUrl);
+  }, []);
 
   const loadMore = useCallback(async () => {
     if (!nextCursor || loadingRef.current) return;
@@ -105,7 +128,7 @@ export function PhotosGallery({
   }, [nextCursor]);
 
   useEffect(() => {
-    if (activeIndex === null) return;
+    if (!activePhoto) return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     closeButtonRef.current?.focus();
@@ -133,7 +156,7 @@ export function PhotosGallery({
       document.body.style.overflow = previousOverflow;
       window.removeEventListener('keydown', onKeyDown);
     };
-  }, [activeIndex, close, next, previous]);
+  }, [activePhoto, close, next, previous]);
 
   useEffect(() => () => abortRef.current?.abort(), []);
 
@@ -147,8 +170,19 @@ export function PhotosGallery({
   }, [loadMore, nextCursor]);
 
   useEffect(() => {
-    if (activeIndex !== null && nextCursor && activeIndex >= photos.length - 4) void loadMore();
+    if (activeIndex >= 0 && nextCursor && activeIndex >= photos.length - 4) void loadMore();
   }, [activeIndex, loadMore, nextCursor, photos.length]);
+
+  useEffect(() => {
+    if (requestedPhotoId && activeIndex < 0 && nextCursor && loadState === 'idle') void loadMore();
+  }, [activeIndex, loadMore, loadState, nextCursor, requestedPhotoId]);
+
+  useEffect(() => {
+    if (pendingNextIndex === null) return;
+    if (pendingNextIndex < photos.length) selectPhoto(photos[pendingNextIndex]);
+    else if (nextCursor && loadState === 'idle') void loadMore();
+    else if (!nextCursor) setPendingNextIndex(null);
+  }, [loadMore, loadState, nextCursor, pendingNextIndex, photos, selectPhoto]);
 
   useEffect(() => {
     if (!pendingSectionId) return;
@@ -198,15 +232,20 @@ export function PhotosGallery({
       </div> : null}
       <p aria-live="polite" className="sr-only">{loadedMessage}</p>
       {activePhoto ? (
-        <div aria-label={`Photos, ${activeIndex! + 1} of ${photos.length}`} aria-modal="true" className={styles.lightbox} onClick={(event) => { if (event.target === event.currentTarget) close(); }} ref={lightboxRef} role="dialog">
+        <div aria-label={`Photos, ${activeIndex + 1} of ${photos.length}`} aria-modal="true" className={styles.lightbox} onClick={(event) => { if (event.target === event.currentTarget) close(); }} ref={lightboxRef} role="dialog">
           <button aria-label="Close gallery" className={styles.closeButton} onClick={close} ref={closeButtonRef} type="button">×</button>
-          <button aria-label="Previous photo" className={`${styles.directionButton} ${styles.previousButton}`} onClick={previous} type="button">←</button>
+          <button aria-label="Previous photo" className={`${styles.directionButton} ${styles.previousButton}`} disabled={activeIndex === 0 && Boolean(nextCursor)} onClick={previous} type="button">←</button>
           <div className={styles.lightboxContent} onTouchEnd={onTouchEnd} onTouchStart={onTouchStart}>
-            <div className={styles.lightboxImage}>{activePhoto.kind === 'video' && activePhoto.playbackUrl ? <video className={styles.lightboxVideo} controls playsInline poster={activePhoto.posterUrl ?? activePhoto.source} preload="none" src={activePhoto.playbackUrl} /> : <Image alt={activePhoto.alt} fill priority sizes="(max-width: 900px) 100vw, 85vw" src={activePhoto.displayUrl ?? activePhoto.displaySource ?? activePhoto.source} />}</div>
-            {activePhoto.caption || activePhoto.captureDate ? <p className={styles.lightboxCaption}>{activePhoto.caption}{activePhoto.caption && activePhoto.captureDate ? ' · ' : ''}{activePhoto.captureDate}</p> : null}
+            <div className={styles.lightboxImage} key={activePhoto.id}>{activePhoto.kind === 'video' && activePhoto.playbackUrl ? <video className={styles.lightboxVideo} controls playsInline poster={activePhoto.posterUrl ?? activePhoto.source} preload="none" src={activePhoto.playbackUrl} /> : <Image alt={activePhoto.alt} fill sizes="(max-width: 900px) 100vw, 85vw" src={activePhoto.displayUrl ?? activePhoto.displaySource ?? activePhoto.source} />}</div>
+            {activePhoto.title || activePhoto.caption || activePhoto.captureDate || activePhoto.tags?.length ? <div className={styles.lightboxDetails}>
+              {activePhoto.title ? <h2>{activePhoto.title}</h2> : null}
+              {activePhoto.caption ? <p className={styles.lightboxCaption}>{activePhoto.caption}</p> : null}
+              {activePhoto.captureDate ? <p className={styles.lightboxDate}>{activePhoto.captureDate}</p> : null}
+              {activePhoto.tags?.length ? <ul aria-label="Photo tags" className={styles.lightboxTags}>{activePhoto.tags.map((tag) => <li key={tag}>{tag}</li>)}</ul> : null}
+            </div> : null}
           </div>
           <button aria-label="Next photo" className={`${styles.directionButton} ${styles.nextButton}`} onClick={next} type="button">→</button>
-          <p className={styles.position}>{activeIndex! + 1} / {photos.length}</p>
+          <p className={styles.position}>{activeIndex + 1} / {photos.length}</p>
         </div>
       ) : null}
     </>

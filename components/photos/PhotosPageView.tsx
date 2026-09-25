@@ -21,7 +21,9 @@ export type PublicPhoto = {
   alt: string;
   width: number;
   height: number;
+  title?: string;
   caption?: string;
+  tags?: string[];
   captureDate?: string;
   sectionBreak?: PublicPhotoSectionBreak;
   /** Editing identity only; omitted from ordinary public presentation. */

@@ -12,7 +12,9 @@ type PublicPhotoBase = {
   alt: string;
   width: number;
   height: number;
+  title?: string;
   caption?: string;
+  tags: string[];
   captureDate?: string;
   sectionBreak?: PublicPhotoSectionBreak;
   sectionBlockId?: string;
@@ -100,6 +102,8 @@ function publicPhotoFromAsset(
     alt: options.decorative ? '' : options.altText ?? options.caption ?? asset.altText ?? asset.caption ?? asset.originalFilename,
     width: asset.width,
     height: asset.height,
+    ...(asset.title ? { title: asset.title } : {}),
+    tags: asset.tags,
     ...(options.caption ?? asset.caption ? { caption: options.caption ?? asset.caption } : {}),
     ...(options.displayDate ?? asset.captureDate ? { captureDate: options.displayDate ?? asset.captureDate } : {}),
     ...(options.sectionBreak ? { sectionBreak: options.sectionBreak } : {}),
