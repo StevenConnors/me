@@ -28,7 +28,7 @@ jobs:
           node-version: 22
 
       - name: Install dependencies
-        run: npm install --no-package-lock
+        run: npm ci
 
       - name: Typecheck
         run: npm run typecheck
@@ -63,7 +63,7 @@ jobs:
           node-version: 22
 
       - name: Install dependencies
-        run: npm install --no-package-lock
+        run: npm ci
 
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
