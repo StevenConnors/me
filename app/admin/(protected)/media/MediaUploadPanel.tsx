@@ -8,26 +8,28 @@ import { uploadMedia } from '@/lib/client/upload-media';
 
 type UploadState = 'idle' | 'authorizing' | 'uploading' | 'finalizing' | 'complete' | 'error';
 
-export function MediaUploadPanel() {
+export function MediaUploadPanel({ onUploaded }: { onUploaded?: () => void } = {}) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [state, setState] = useState<UploadState>('idle');
   const [message, setMessage] = useState('');
 
-  async function upload(file: File) {
+  async function upload(files: File[]) {
     setState('authorizing');
-    setMessage(`Preparing ${file.name}…`);
+    setMessage(`Preparing ${files.length} file${files.length === 1 ? '' : 's'}…`);
     try {
-      await uploadMedia(file, {
-        onPhase: (phase) => {
-          setState(phase);
-          setMessage(phase === 'uploading' ? `Uploading ${file.name}…` : 'Saving media details…');
-        },
-      });
-
+      for (let index = 0; index < files.length; index += 1) {
+        const file = files[index];
+        await uploadMedia(file, {
+          onPhase: (phase) => {
+            setState(phase);
+            setMessage(`${index + 1} of ${files.length}: ${phase === 'uploading' ? `Uploading ${file.name}` : phase === 'finalizing' ? `Saving ${file.name}` : `Preparing ${file.name}`}…`);
+          },
+        });
+      }
       setState('complete');
-      setMessage(`${file.name} is ready in the media library.`);
-      router.refresh();
+      setMessage(`${files.length} file${files.length === 1 ? ' is' : 's are'} ready in the media library.`);
+      if (onUploaded) onUploaded(); else router.refresh();
     } catch (error) {
       console.error(error);
       setState('error');
@@ -44,9 +46,10 @@ export function MediaUploadPanel() {
         type="file"
         accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
         hidden
+        multiple
         onChange={(event) => {
-          const file = event.target.files?.[0];
-          if (file) void upload(file);
+          const files = Array.from(event.target.files ?? []);
+          if (files.length) void upload(files);
           event.currentTarget.value = '';
         }}
       />
@@ -56,7 +59,7 @@ export function MediaUploadPanel() {
         disabled={state !== 'idle' && state !== 'complete' && state !== 'error'}
         onClick={() => inputRef.current?.click()}
       >
-        Upload image
+        Upload images
       </button>
       {state !== 'idle' && <p className={styles.status} data-state={state === 'error' ? 'error' : undefined}>{message}</p>}
     </section>

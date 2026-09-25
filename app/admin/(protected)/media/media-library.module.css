@@ -1,0 +1,39 @@
+.workspace { display: grid; gap: 34px; margin-top: 34px; }
+.workspace button { cursor: pointer; }
+.collections, .library { border: 1px solid #d7d0c4; background: #fffcf7; padding: 24px; }
+.collections h2, .library h2 { margin: 0; font: 400 30px/1.1 Georgia, serif; }
+.collections p, .header p { margin: 8px 0 0; color: #625b50; font-size: 14px; }
+.collections form, .header form, .filters, .batch { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.collections form { margin-top: 20px; }
+.collections input, .header input, .filters select, .batch select { min-height: 42px; border: 1px solid #cfc7ba; background: #fffefa; color: #201e1a; padding: 8px 10px; font: 14px/1.3 Georgia, serif; }
+.collections input { flex: 1; min-width: 180px; }
+.collections form button, .header button, .batch button, .more { min-height: 42px; border: 0; background: #201e1a; color: #fffcf7; padding: 9px 15px; }
+.collections button:disabled, .batch button:disabled, .more:disabled { opacity: .55; cursor: wait; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+.chips button { border: 1px solid #cfc7ba; background: #f5f0e8; color: #201e1a; padding: 8px 12px; }
+.chips button[aria-pressed='true'] { border-color: #9d4d3d; background: #e7d9cd; }
+.chips span { margin-left: 8px; color: #72695e; }
+.header { display: flex; align-items: end; justify-content: space-between; gap: 20px; }
+.filters { margin: 24px 0; color: #625b50; font: 12px/1.2 ui-monospace, monospace; }
+.filters label, .batch label { display: flex; align-items: center; gap: 7px; }
+.filters span { margin-left: auto; }
+.batch { margin-bottom: 20px; padding: 14px; background: #eee7da; }
+.batch button:last-child { background: transparent; color: #625b50; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(275px, 1fr)); gap: 16px; }
+.card { min-width: 0; border: 1px solid #d7d0c4; background: white; }
+.image { position: relative; display: grid; place-items: center; height: 190px; background: #e8e1d6; color: #625b50; }
+.image img { object-fit: cover; }
+.cardBody { padding: 16px; display: grid; gap: 5px; }
+.cardBody strong { overflow-wrap: anywhere; font: 400 20px/1.15 Georgia, serif; }
+.cardBody small { color: #7e7569; }
+.assetCollections { display: flex; flex-wrap: wrap; gap: 5px; }
+.assetCollections span { border: 1px solid #d7d0c4; color: #625b50; padding: 3px 6px; font: 11px/1.2 ui-monospace, monospace; }
+.assetCollections button { margin-left: 5px; border: 0; background: none; color: #625b50; font: inherit; }
+.select { justify-self: end; color: #625b50; font: 12px/1 ui-monospace, monospace; }
+.select input { accent-color: #9d4d3d; }
+.success { color: #427553; }
+.error { color: #a13b2b; }
+.error button { border: 0; background: none; color: inherit; text-decoration: underline; }
+.empty { color: #625b50; }
+.more { display: block; margin: 24px auto 0; }
+@media (max-width: 720px) { .collections, .library { padding: 16px; } .header { display: block; } .header form { margin-top: 16px; } .header input { flex: 1; min-width: 0; } .filters span { margin-left: 0; } }

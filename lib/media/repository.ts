@@ -61,6 +61,15 @@ function newApplicationMediaId() {
   return new ObjectId().toHexString();
 }
 
+function searchFilter(query: string): Filter<MediaAsset> {
+  const pattern = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const contains = { $regex: pattern, $options: 'i' };
+  return { $or: [
+    { originalFilename: contains }, { title: contains },
+    { caption: contains }, { tags: contains },
+  ] } as Filter<MediaAsset>;
+}
+
 export class MediaRepository {
   constructor(
     readonly mediaAssets: Collection<MediaAsset>,
@@ -74,11 +83,11 @@ export class MediaRepository {
 
   async list(options: { query?: string; limit?: number } = {}): Promise<MediaAsset[]> {
     const query = options.query?.trim();
-    const filter = query ? { $text: { $search: query } } : {};
+    const filter = query ? searchFilter(query) : {};
     const limit = Math.min(Math.max(options.limit ?? 60, 1), 100);
     const assets = await this.mediaAssets
       .find(filter)
-      .sort(query ? { score: { $meta: 'textScore' }, createdAt: -1 } : { createdAt: -1 })
+      .sort({ createdAt: -1 })
       .limit(limit)
       .toArray();
     return assets.map((asset) => MediaAssetSchema.parse(asset));
@@ -90,12 +99,17 @@ export class MediaRepository {
     limit?: number;
     cursor?: string;
     resourceType?: 'image' | 'video';
-  } = {}): Promise<{ items: MediaAsset[]; nextCursor: string | null }> {
+    mediaIds?: string[];
+  } = {}): Promise<{ items: MediaAsset[]; nextCursor: string | null; total: number }> {
     const limit = Math.min(Math.max(options.limit ?? 24, 1), 100);
-    const filters: Filter<MediaAsset>[] = [];
+    const baseFilters: Filter<MediaAsset>[] = [];
     const query = options.query?.trim();
-    if (query) filters.push({ $text: { $search: query } } as Filter<MediaAsset>);
-    if (options.resourceType) filters.push({ resourceType: options.resourceType });
+    if (query) baseFilters.push(searchFilter(query));
+    if (options.resourceType) baseFilters.push({ resourceType: options.resourceType });
+    if (options.mediaIds) baseFilters.push({ _id: { $in: options.mediaIds } });
+    const baseFilter = baseFilters.length === 0 ? {} : baseFilters.length === 1
+      ? baseFilters[0] : { $and: baseFilters } as Filter<MediaAsset>;
+    const filters = [...baseFilters];
     if (options.cursor) {
       const cursor = decodeAdminMediaCursor(options.cursor);
       const createdAt = new Date(cursor.createdAt);
@@ -107,16 +121,16 @@ export class MediaRepository {
       } as Filter<MediaAsset>);
     }
     const filter = filters.length === 0 ? {} : filters.length === 1 ? filters[0] : { $and: filters } as Filter<MediaAsset>;
-    const records = await this.mediaAssets
-      .find(filter)
-      .sort({ createdAt: -1, _id: -1 })
-      .limit(limit + 1)
-      .toArray();
+    const [records, total] = await Promise.all([
+      this.mediaAssets.find(filter).sort({ createdAt: -1, _id: -1 }).limit(limit + 1).toArray(),
+      this.mediaAssets.countDocuments(baseFilter),
+    ]);
     const hasNextPage = records.length > limit;
     const page = records.slice(0, limit).map((asset) => MediaAssetSchema.parse(asset));
     const last = page[page.length - 1];
     return {
       items: page,
+      total,
       nextCursor: hasNextPage && last ? encodeAdminMediaCursor({
         version: 1,
         createdAt: last.createdAt.toISOString(),
