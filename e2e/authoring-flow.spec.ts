@@ -46,17 +46,18 @@ test('an author can create, revise, publish, view, and delete a journey', async 
     const finalized = await finalizeResponse;
     expect(finalized.ok()).toBe(true);
     mediaId = (await finalized.json() as { media: { _id: string } }).media._id;
-    await expect(page.getByText('sample-image.png', { exact: true })).toBeVisible();
-    await page.getByLabel('Alt text').fill('A small cove after rain');
-    await page.getByRole('button', { name: 'Save media details' }).click();
-    await expect(page.getByText('Saved', { exact: true })).toBeVisible();
+    const mediaForm = page.locator('form').filter({ has: page.locator(`#media-alt-${mediaId}`) });
+    await expect(mediaForm).toBeVisible();
+    await mediaForm.getByLabel('Alt text').fill('A small cove after rain');
+    await mediaForm.getByRole('button', { name: 'Save media details' }).click();
+    await expect(mediaForm.getByText('Saved', { exact: true })).toBeVisible();
 
     await page.goto(editUrl);
     await page.getByLabel('Cover image').selectOption(mediaId);
     await page.getByRole('button', { name: 'Choose photographs' }).click();
     await page.getByRole('region', { name: 'Photograph library' }).locator(`input[type="checkbox"][value="${mediaId}"]`).check();
     await page.getByRole('button', { name: 'Add selected' }).click();
-    await page.getByLabel('Alt text', { exact: true }).fill('A small cove after rain');
+    await page.getByRole('region', { name: 'Held Places chapter editor' }).getByRole('textbox', { name: 'Alt text (optional)' }).fill('A small cove after rain');
     await page.getByRole('button', { name: 'Save now' }).click();
     await expect(page.getByText('Saved', { exact: true })).toBeVisible();
 
