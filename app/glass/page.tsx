@@ -3,7 +3,7 @@ import { MediaGrid, type GalleryMediaItem } from '@/components/MediaGrid';
 import styles from '@/components/held-places/held-places.module.css';
 import { loadGlassGallery } from '@/lib/glass/gallery';
 
-export const revalidate = 300;
+export const dynamic = 'force-dynamic';
 
 export default async function GlassPage() {
   let glass: GalleryMediaItem[] = [];
@@ -23,7 +23,7 @@ export default async function GlassPage() {
       ) : glass.length ? (
         <MediaGrid items={glass} portrait title="Glass" />
       ) : (
-        <section className={styles.indexEmpty}><h1>Glass, soon.</h1><p>The next collection is being prepared.</p></section>
+        <section className={styles.indexEmpty}><h1>Glass is being prepared.</h1><p>Photos will appear here once they are added to the Glass collection.</p></section>
       )}
     </main>
   );
