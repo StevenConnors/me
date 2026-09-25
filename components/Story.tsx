@@ -83,7 +83,7 @@ export default function Story({ children, ifDebug = false }: { children: React.R
   }, [isMobile]);
 
   // Prevent step re-registration during resize by stabilizing the steps array
-  const stableSteps = useMemo(() => steps, [steps.length]);
+  const stableSteps = useMemo(() => steps, [steps]);
 
   // Scroll logging effect with fallback step detection
   useEffect(() => {

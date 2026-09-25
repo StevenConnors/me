@@ -6,6 +6,7 @@ import StarterKit from '@tiptap/starter-kit';
 import { EditorContent, NodeViewWrapper, ReactNodeViewRenderer, type NodeViewProps, useEditor } from '@tiptap/react';
 import type { Editor, JSONContent } from '@tiptap/core';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import Image from 'next/image';
 
 import styles from './JourneyVisualEditor.module.css';
 import type { LegacyTiptapDocumentV1 } from '@/lib/journeys/schemas';
@@ -71,7 +72,7 @@ function PhotographNodeView({ node, updateAttributes, selected, extension }: Nod
   return (
     <NodeViewWrapper className={NodeClassName({ selected, className: styles.photo })} data-layout={placement.layout.desktop}>
       {media?.previewUrl ? (
-        <img src={media.previewUrl} alt={placement.decorative !== false ? '' : placement.altTextOverride ?? media.altText ?? ''} style={{ objectPosition }} />
+        <Image src={media.previewUrl} alt={placement.decorative !== false ? '' : placement.altTextOverride ?? media.altText ?? ''} width={media.width} height={media.height} unoptimized style={{ objectPosition }} />
       ) : (
         <div className={styles.missingMedia}>Media {placement.mediaAssetId} is saved, but its editor preview is unavailable.</div>
       )}
@@ -115,7 +116,7 @@ function GalleryNodeView({ node, selected, extension }: NodeViewProps) {
       <div className={styles.gallery} data-template={template}>
         {items.map((placement) => {
           const media = getMedia(placement.mediaAssetId);
-          return <figure key={placement.mediaAssetId}>{media?.previewUrl ? <img src={media.previewUrl} alt={placement.decorative !== false ? '' : placement.altTextOverride ?? media.altText ?? ''} /> : <div className={styles.galleryEmpty}>{media?.title ?? placement.mediaAssetId}</div>}</figure>;
+          return <figure key={placement.mediaAssetId}>{media?.previewUrl ? <Image src={media.previewUrl} alt={placement.decorative !== false ? '' : placement.altTextOverride ?? media.altText ?? ''} width={media.width} height={media.height} unoptimized /> : <div className={styles.galleryEmpty}>{media?.title ?? placement.mediaAssetId}</div>}</figure>;
         })}
       </div>
       <div className={styles.nodeInspector} contentEditable={false}><span className={styles.nodeLabel}>Gallery · {items.length} photographs</span><span /></div>
