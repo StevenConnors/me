@@ -55,12 +55,12 @@ describe('Cloudinary photo maintenance scripts', () => {
       provider: 'cloudinary',
       providerAssetId: 'sunset',
       resourceType: 'image',
-      captureDate: '2024-06-15',
       showInPhotos: false,
       status: 'ready',
       createdAt: new Date('2026-01-01T00:00:00.000Z'),
       updatedAt: new Date('2026-01-01T00:00:00.000Z'),
     });
+    expect(document).not.toHaveProperty('captureDate');
   });
 
   it('uses insert-only updates so existing media metadata and eligibility stay unchanged', async () => {

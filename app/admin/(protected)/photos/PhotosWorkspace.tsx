@@ -65,14 +65,6 @@ function newBlockId() {
   return crypto.randomUUID().replace(/-/g, '');
 }
 
-function dateFromFile(file: File) {
-  if (!file.lastModified) return undefined;
-  const date = new Date(file.lastModified);
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${date.getFullYear()}-${month}-${day}`;
-}
-
 function documentCanvas(
   document: PhotosPageDocument,
   mediaById: Map<string, EditorMedia>,
@@ -553,7 +545,6 @@ export function PhotosWorkspace({
           width: result.width,
           height: result.height,
           resourceType: result.resourceType,
-          ...(dateFromFile(file) ? { captureDate: dateFromFile(file) } : {}),
         });
       } catch (error) {
         console.error(error);
