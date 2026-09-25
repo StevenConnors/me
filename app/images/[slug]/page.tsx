@@ -8,6 +8,8 @@ import path from 'path';
 import { MDXRemote } from 'next-mdx-remote/rsc';
 import { promises as fsPromises } from 'fs';
 
+export const dynamic = 'force-dynamic';
+
 interface PhotoPageProps {
   params: Promise<{
     slug: string;
@@ -162,7 +164,7 @@ export default async function PhotoPage({ params }: PhotoPageProps) {
           
           {/* Back to Gallery Link */}
           <div style={{ textAlign: 'center', marginTop: '2rem' }}>
-            <BackToGalleryLink href="/gallery">
+            <BackToGalleryLink href="/photos">
               ← Back to Gallery
             </BackToGalleryLink>
           </div>
@@ -170,27 +172,4 @@ export default async function PhotoPage({ params }: PhotoPageProps) {
       </div>
     </>
   );
-}
-
-export async function generateStaticParams() {
-  try {
-    // Fetch all images to generate static params
-    const url = `https://api.cloudinary.com/v1_1/${process.env.CLOUDINARY_CLOUD_NAME}/resources/image?max_results=500&folder="${CLOUDINARY_IMAGE_FOLDER_ID}`;
-    
-    const results = await fetch(url, {
-      headers: {
-        Authorization: `Basic ${Buffer.from(process.env.CLOUDINARY_API_KEY + ':' + process.env.CLOUDINARY_API_SECRET).toString('base64')}`,
-      },
-    }).then(r => r.json());
-    
-    const { resources } = results;
-    const images = mapImageResources(resources);
-    
-    return images.map((image: ImageData) => ({
-      slug: image.title,
-    }));
-  } catch (error) {
-    console.error('Error generating static params:', error);
-    return [];
-  }
 }
