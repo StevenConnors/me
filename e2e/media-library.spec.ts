@@ -50,6 +50,8 @@ test('the media library uploads, organizes, finds, and reuses one original', asy
     const created = await collectionResponse;
     expect(created.ok()).toBe(true);
     collectionId = (await created.json() as { collection: { _id: string } }).collection._id;
+    await expect(page.getByLabel('Filter by collection')).toHaveValue('');
+    await expect(item).toBeVisible();
 
     await item.getByRole('checkbox', { name: 'Select sample-image.png' }).check();
     await page.getByLabel('Add selected to collection').selectOption(collectionId);

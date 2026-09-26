@@ -1,0 +1,3 @@
+{
+  "vision": "Describe this image in one short factual sentence. Return concise lowercase concepts for the specific visible subjects and their broader categories (for example kitten and cat, puppy and dog, temple and architecture). Prefer singular base forms for countable nouns. Include 1–12 concepts. Do not infer location unless it is visibly identifiable."
+}

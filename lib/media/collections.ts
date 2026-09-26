@@ -5,12 +5,22 @@ import { getMediaLibraryCollections } from '@/lib/db/collections';
 import type { MediaAsset } from '@/lib/media/schemas';
 
 const nonEmpty = z.string().trim().min(1);
+export const CollectionSuggestionRuleSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('subject'), query: nonEmpty.max(200) }).strict(),
+  z.object({
+    kind: z.literal('country'),
+    countryCode: z.string().trim().regex(/^[A-Za-z]{2}$/).transform((value) => value.toUpperCase())
+      .refine((value) => new Intl.DisplayNames(['en'], { type: 'region' }).of(value) !== value, 'Country code must be a recognized region'),
+  }).strict(),
+]);
 
 export const MediaCollectionSchema = z.object({
   _id: z.string().regex(/^[a-f\d]{24}$/i),
   schemaVersion: z.literal(1),
   name: nonEmpty.max(120),
   description: z.string().trim().max(1_000).optional(),
+  suggestionRule: CollectionSuggestionRuleSchema.optional(),
+  dismissedMediaAssetIds: z.array(nonEmpty).max(10_000).optional(),
   mediaAssetIds: z.array(nonEmpty).max(10_000),
   createdAt: z.date(),
   updatedAt: z.date(),
@@ -20,6 +30,7 @@ export type MediaCollection = z.infer<typeof MediaCollectionSchema>;
 export const CreateMediaCollectionSchema = z.object({
   name: nonEmpty.max(120),
   description: z.string().trim().max(1_000).optional(),
+  suggestionRule: CollectionSuggestionRuleSchema.optional(),
 }).strict();
 export const PatchMediaCollectionSchema = z.object({
   name: nonEmpty.max(120).optional(),
@@ -68,6 +79,7 @@ export class MediaCollectionRepository {
     const now = new Date();
     const collection = MediaCollectionSchema.parse({
       _id: new ObjectId().toHexString(), schemaVersion: 1, ...parsed,
+      suggestionRule: parsed.suggestionRule ?? { kind: 'subject', query: parsed.name },
       mediaAssetIds: [], createdAt: now, updatedAt: now,
     });
     await this.collections.insertOne(collection);

@@ -58,13 +58,15 @@ export class E2EMediaProvider implements MediaProvider {
 
   async inspectAsset(providerAssetId: string): Promise<ProviderAsset> {
     const id = providerAssetId.trim();
+    const encodedFilename = id.split('~')[1];
+    const filename = encodedFilename ? decodeURIComponent(encodedFilename) : undefined;
     return ProviderAssetSchema.parse({
       providerAssetId: id,
       providerPublicId: `e2e/${id}`,
       resourceType: id.startsWith('e2e-video-') ? 'video' : 'image',
       deliveryType: 'upload',
       version: 1,
-      originalFilename: id.startsWith('e2e-video-') ? 'sample-video.mp4' : 'sample-image.png',
+      originalFilename: filename ?? (id.startsWith('e2e-video-') ? 'sample-video.mp4' : 'sample-image.png'),
       format: id.startsWith('e2e-video-') ? 'mp4' : 'png',
       width: 1,
       height: 1,
@@ -72,6 +74,18 @@ export class E2EMediaProvider implements MediaProvider {
       checksum: 'e2e-checksum',
       tags: [],
     });
+  }
+
+  async getAssetMetadata(providerAssetId: string): Promise<Record<string, unknown>> {
+    const encodedFilename = providerAssetId.split('~')[1];
+    const filename = encodedFilename ? decodeURIComponent(encodedFilename) : '';
+    if (filename === 'gps-eg-fixture.png') {
+      return { GPSLatitude: 30.0444, GPSLatitudeRef: 'N', GPSLongitude: 31.2357, GPSLongitudeRef: 'E' };
+    }
+    if (filename === 'gps-us-fixture.png') {
+      return { GPSLatitude: 37.7749, GPSLatitudeRef: 'N', GPSLongitude: '122.4194', GPSLongitudeRef: 'W' };
+    }
+    return {};
   }
 
   async deleteAsset(unparsedInput: ProviderAssetDeletionInput): Promise<void> {

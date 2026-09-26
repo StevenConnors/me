@@ -15,7 +15,8 @@ export async function POST(request: Request) {
   const filename = file instanceof File && file.name ? file.name : 'sample-image.png';
   const bytes = file instanceof File ? file.size : 68;
   const resourceType = new URL(request.url).searchParams.get('resourceType') === 'video' ? 'video' : 'image';
-  const providerAssetId = `e2e-${resourceType === 'video' ? 'video-' : ''}${randomUUID()}`;
+  const gpsFixture = filename === 'gps-eg-fixture.png' || filename === 'gps-us-fixture.png';
+  const providerAssetId = `e2e-${resourceType === 'video' ? 'video-' : ''}${randomUUID()}${gpsFixture ? `~${encodeURIComponent(filename)}` : ''}`;
   const extension = resourceType === 'video' ? 'mp4' : 'png';
 
   return NextResponse.json({

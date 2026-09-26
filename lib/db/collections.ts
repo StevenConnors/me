@@ -4,6 +4,7 @@ import type { Journey, JourneyRevision } from '@/lib/journeys/schemas';
 import type { MediaAsset, UploadSession } from '@/lib/media/schemas';
 import type { PhotosPage } from '@/lib/photos/schemas';
 import type { MediaCollection } from '@/lib/media/collections';
+import type { MediaEnrichment } from '@/lib/media/enrichment';
 
 export const COLLECTION_NAMES = {
   journeys: 'journeys',
@@ -12,6 +13,7 @@ export const COLLECTION_NAMES = {
   uploadSessions: 'upload_sessions',
   photosPages: 'photos_pages',
   mediaCollections: 'media_collections',
+  mediaEnrichments: 'media_enrichments',
 } as const;
 
 /**
@@ -44,12 +46,14 @@ export async function getJourneyCollections(db?: Db): Promise<{
 export async function getMediaCollections(db?: Db): Promise<{
   mediaAssets: Collection<MediaAsset>;
   uploadSessions: Collection<UploadSession>;
+  mediaEnrichments: Collection<MediaEnrichment>;
 }> {
   const database = db ?? (await getDatabase());
 
   return {
     mediaAssets: database.collection<MediaAsset>(COLLECTION_NAMES.mediaAssets),
     uploadSessions: database.collection<UploadSession>(COLLECTION_NAMES.uploadSessions),
+    mediaEnrichments: database.collection<MediaEnrichment>(COLLECTION_NAMES.mediaEnrichments),
   };
 }
 
@@ -69,5 +73,6 @@ export async function getMediaLibraryCollections(db?: Db) {
   return {
     collections: database.collection<MediaCollection>(COLLECTION_NAMES.mediaCollections),
     mediaAssets: database.collection<MediaAsset>(COLLECTION_NAMES.mediaAssets),
+    mediaEnrichments: database.collection<MediaEnrichment>(COLLECTION_NAMES.mediaEnrichments),
   };
 }
