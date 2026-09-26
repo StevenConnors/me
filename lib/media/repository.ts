@@ -2,6 +2,7 @@ import { ObjectId, type Collection, type Filter, type UpdateFilter } from 'mongo
 import { z } from 'zod';
 
 import { getMediaCollections } from '@/lib/db/collections';
+import type { MediaEnrichment } from '@/lib/media/enrichment';
 import { UploadIntentSchema, type ProviderAsset, type UploadIntent } from '@/lib/media/providers/MediaProvider';
 import {
   MediaAssetSchema,
@@ -74,11 +75,12 @@ export class MediaRepository {
   constructor(
     readonly mediaAssets: Collection<MediaAsset>,
     readonly uploadSessions: Collection<UploadSession>,
+    readonly mediaEnrichments?: Collection<MediaEnrichment>,
   ) {}
 
   static async connect() {
-    const { mediaAssets, uploadSessions } = await getMediaCollections();
-    return new MediaRepository(mediaAssets, uploadSessions);
+    const { mediaAssets, uploadSessions, mediaEnrichments } = await getMediaCollections();
+    return new MediaRepository(mediaAssets, uploadSessions, mediaEnrichments);
   }
 
   async list(options: { query?: string; limit?: number } = {}): Promise<MediaAsset[]> {
@@ -204,6 +206,7 @@ export class MediaRepository {
   async deleteById(mediaId: string): Promise<void> {
     const result = await this.mediaAssets.deleteOne({ _id: mediaId });
     if (!result.deletedCount) throw new MediaNotFoundError(mediaId);
+    await this.mediaEnrichments?.deleteOne({ mediaAssetId: mediaId });
   }
 
   async createOrReuseUploadSession(

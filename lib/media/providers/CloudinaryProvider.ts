@@ -62,6 +62,8 @@ type CloudinaryResource = {
   bytes?: unknown;
   etag?: unknown;
   tags?: unknown;
+  image_metadata?: unknown;
+  media_metadata?: unknown;
 };
 
 export class MediaProviderError extends Error {
@@ -286,7 +288,10 @@ export class CloudinaryProvider implements MediaProvider {
   async inspectAsset(providerAssetId: string): Promise<ProviderAsset> {
     const assetId = zodNonEmpty(providerAssetId, 'providerAssetId');
     const url = `https://api.cloudinary.com/v1_1/${encodeURIComponent(this.cloudName)}/resources/${encodeURIComponent(assetId)}`;
-    const response = await this.fetcher(url, { headers: this.authorizationHeaders() });
+    const response = await this.fetcher(url, {
+      headers: this.authorizationHeaders(),
+      signal: AbortSignal.timeout(25_000),
+    });
     if (!response.ok) {
       throw new MediaProviderError(
         'ASSET_INSPECTION_FAILED',
@@ -295,6 +300,28 @@ export class CloudinaryProvider implements MediaProvider {
       );
     }
     return mapCloudinaryResource((await response.json()) as CloudinaryResource);
+  }
+
+  async getAssetMetadata(providerAssetId: string): Promise<Record<string, unknown>> {
+    const assetId = zodNonEmpty(providerAssetId, 'providerAssetId');
+    // The by-asset-ID Admin API route names this option image_metadata; Cloudinary
+    // retains it for this endpoint even though media_metadata is preferred elsewhere.
+    const url = `https://api.cloudinary.com/v1_1/${encodeURIComponent(this.cloudName)}/resources/${encodeURIComponent(assetId)}?image_metadata=true`;
+    const response = await this.fetcher(url, {
+      headers: this.authorizationHeaders(),
+      signal: AbortSignal.timeout(25_000),
+    });
+    if (!response.ok) {
+      throw new MediaProviderError('ASSET_METADATA_FAILED', 'Cloudinary asset metadata lookup failed', response.status);
+    }
+    const resource = await response.json() as CloudinaryResource;
+    const metadata = resource.image_metadata ?? resource.media_metadata;
+    return metadata && typeof metadata === 'object' ? metadata as Record<string, unknown> : {};
+  }
+
+  buildAnalysisImageUrl(asset: ProviderAsset): string {
+    const version = asset.version === undefined ? '' : `v${asset.version}/`;
+    return `https://res.cloudinary.com/${encodeURIComponent(this.cloudName)}/image/upload/f_jpg,q_auto,c_limit,w_1280/${version}${encodePublicId(asset.providerPublicId)}.jpg`;
   }
 
   async deleteAsset(unparsedInput: ProviderAssetDeletionInput): Promise<void> {

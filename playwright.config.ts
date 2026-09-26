@@ -32,6 +32,12 @@ export default defineConfig({
           AUTH_SECRET: 'e2e-local-secret',
           E2E_TEST_MODE: '1',
           MONGODB_URI: e2eMongoUri,
+          VERCEL_ANALYTICS_TOKEN: '',
+          VERCEL_ANALYTICS_PROJECT_ID: '',
+          VERCEL_ANALYTICS_TEAM_ID: '',
+          VERCEL_TOKEN: '',
+          VERCEL_PROJECT_ID: '',
+          VERCEL_TEAM_ID: '',
         },
       },
 });

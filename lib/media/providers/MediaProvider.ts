@@ -179,4 +179,6 @@ export interface MediaProvider {
   buildVideoPosterUrl(input: VideoPosterInput): string;
   listAssets(cursor?: string, resourceType?: 'image' | 'video'): Promise<ProviderAssetPage>;
   getOriginalExportReference(providerAssetId: string): Promise<ExportReference>;
+  getAssetMetadata?(providerAssetId: string): Promise<Record<string, unknown>>;
+  buildAnalysisImageUrl?(asset: ProviderAsset): string;
 }

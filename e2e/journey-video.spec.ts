@@ -113,7 +113,7 @@ test('large videos upload as signed Cloudinary chunks', async ({ page }, testInf
     expect(ranges.length).toBeGreaterThan(1);
     expect(ranges[0]).toMatch(/^bytes 0-\d+\/104857601$/);
     expect(ranges.at(-1)).toBe('bytes 104857600-104857600/104857601');
-    await expect(page.getByText('1 file is ready in the media library.')).toBeVisible();
+    await expect(page.getByText(/1 of 1 video uploaded successfully/)).toBeVisible();
   } finally {
     if (mediaId) await page.request.delete(`/api/admin/media/${mediaId}`);
     await rm(videoPath, { force: true });

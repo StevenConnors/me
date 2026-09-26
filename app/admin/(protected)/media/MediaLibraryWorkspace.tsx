@@ -14,6 +14,20 @@ type Asset = {
   status: string; captureDate?: string; altText?: string; caption?: string; tags: string[];
 };
 type Collection = { _id: string; name: string; mediaCount: number; mediaAssetIds: string[] };
+type Suggestion = { media: Asset; reasons: string[] };
+const countries = (() => {
+  const displayNames = new Intl.DisplayNames(['en'], { type: 'region' });
+  const options: Array<[string, string]> = [];
+  for (const first of 'ABCDEFGHIJKLMNOPQRSTUVWXYZ') {
+    for (const second of 'ABCDEFGHIJKLMNOPQRSTUVWXYZ') {
+      const code = `${first}${second}`;
+      const name = displayNames.of(code);
+      if (!name || name.toUpperCase() === code || ['EU', 'UN', 'XA', 'XB', 'XK'].includes(code)) continue;
+      options.push([code, name]);
+    }
+  }
+  return options.sort((a, b) => a[1].localeCompare(b[1]));
+})();
 
 function errorMessage(payload: unknown, fallback: string) {
   const value = (payload as { error?: { message?: unknown } } | null)?.error?.message;
@@ -27,8 +41,15 @@ export function MediaLibraryWorkspace() {
   const [search, setSearch] = useState('');
   const [kind, setKind] = useState('');
   const [collectionId, setCollectionId] = useState('');
+  const [suggestionCollectionId, setSuggestionCollectionId] = useState('');
   const [targetCollection, setTargetCollection] = useState('');
   const [newCollection, setNewCollection] = useState('');
+  const [subjectQuery, setSubjectQuery] = useState('');
+  const [suggestionKind, setSuggestionKind] = useState<'subject' | 'country'>('subject');
+  const [countryCode, setCountryCode] = useState('');
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [selectedSuggestions, setSelectedSuggestions] = useState<Set<string>>(new Set());
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [cursor, setCursor] = useState<string | null>(null);
   const [total, setTotal] = useState<number | null>(null);
@@ -40,6 +61,19 @@ export function MediaLibraryWorkspace() {
   const [importing, setImporting] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const loadingMoreRef = useRef(false);
+  const suggestionsRequestRef = useRef<AbortController | null>(null);
+
+  function clearSuggestions() {
+    if (suggestionsRequestRef.current) {
+      suggestionsRequestRef.current.abort();
+      suggestionsRequestRef.current = null;
+      setBusy(false);
+    }
+    setSuggestions([]);
+    setSelectedSuggestions(new Set());
+    setSuggestionsOpen(false);
+    setSuggestionCollectionId('');
+  }
 
   const loadCollections = useCallback(async () => {
     const response = await fetch('/api/admin/collections');
@@ -96,13 +130,72 @@ export function MediaLibraryWorkspace() {
     if (!newCollection.trim()) return;
     setBusy(true); setError('');
     try {
-      const response = await fetch('/api/admin/collections', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: newCollection.trim() }) });
+      const suggestionRule = suggestionKind === 'country'
+        ? { kind: 'country', countryCode }
+        : { kind: 'subject', query: subjectQuery.trim() || newCollection.trim() };
+      const response = await fetch('/api/admin/collections', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: newCollection.trim(), suggestionRule }) });
       const payload = await response.json();
       if (!response.ok) throw new Error(errorMessage(payload, 'Unable to create collection'));
-      setNewCollection(''); setTargetCollection(payload.collection._id);
+      setNewCollection(''); setSubjectQuery(''); setTargetCollection(payload.collection._id);
+      clearSuggestions();
       await loadCollections();
       setNotice(`Created ${payload.collection.name}.`);
+      await loadSuggestions(payload.collection._id);
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Unable to create collection'); }
+    finally { setBusy(false); }
+  }
+
+  async function loadSuggestions(id = collectionId) {
+    if (!id) return;
+    setSuggestionCollectionId(id);
+    suggestionsRequestRef.current?.abort();
+    const controller = new AbortController();
+    suggestionsRequestRef.current = controller;
+    setBusy(true); setError(''); setNotice('');
+    try {
+      const response = await fetch(`/api/admin/collections/${id}/suggestions`, { signal: controller.signal });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(errorMessage(payload, 'Unable to load suggestions'));
+      if (controller.signal.aborted || suggestionsRequestRef.current !== controller) return;
+      setSuggestions(payload.suggestions as Suggestion[]);
+      setSelectedSuggestions(new Set());
+      setSuggestionsOpen(true);
+    } catch (cause) { if ((cause as DOMException).name !== 'AbortError') setError(cause instanceof Error ? cause.message : 'Unable to load suggestions'); }
+    finally { if (suggestionsRequestRef.current === controller) { suggestionsRequestRef.current = null; setBusy(false); } }
+  }
+
+  async function addSelectedSuggestions() {
+    if (!suggestionCollectionId || !selectedSuggestions.size) return;
+    setBusy(true); setError('');
+    try {
+      const response = await fetch(`/api/admin/collections/${suggestionCollectionId}/media`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mediaAssetIds: Array.from(selectedSuggestions) }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(errorMessage(payload, 'Unable to add suggestions'));
+      const count = selectedSuggestions.size;
+      await loadCollections();
+      await loadSuggestions(suggestionCollectionId);
+      if (collectionId === suggestionCollectionId) setRefresh((value) => value + 1);
+      setNotice(`${count} suggestion${count === 1 ? '' : 's'} added to collection.`);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Unable to add suggestions'); }
+    finally { setBusy(false); }
+  }
+
+  async function dismissSuggestion(mediaAssetId: string, filename: string) {
+    if (!suggestionCollectionId) return;
+    setBusy(true); setError('');
+    try {
+      const response = await fetch(`/api/admin/collections/${suggestionCollectionId}/suggestions`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dismissedMediaAssetIds: [mediaAssetId] }),
+      });
+      if (!response.ok) throw new Error(errorMessage(await response.json(), 'Unable to dismiss suggestion'));
+      setSuggestions((current) => current.filter(({ media }) => media._id !== mediaAssetId));
+      setSelectedSuggestions((current) => { const next = new Set(current); next.delete(mediaAssetId); return next; });
+      setNotice(`Dismissed ${filename}.`);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Unable to dismiss suggestion'); }
     finally { setBusy(false); }
   }
 
@@ -177,9 +270,27 @@ export function MediaLibraryWorkspace() {
       <p>Group originals by trip, event, or subject. The same photo can belong to several collections.</p>
       <form onSubmit={(event) => void createCollection(event)}>
         <input aria-label="New collection name" maxLength={120} onChange={(event) => setNewCollection(event.target.value)} placeholder="e.g. Egypt, Ise, Glass" value={newCollection} />
-        <button disabled={busy || !newCollection.trim()} type="submit">Create collection</button>
+        <label>Suggest by<select aria-label="Suggestion type" onChange={(event) => setSuggestionKind(event.target.value as 'subject' | 'country')} value={suggestionKind}><option value="subject">Subject</option><option value="country">Country taken in</option></select></label>
+        {suggestionKind === 'country' ? <label>Country<select aria-label="Country" onChange={(event) => setCountryCode(event.target.value)} value={countryCode}><option value="">Choose country</option>{countries.map(([code, name]) => <option key={code} value={code}>{name}</option>)}</select></label> : <input aria-label="Subject to suggest" maxLength={120} onChange={(event) => setSubjectQuery(event.target.value)} placeholder={`Defaults to “${newCollection || 'collection name'}”`} value={subjectQuery} />}
+        <button disabled={busy || !newCollection.trim() || (suggestionKind === 'country' && !countryCode)} type="submit">Create collection</button>
       </form>
-      <div className={styles.chips}>{collections.map((collection) => <button aria-pressed={collectionId === collection._id} key={collection._id} onClick={() => setCollectionId(collectionId === collection._id ? '' : collection._id)} type="button">{collection.name} <span>{collection.mediaCount}</span></button>)}</div>
+      <div className={styles.chips}>{collections.map((collection) => <button aria-pressed={collectionId === collection._id} key={collection._id} onClick={() => { const nextId = collectionId === collection._id ? '' : collection._id; setCollectionId(nextId); clearSuggestions(); }} type="button">{collection.name} <span>{collection.mediaCount}</span></button>)}</div>
+      {collectionId || suggestionsOpen ? <div className={styles.suggestions}>
+        {collectionId ? <button disabled={busy} onClick={() => void loadSuggestions(collectionId)} type="button">Find suggestions</button> : null}
+        {suggestionsOpen ? <div aria-label="Collection suggestions">
+          <h3>Suggested media for {collections.find((collection) => collection._id === suggestionCollectionId)?.name ?? 'collection'}</h3>
+          {!suggestions.length ? <p>No suggestions found.</p> : <div className={styles.grid}>{suggestions.map(({ media, reasons }) => <article aria-label={media.originalFilename} className={styles.card} key={media._id}>
+            <div className={styles.image}>{media.previewUrl ? <Image alt="" fill sizes="(max-width: 700px) 90vw, 260px" src={media.previewUrl} unoptimized /> : <span>No preview</span>}</div>
+            <div className={styles.cardBody}>
+              <label className={styles.select}><input aria-label={`Select ${media.originalFilename}`} checked={selectedSuggestions.has(media._id)} onChange={() => setSelectedSuggestions((current) => { const next = new Set(current); if (next.has(media._id)) next.delete(media._id); else next.add(media._id); return next; })} type="checkbox" /> Select</label>
+              <strong>{media.title || media.originalFilename}</strong>
+              <ul>{reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul>
+              <button aria-label={`Dismiss ${media.originalFilename}`} disabled={busy} onClick={() => void dismissSuggestion(media._id, media.originalFilename)} type="button">Dismiss</button>
+            </div>
+          </article>)}</div>}
+          {selectedSuggestions.size ? <button disabled={busy} onClick={() => void addSelectedSuggestions()} type="button">Add selected suggestions</button> : null}
+        </div> : null}
+      </div> : null}
     </section>
     <section aria-label="Media library" className={styles.library} id="media-library">
       <header className={styles.header}>
@@ -191,7 +302,7 @@ export function MediaLibraryWorkspace() {
       </header>
       <div className={styles.filters}>
         <label>Filter by type<select onChange={(event) => setKind(event.target.value)} value={kind}><option value="">Images and videos</option><option value="image">Images</option><option value="video">Videos</option></select></label>
-        <label>Filter by collection<select aria-label="Filter by collection" onChange={(event) => setCollectionId(event.target.value)} value={collectionId}><option value="">All collections</option>{collections.map((collection) => <option key={collection._id} value={collection._id}>{collection.name}</option>)}</select></label>
+        <label>Filter by collection<select aria-label="Filter by collection" onChange={(event) => { setCollectionId(event.target.value); clearSuggestions(); }} value={collectionId}><option value="">All collections</option>{collections.map((collection) => <option key={collection._id} value={collection._id}>{collection.name}</option>)}</select></label>
         <span>{selected.size} selected</span>
       </div>
       {selected.size ? <div className={styles.batch}>
