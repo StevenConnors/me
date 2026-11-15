@@ -20,10 +20,13 @@ async function screenshot(page: Page, info: TestInfo, name: string) {
 
 test('pointer focus has no bounding rectangle and keyboard focus highlights the shape', async ({ page }, info) => {
   await page.goto('/travel');
+  const map = page.locator('[data-travel-map]');
+  await map.scrollIntoViewIfNeeded();
+  const bounds = (await map.boundingBox())!;
   const russia = page.locator('[data-region-code="RU"]');
-  await page.mouse.click(1, 1);
-  await russia.focus();
+  await page.mouse.click(bounds.x + bounds.width * .8, bounds.y + bounds.height * .15);
   await expect(russia).toBeFocused();
+  expect(await russia.evaluate((element) => element.matches(':focus-visible'))).toBe(false);
   await expect(russia).toHaveCSS('outline-style', 'none');
   await screenshot(page, info, 'travel-pointer-focus-no-box.png');
 
