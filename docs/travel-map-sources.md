@@ -1,0 +1,11 @@
+# Travel map data and licenses
+
+The local SVG maps in `public/travel/maps/` contain simplified, code-addressable administrative outlines. Their canonical source is Natural Earth vector data:
+
+- [Natural Earth 1:10m Admin 0 map units](https://www.naturalearthdata.com/downloads/10m-cultural-vectors/10m-admin-0-map-units/): world country, dependency, and territory outlines.
+- [Natural Earth 1:10m Admin 1 states and provinces](https://www.naturalearthdata.com/downloads/10m-cultural-vectors/10m-admin-1-states-provinces/): the 50 US states and 47 Japanese prefectures.
+- Natural Earth states that its data is free for use in any project; its vector/raster data is public domain under its [terms of use](https://www.naturalearthdata.com/about/terms-of-use/).
+
+`lib/travel/catalog.ts` uses ISO alpha-2 names from [umpirsky/country-list](https://github.com/umpirsky/country-list) (249 ISO 3166-1 entries), which is MIT-licensed, and English administrative names from Natural Earth. The generator pins the input snapshots to Natural Earth vector `ca96624a56bd078437bca8184e78163e5039ad19`, umpirsky/country-list `bd490a163ae4709bbe4b54c4f638f24e032828d2`, and mledoze/countries `fa4f62182d19ff4f8b325cde6387c9cd9d80955a`. `scripts/generate-travel-maps.py` downloads those source datasets into the system temporary directory and regenerates the checked-in SVGs and the small fallback marker coordinate manifest. It requires Python 3 and an internet connection; no runtime network call or map dependency is used by the site.
+
+The world uses an equirectangular projection. The US map places Alaska and Hawaii in locator insets; Japan's Okinawa prefecture is placed in a locator inset. Country areas too small to remain legible at world scale use Natural Earth's `LABEL_X` / `LABEL_Y` anchors as point markers. ISO-listed places without standalone polygons use those anchors when available; the remaining fallback coordinate comes from the representative `latlng` field in [mledoze/countries](https://github.com/mledoze/countries), licensed under ODbL 1.0. The public page explains this with a “Small places shown as dots” note. The complete country list remains selectable even when a place is represented by a dot.

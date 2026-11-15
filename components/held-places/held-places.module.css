@@ -462,3 +462,6 @@ video.picture { display: block; width: 100%; height: 100%; object-fit: contain; 
   .carouselDots span { width: 5px; height: 5px; border-radius: 50%; background: #b5b2aa; }
   .carouselDots span[data-active='true'] { background: var(--ink); }
 }
+
+.travelPaper { margin: -8px -56px; }
+@media (max-width: 768px) { .travelPaper { margin: -10px; } }

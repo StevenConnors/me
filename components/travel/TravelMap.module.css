@@ -1,0 +1,61 @@
+.figure { min-width: 0; margin: 0; }
+
+.map {
+  display: block;
+  width: 100%;
+  max-height: 540px;
+  overflow: visible;
+  color: #26251f;
+}
+
+.countries { aspect-ratio: 2 / 1; }
+.usStates { aspect-ratio: 1000 / 720; }
+.japanPrefectures { aspect-ratio: 900 / 680; }
+
+.mapBase,
+.place { color: inherit; }
+
+.mapBase {
+  fill: #ddd9d0;
+  stroke: #f6f4ee;
+  stroke-width: .3;
+  stroke-linejoin: round;
+}
+
+.usStates .mapBase,
+.usStates .place { stroke-width: 1.35; }
+.japanPrefectures .mapBase,
+.japanPrefectures .place { stroke-width: 1.25; }
+
+.place {
+  fill: #ddd9d0;
+  stroke: #fbf9f4;
+  stroke-width: .32;
+  stroke-linejoin: round;
+  transition: fill 140ms ease, opacity 140ms ease;
+}
+
+.place[data-visited='true'] { fill: #a94f3e; }
+.place[role='button'] { cursor: pointer; outline: none; }
+.place[role='button']:hover { fill: #c07a69; }
+.place[role='button']:focus-visible { filter: drop-shadow(0 0 1.8px #201e1a); }
+.place[role='button']:focus-visible use { stroke: #201e1a; stroke-width: .75; }
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin-top: 14px;
+  color: #615f58;
+  font: 12px/1.35 Arial, Helvetica, sans-serif;
+}
+
+.legend span { display: inline-flex; align-items: center; gap: 7px; }
+.legend i { display: inline-block; width: 13px; height: 13px; border: 1px solid #fbf9f4; }
+.visitedSwatch { background: #a94f3e; }
+.unvisitedSwatch { background: #ddd9d0; }
+.dotSwatch { width: 8px !important; height: 8px !important; border: 0 !important; border-radius: 50%; background: #a94f3e; }
+
+@media (prefers-reduced-motion: reduce) {
+  .place { transition: none; }
+}
