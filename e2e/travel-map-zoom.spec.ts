@@ -141,10 +141,21 @@ test('all public and admin maps zoom, pan, reset, and preserve place interaction
 });
 
 test.describe('touch map', () => {
-  test.use({ hasTouch: true, viewport: { width: 390, height: 844 } });
+  test.use({ isMobile: true, hasTouch: true, viewport: { width: 390, height: 844 } });
 
   test('pinch and touch drag zoom and pan without mobile overflow', async ({ page }, info) => {
+    const inputEvents: object[] = [];
+    page.on('console', (message) => {
+      if (message.text().startsWith('TRAVEL_TOUCH ')) inputEvents.push(JSON.parse(message.text().slice('TRAVEL_TOUCH '.length)));
+    });
     await page.goto('/travel');
+    await page.evaluate(() => {
+      for (const type of ['pointerdown', 'pointerup', 'click'] as const) document.addEventListener(type, (event) => {
+        const point = event as PointerEvent;
+        const target = event.target as Element;
+        console.log('TRAVEL_TOUCH ' + JSON.stringify({ type, target: target.closest('[aria-label]')?.getAttribute('aria-label'), x: point.clientX, y: point.clientY, scale: window.visualViewport?.scale }));
+      }, true);
+    });
     const map = page.locator('[data-travel-map]');
     await map.scrollIntoViewIfNeeded();
     const initial = await viewBox(map);
@@ -166,13 +177,13 @@ test.describe('touch map', () => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
     await screenshot(page, info, 'travel-mobile-pinch-zoom.png');
     const reset = page.getByRole('button', { name: 'Reset map', exact: true });
-    await reset.scrollIntoViewIfNeeded();
-    const resetBounds = (await reset.boundingBox())!;
-    // Keep the pinch, drag, and reset tap on the same touch-input session.
-    await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: resetBounds.x + resetBounds.width / 2, y: resetBounds.y + resetBounds.height / 2, id: 0 }] });
-    await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-    await expect.poll(() => viewBox(map)).toEqual(initial);
-    await expect(reset).toBeDisabled();
+    try {
+      await reset.tap();
+      await expect.poll(() => viewBox(map)).toEqual(initial);
+      await expect(reset).toBeDisabled();
+    } finally {
+      await info.attach('travel-touch-input.json', { body: JSON.stringify(inputEvents, null, 2), contentType: 'application/json' });
+    }
     await screenshot(page, info, 'travel-mobile-reset.png');
   });
 });
