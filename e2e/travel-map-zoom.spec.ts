@@ -166,6 +166,7 @@ test.describe('touch map', () => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
     await screenshot(page, info, 'travel-mobile-pinch-zoom.png');
     await page.getByRole('button', { name: 'Reset map', exact: true }).tap();
-    expect(await viewBox(map)).toEqual(initial);
+    await expect.poll(() => viewBox(map)).toEqual(initial);
+    await screenshot(page, info, 'travel-mobile-reset.png');
   });
 });
