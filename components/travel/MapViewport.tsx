@@ -12,6 +12,45 @@ const ZOOM_STEP = 1.5;
 const distance = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y);
 const midpoint = (a: Point, b: Point) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
 
+function MapControl({ label, disabled, onActivate, children }: {
+  label: string;
+  disabled: boolean;
+  onActivate: () => void;
+  children: ReactNode;
+}) {
+  const touchStart = useRef<(Point & { id: number }) | null>(null);
+  const activatedByTouch = useRef(false);
+
+  return <button
+    type="button"
+    aria-label={label}
+    title={label}
+    disabled={disabled}
+    onPointerDown={(event) => {
+      activatedByTouch.current = false;
+      touchStart.current = event.pointerType === 'touch' && event.isPrimary ? { x: event.clientX, y: event.clientY, id: event.pointerId } : null;
+    }}
+    onPointerMove={(event) => {
+      if (touchStart.current && distance(touchStart.current, { x: event.clientX, y: event.clientY }) > 10) touchStart.current = null;
+    }}
+    onPointerCancel={() => { touchStart.current = null; }}
+    onPointerUp={(event) => {
+      const start = touchStart.current;
+      touchStart.current = null;
+      if (!start || start.id !== event.pointerId) return;
+      const bounds = event.currentTarget.getBoundingClientRect();
+      if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) return;
+      // Some browsers omit the compatibility click after a map gesture.
+      activatedByTouch.current = true;
+      onActivate();
+    }}
+    onClick={(event) => {
+      if (!activatedByTouch.current || event.detail === 0) onActivate();
+      activatedByTouch.current = false;
+    }}
+  >{children}</button>;
+}
+
 export function MapViewport({ region, viewBox, titleId, children, onInteract }: {
   region: string;
   viewBox: string;
@@ -139,9 +178,9 @@ export function MapViewport({ region, viewBox, titleId, children, onInteract }: 
     <div className={styles.viewport}>
       <div className={styles.controls} role="group" aria-label="Map controls">
         <output aria-label="Map zoom" aria-live="polite">{Math.round(view.zoom * 100)}%</output>
-        <button type="button" aria-label="Zoom out" title="Zoom out" disabled={view.zoom === 1} onClick={() => zoomTo(currentView.current.zoom / ZOOM_STEP)}>−</button>
-        <button type="button" aria-label="Zoom in" title="Zoom in" disabled={view.zoom === MAX_ZOOM} onClick={() => zoomTo(currentView.current.zoom * ZOOM_STEP)}>+</button>
-        <button type="button" aria-label="Reset map" title="Reset map" disabled={view.zoom === 1} onClick={() => updateView(INITIAL_VIEW)}>↺</button>
+        <MapControl label="Zoom out" disabled={view.zoom === 1} onActivate={() => zoomTo(currentView.current.zoom / ZOOM_STEP)}>−</MapControl>
+        <MapControl label="Zoom in" disabled={view.zoom === MAX_ZOOM} onActivate={() => zoomTo(currentView.current.zoom * ZOOM_STEP)}>+</MapControl>
+        <MapControl label="Reset map" disabled={view.zoom === 1} onActivate={() => updateView(INITIAL_VIEW)}>↺</MapControl>
       </div>
       <svg
         ref={svgRef}

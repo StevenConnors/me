@@ -178,11 +178,26 @@ test.describe('touch map', () => {
     await screenshot(page, info, 'travel-mobile-pinch-zoom.png');
     const reset = page.getByRole('button', { name: 'Reset map', exact: true });
     try {
+      const zoomIn = page.getByRole('button', { name: 'Zoom in', exact: true });
+      const controlBounds = (await zoomIn.boundingBox())!;
+      const controlX = controlBounds.x + controlBounds.width / 2;
+      const controlY = controlBounds.y + controlBounds.height / 2;
+      const beforeCancelledTap = await viewBox(map);
+      await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: controlX, y: controlY, id: 0 }] });
+      await touch.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: controlX - 60, y: controlY, id: 0 }] });
+      await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+      expect(await viewBox(map)).toEqual(beforeCancelledTap);
+      await zoomIn.tap();
+      await expect.poll(async () => (await viewBox(map))[2]).toBeCloseTo(zoomed[2] / 1.5);
+      await page.getByRole('button', { name: 'Zoom out', exact: true }).tap();
+      await expect.poll(async () => (await viewBox(map))[2]).toBeCloseTo(zoomed[2]);
       await reset.tap();
       await expect.poll(() => viewBox(map)).toEqual(initial);
       await expect(reset).toBeDisabled();
     } finally {
-      await info.attach('travel-touch-input.json', { body: JSON.stringify(inputEvents, null, 2), contentType: 'application/json' });
+      const artifactPath = info.outputPath('travel-touch-input.json');
+      await writeFile(artifactPath, JSON.stringify(inputEvents, null, 2));
+      await info.attach('travel-touch-input.json', { path: artifactPath, contentType: 'application/json' });
     }
     await screenshot(page, info, 'travel-mobile-reset.png');
   });
