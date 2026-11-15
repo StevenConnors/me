@@ -4,6 +4,7 @@ import { useRef, useState, type KeyboardEvent } from 'react';
 
 import { TRAVEL_PLACES, TRAVEL_REGION_LABELS, type TravelRegion } from '@/lib/travel/catalog';
 import countryMarkers from '@/lib/travel/country-markers.json';
+import { MapViewport } from './MapViewport';
 import styles from './TravelMap.module.css';
 
 const MAPS: Record<TravelRegion, { href: string; viewBox: string }> = {
@@ -57,14 +58,12 @@ export function TravelMap({
 
   return (
     <figure ref={figureRef} className={`${styles.figure} ${className ?? ''}`.trim()}>
-      <svg
-        aria-labelledby={titleId}
-        className={`${styles.map} ${styles[region]}`}
-        data-travel-map
-        data-travel-region={region}
-        role="group"
+      <MapViewport
+        key={region}
+        region={region}
+        titleId={titleId}
         viewBox={asset.viewBox}
-        xmlns="http://www.w3.org/2000/svg"
+        onInteract={() => setActive(null)}
       >
         <title id={titleId}>{`Map of ${TRAVEL_REGION_LABELS[region].toLowerCase()}`}</title>
         <use className={styles.mapBase} href={`${asset.href}#map-base`} />
@@ -95,7 +94,7 @@ export function TravelMap({
             </g>
           );
         })}
-      </svg>
+      </MapViewport>
       {activePlace && active ? <div id={labelId} role="tooltip" className={styles.tooltip} style={{ left: active.x, top: active.y }}>{activePlace.name}</div> : null}
       <figcaption aria-label="Map legend" className={styles.legend}>
         <span><i className={styles.visitedSwatch} />Visited</span>

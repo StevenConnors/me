@@ -117,7 +117,7 @@ export default function TravelEditor() {
           </div>
         </section>
         <section className={styles.mapPanel} aria-label={`${TABS.find((tab) => tab.region === region)?.label} map`}>
-          <TravelMap region={region} selected={selections[region]} onToggle={version !== null && status.state !== 'saving' ? toggle : undefined} className={styles.map} />
+          <TravelMap key={region} region={region} selected={selections[region]} onToggle={version !== null && status.state !== 'saving' ? toggle : undefined} className={styles.map} />
           <p className={styles.mapHint}>Tap a place on the map to mark it visited.</p>
         </section>
       </div>
