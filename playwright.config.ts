@@ -31,6 +31,9 @@ export default defineConfig({
           ...process.env,
           AUTH_SECRET: 'e2e-local-secret',
           E2E_TEST_MODE: '1',
+          VOICE_TRANSCRIBER_API_TOKEN: 'voice-e2e-worker-token-00000000000000000000',
+          // Local-only signing key: token issuance is tested without a real Blob store.
+          VOICE_BLOB_READ_WRITE_TOKEN: 'vercel_blob_rw_voicee2e_localonly00000000000000000000000000',
           MONGODB_URI: e2eMongoUri,
           VERCEL_ANALYTICS_TOKEN: '',
           VERCEL_ANALYTICS_PROJECT_ID: '',

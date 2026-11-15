@@ -59,6 +59,10 @@ safe to repeat: it registers missing uploaded videos and preserves existing
 media details. Imported assets remain unpublished until you add them to a
 journey chapter and publish that journey. Journey covers remain photographs.
 
+## Voice memos
+
+The private voice memo upload, recording library, and local Apple Silicon Whisper worker are documented in [Voice memo setup](docs/voice-memos.md).
+
 ## Getting Started
 
 First, run the development server:

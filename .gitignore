@@ -114,3 +114,10 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+# Local Apple Silicon voice transcription runtime and private audio/recovery files.
+.venv-voice/
+scripts/voice.env
+.voice-audio-cache/
+.voice-transcripts-pending/
+__pycache__/

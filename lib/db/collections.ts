@@ -5,6 +5,7 @@ import type { MediaAsset, UploadSession } from '@/lib/media/schemas';
 import type { PhotosPage } from '@/lib/photos/schemas';
 import type { MediaCollection } from '@/lib/media/collections';
 import type { MediaEnrichment } from '@/lib/media/enrichment';
+import type { VoiceRecording } from '@/lib/voice/schema';
 
 export const COLLECTION_NAMES = {
   journeys: 'journeys',
@@ -14,6 +15,7 @@ export const COLLECTION_NAMES = {
   photosPages: 'photos_pages',
   mediaCollections: 'media_collections',
   mediaEnrichments: 'media_enrichments',
+  voiceRecordings: 'voice_recordings',
 } as const;
 
 /**
@@ -75,4 +77,9 @@ export async function getMediaLibraryCollections(db?: Db) {
     mediaAssets: database.collection<MediaAsset>(COLLECTION_NAMES.mediaAssets),
     mediaEnrichments: database.collection<MediaEnrichment>(COLLECTION_NAMES.mediaEnrichments),
   };
+}
+
+export async function getVoiceCollections(db?: Db) {
+  const database = db ?? (await getDatabase());
+  return { voiceRecordings: database.collection<VoiceRecording>(COLLECTION_NAMES.voiceRecordings) };
 }

@@ -1,0 +1,3 @@
+# Apple Silicon local inference runtime; no transcription network service is used.
+mlx-whisper==0.4.3
+huggingface-hub[hf_xet]>=0.34,<2
