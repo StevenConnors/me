@@ -49,7 +49,7 @@ export function TravelOverview({ selections, updatedAt, failed = false }: {
         {REGIONS.map((region) => <button key={region} type="button" role="tab" id={`travel-tab-${region}`} aria-label={TRAVEL_REGION_LABELS[region]} aria-selected={activeRegion === region} aria-controls="travel-map-panel" tabIndex={activeRegion === region ? 0 : -1} className={styles.tab} onKeyDown={(event) => handleTabKeyDown(event, region)} onClick={() => setActiveRegion(region)}>{TRAVEL_REGION_LABELS[region]}</button>)}
       </div>
       <section className={styles.mapSection} role="tabpanel" id="travel-map-panel" aria-labelledby={`travel-tab-${activeRegion}`}>
-        <div className={styles.map}><TravelMap region={activeRegion} selected={visited[activeRegion].map((place) => place.code)} /></div>
+        <div className={styles.map}><TravelMap key={activeRegion} region={activeRegion} selected={visited[activeRegion].map((place) => place.code)} /></div>
       </section>
       <section className={styles.visited} aria-labelledby="visited-places-heading">
         <div className={styles.visitedHeading}><h2 id="visited-places-heading">Visited places</h2><span>{visited[activeRegion].length}</span></div>
