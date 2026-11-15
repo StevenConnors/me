@@ -1,6 +1,6 @@
 'use client';
 
-import type { KeyboardEvent } from 'react';
+import { useRef, useState, type KeyboardEvent } from 'react';
 
 import { TRAVEL_PLACES, TRAVEL_REGION_LABELS, type TravelRegion } from '@/lib/travel/catalog';
 import countryMarkers from '@/lib/travel/country-markers.json';
@@ -30,21 +30,39 @@ export function TravelMap({
   const editable = Boolean(onToggle);
   const asset = MAPS[region];
   const titleId = `travel-map-${region}-title`;
+  const labelId = `${titleId}-label`;
+  const figureRef = useRef<HTMLElement>(null);
+  const [active, setActive] = useState<{ region: TravelRegion; code: string; x: number; y: number } | null>(null);
+  const activePlace = active?.region === region ? places.find((place) => place.code === active.code) : undefined;
+
+  const showLabel = (code: string, target: SVGGElement, pointer?: { clientX: number; clientY: number }) => {
+    const frame = figureRef.current?.getBoundingClientRect();
+    if (!frame) return;
+    const bounds = target.getBoundingClientRect();
+    const x = pointer?.clientX ?? bounds.left + bounds.width / 2;
+    const y = pointer?.clientY ?? bounds.top;
+    setActive({ region, code, x: Math.max(12, Math.min(x - frame.left + 12, frame.width - 232)), y: Math.max(0, y - frame.top - 44) });
+  };
 
   const handleKeyDown = (event: KeyboardEvent<SVGGElement>, code: string) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      setActive(null);
+      return;
+    }
     if (!onToggle || (event.key !== 'Enter' && event.key !== ' ')) return;
     event.preventDefault();
     onToggle(code);
   };
 
   return (
-    <figure className={`${styles.figure} ${className ?? ''}`.trim()}>
+    <figure ref={figureRef} className={`${styles.figure} ${className ?? ''}`.trim()}>
       <svg
         aria-labelledby={titleId}
         className={`${styles.map} ${styles[region]}`}
         data-travel-map
         data-travel-region={region}
-        role={editable ? 'group' : 'img'}
+        role="group"
         viewBox={asset.viewBox}
         xmlns="http://www.w3.org/2000/svg"
       >
@@ -55,24 +73,30 @@ export function TravelMap({
           const marker = region === 'countries' ? markers[place.code] : undefined;
           return (
             <g
-              aria-hidden={editable ? undefined : 'true'}
-              aria-label={editable ? `${place.name}, ${isVisited ? 'visited' : 'not visited'}` : undefined}
+              aria-label={`${place.name}, ${isVisited ? 'visited' : 'not visited'}`}
+              aria-describedby={activePlace?.code === place.code ? labelId : undefined}
               aria-pressed={editable ? isVisited : undefined}
               className={styles.place}
               data-region-code={place.code}
               data-visited={isVisited ? 'true' : 'false'}
               key={place.code}
-              onClick={onToggle ? () => onToggle(place.code) : undefined}
-              onKeyDown={editable ? (event) => handleKeyDown(event, place.code) : undefined}
-              role={editable ? 'button' : undefined}
-              tabIndex={editable ? 0 : undefined}
+              onClick={(event) => { if (onToggle) onToggle(place.code); else showLabel(place.code, event.currentTarget, event); }}
+              onKeyDown={(event) => handleKeyDown(event, place.code)}
+              onPointerEnter={(event) => showLabel(place.code, event.currentTarget, event)}
+              onPointerDown={(event) => showLabel(place.code, event.currentTarget, event)}
+              onPointerLeave={(event) => { if (document.activeElement !== event.currentTarget) setActive(null); }}
+              onFocus={(event) => showLabel(place.code, event.currentTarget)}
+              onBlur={() => setActive(null)}
+              role={editable ? 'button' : 'img'}
+              tabIndex={0}
             >
               <use href={`${asset.href}#${place.code}`} />
-              {marker ? <circle cx={marker[0]} cy={marker[1]} r="0.76" /> : null}
+              {marker ? <circle className={styles.marker} cx={marker[0]} cy={marker[1]} r="0.76" /> : null}
             </g>
           );
         })}
       </svg>
+      {activePlace && active ? <div id={labelId} role="tooltip" className={styles.tooltip} style={{ left: active.x, top: active.y }}>{activePlace.name}</div> : null}
       <figcaption aria-label="Map legend" className={styles.legend}>
         <span><i className={styles.visitedSwatch} />Visited</span>
         <span><i className={styles.unvisitedSwatch} />Not yet visited</span>
