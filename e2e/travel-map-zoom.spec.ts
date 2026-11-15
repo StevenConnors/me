@@ -165,8 +165,14 @@ test.describe('touch map', () => {
     await expect.poll(async () => (await viewBox(map))[0]).toBeLessThan(zoomed[0]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
     await screenshot(page, info, 'travel-mobile-pinch-zoom.png');
-    await page.getByRole('button', { name: 'Reset map', exact: true }).tap();
+    const reset = page.getByRole('button', { name: 'Reset map', exact: true });
+    await reset.scrollIntoViewIfNeeded();
+    const resetBounds = (await reset.boundingBox())!;
+    // Keep the pinch, drag, and reset tap on the same touch-input session.
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: resetBounds.x + resetBounds.width / 2, y: resetBounds.y + resetBounds.height / 2, id: 0 }] });
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
     await expect.poll(() => viewBox(map)).toEqual(initial);
+    await expect(reset).toBeDisabled();
     await screenshot(page, info, 'travel-mobile-reset.png');
   });
 });
