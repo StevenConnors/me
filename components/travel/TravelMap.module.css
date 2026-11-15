@@ -1,4 +1,20 @@
-.figure { min-width: 0; margin: 0; }
+.figure { position: relative; min-width: 0; margin: 0; }
+
+.tooltip {
+  position: absolute;
+  z-index: 2;
+  width: max-content;
+  max-width: min(220px, calc(100% - 24px));
+  box-sizing: border-box;
+  padding: 8px 12px;
+  border-radius: 3px;
+  background: #26251f;
+  color: #fffdf7;
+  box-shadow: 0 2px 8px #26251f20;
+  font: 13px/1.4 Arial, Helvetica, sans-serif;
+  overflow-wrap: anywhere;
+  pointer-events: none;
+}
 
 .map {
   display: block;
@@ -36,10 +52,13 @@
 }
 
 .place[data-visited='true'] { fill: #a94f3e; }
+.marker { stroke: transparent; stroke-width: 3; pointer-events: all; }
 .place[role='button'] { cursor: pointer; outline: none; }
 .place[role='button']:hover { fill: #c07a69; }
 .place[role='button']:focus-visible { filter: drop-shadow(0 0 1.8px #201e1a); }
 .place[role='button']:focus-visible use { stroke: #201e1a; stroke-width: .75; }
+.place:focus-visible { outline: none; filter: drop-shadow(0 0 1.8px #201e1a); }
+.place:focus-visible use { stroke: #201e1a; stroke-width: .75; }
 
 .legend {
   display: flex;
