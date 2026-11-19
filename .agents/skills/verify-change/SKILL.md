@@ -11,7 +11,7 @@ Use Node 22 (matches CI). Run from the repo root. Never describe a check you did
 ```bash
 npm ci                      # only if package-lock.json changed or node_modules is missing
 npm run typecheck
-npm run lint                # must add no new warnings vs main
+npm run lint                # must add no new warnings vs master
 npm test
 MONGODB_URI=mongodb://127.0.0.1:27018/journey_editor_e2e npm run build
 git diff --check
@@ -24,9 +24,10 @@ Start the disposable DB once: `npm run e2e:db:up`. Run the narrowest specs first
 | Changed paths | Specs to run |
 | --- | --- |
 | `app/api/health/**`, `scripts/smoke/**` | `e2e/production-health.spec.ts` |
-| `app/admin/(protected)/journeys/**`, `components/editor/**`, `lib/journeys/**` | `e2e/authoring-flow.spec.ts` |
+| `app/admin/(protected)/journeys/**`, `components/editor/**`, `lib/journeys/**` | `e2e/authoring-flow.spec.ts`, `e2e/journey-autosave.spec.ts` |
 | `app/admin/(protected)/media/**`, `lib/media/**`, `components/media/**` | `e2e/media-*.spec.ts`, `e2e/mobile-admin-media.spec.ts` |
 | `app/photos/**`, `components/photos/**`, `lib/photos/**` | `e2e/photo-viewer.spec.ts`, `e2e/home-photos-media.spec.ts` |
+| Photos media deletion guards | `e2e/media-photos-delete.spec.ts` |
 | `app/travel/**`, `components/travel/**`, `lib/travel/**` | `e2e/travel*.spec.ts` |
 | `app/glass/**`, `lib/glass/**` | `e2e/glass-collection.spec.ts` |
 | `app/stories/**`, `content/stories/**`, `components/Story.tsx`, `components/Step.tsx` | `e2e/legacy-story.spec.ts`, `e2e/authoring-flow.spec.ts` |

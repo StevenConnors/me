@@ -201,6 +201,21 @@ export class PhotosPageRepository {
     );
   }
 
+  async isMediaReferenced(mediaId: string): Promise<boolean> {
+    return Boolean(
+      await this.photosPages.findOne(
+        {
+          _id: 'photos',
+          $or: [
+            { 'draftDocument.blocks': { $elemMatch: { type: 'media', mediaAssetId: mediaId } } },
+            { 'publishedDocument.blocks': { $elemMatch: { type: 'media', mediaAssetId: mediaId } } },
+          ],
+        } as Filter<PhotosPage>,
+        { projection: { _id: 1 } },
+      ),
+    );
+  }
+
   private async getPublishIssues(document: PhotosPageDocument): Promise<PhotosPublishIssue[]> {
     const issues = validatePhotosDocumentForPublishing(document);
     if (!this.mediaAssets) return issues;

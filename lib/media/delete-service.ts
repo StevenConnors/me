@@ -16,7 +16,7 @@ export class MediaInUseError extends Error {
 
 type DeletableMediaRepository = Pick<MediaRepository, 'findById' | 'deleteById'>;
 type MediaReferenceRepository = Pick<JourneyRepository, 'isMediaReferenced'>;
-type PublishedPhotosReferenceRepository = Pick<PhotosPageRepository, 'isMediaReferencedByPublishedDocument'>;
+type PhotosReferenceRepository = Pick<PhotosPageRepository, 'isMediaReferenced'>;
 type CollectionReferenceRepository = Pick<MediaCollectionRepository, 'isMediaReferenced'>;
 type AssetDeletionProvider = Pick<MediaProvider, 'deleteAsset'>;
 
@@ -29,7 +29,7 @@ export async function deleteMediaAsset(
   dependencies: {
     mediaRepository: DeletableMediaRepository;
     journeyRepository: MediaReferenceRepository;
-    photosPageRepository?: PublishedPhotosReferenceRepository;
+    photosPageRepository?: PhotosReferenceRepository;
     collectionRepository?: CollectionReferenceRepository;
     mediaProvider: AssetDeletionProvider;
   },
@@ -39,7 +39,7 @@ export async function deleteMediaAsset(
   if (await dependencies.journeyRepository.isMediaReferenced(mediaId)) {
     throw new MediaInUseError(mediaId);
   }
-  if (await dependencies.photosPageRepository?.isMediaReferencedByPublishedDocument(mediaId)) {
+  if (await dependencies.photosPageRepository?.isMediaReferenced(mediaId)) {
     throw new MediaInUseError(mediaId);
   }
   if (await dependencies.collectionRepository?.isMediaReferenced(mediaId)) {
