@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-import { apiError, requireAuthorApi } from '@/lib/http/admin-api';
+import { apiError, requireAdminReadApi } from '@/lib/http/admin-api';
 import { getCloudinaryMediaProvider } from '@/lib/media/provider';
 import { MediaRepository } from '@/lib/media/repository';
 import { serializePhotosEditorMedia } from '@/lib/photos/editor-media';
@@ -14,7 +14,7 @@ export const runtime = 'nodejs';
  * migration must seed the legacy public page before editing begins.
  */
 export async function GET() {
-  const authorization = await requireAuthorApi();
+  const authorization = await requireAdminReadApi();
   if (authorization.response) return authorization.response;
 
   try {

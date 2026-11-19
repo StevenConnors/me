@@ -15,3 +15,6 @@ export const E2E_AUTHOR_SESSION = {
   },
   expires: '2099-01-01T00:00:00.000Z',
 };
+
+/** E2E-only cookie that downgrades the test session to the read-only viewer role. */
+export const E2E_ADMIN_ROLE_COOKIE = 'e2e-admin-role';

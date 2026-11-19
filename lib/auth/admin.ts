@@ -28,3 +28,29 @@ export function isAuthorAuthenticationConfigured(
       environment.ADMIN_GITHUB_ID?.trim(),
   );
 }
+
+export type AdminRole = 'author' | 'viewer';
+
+function parseGithubIds(configured: string | undefined): string[] {
+  return (configured ?? '').split(',').map((id) => id.trim()).filter(Boolean);
+}
+
+/** Read-only admin accounts, configured as comma-separated immutable GitHub numeric IDs. */
+export function isAllowedViewer(
+  identity: AuthorIdentity | null | undefined,
+  configuredGithubIds = process.env.ADMIN_VIEWER_GITHUB_IDS,
+): boolean {
+  return Boolean(identity?.id && parseGithubIds(configuredGithubIds).includes(identity.id));
+}
+
+export function adminRoleFor(
+  identity: AuthorIdentity | null | undefined,
+  configured: { author?: string; viewers?: string } = {
+    author: process.env.ADMIN_GITHUB_ID,
+    viewers: process.env.ADMIN_VIEWER_GITHUB_IDS,
+  },
+): AdminRole | null {
+  if (isAllowedAuthor(identity, configured.author)) return 'author';
+  if (isAllowedViewer(identity, configured.viewers)) return 'viewer';
+  return null;
+}

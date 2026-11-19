@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z, ZodError } from 'zod';
 
-import { apiError, requireAuthorApi } from '@/lib/http/admin-api';
+import { apiError, requireAdminReadApi } from '@/lib/http/admin-api';
 import { getCloudinaryMediaProvider } from '@/lib/media/provider';
 import { MediaRepository } from '@/lib/media/repository';
 import { MediaIdSchema } from '@/lib/media/schemas';
@@ -12,7 +12,7 @@ const MediaIdsSchema = z.array(MediaIdSchema).min(1).max(24);
 
 /** Resolve only the next visible batch; draft ordering remains owned by the client. */
 export async function GET(request: NextRequest) {
-  const authorization = await requireAuthorApi();
+  const authorization = await requireAdminReadApi();
   if (authorization.response) return authorization.response;
 
   try {
