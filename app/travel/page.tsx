@@ -26,7 +26,7 @@ export default async function TravelPage() {
   }
 
   return (
-    <main className={`${styles.paper} ${styles.travelPaper}`}>
+    <main className={styles.paper}>
       <HeldPlacesHeader />
       <TravelOverview selections={selections} updatedAt={updatedAt} failed={failed} />
     </main>
