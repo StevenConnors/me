@@ -6,6 +6,8 @@ import { MediaRepository } from '@/lib/media/repository';
 
 export { PublicationValidationError };
 
+let publicationIndexReady: Promise<string> | undefined;
+
 export async function publishJourney(
   journeyRepository: JourneyRepository,
   mediaRepository: MediaRepository,
@@ -41,10 +43,16 @@ export async function publishJourney(
   });
 
   // Standalone Mongo cannot transact: stage once, then advance the guarded pointer.
-  await journeyRepository.revisions.createIndex(
+  publicationIndexReady ??= journeyRepository.revisions.createIndex(
     { journeyId: 1, publishedEditVersion: 1 },
     { unique: true, partialFilterExpression: { publishedEditVersion: { $type: 'number' } } },
   );
+  try {
+    await publicationIndexReady;
+  } catch (error) {
+    publicationIndexReady = undefined;
+    throw error;
+  }
   const revision = await createJourneyRevision(
     journeyRepository.revisions,
     validated,

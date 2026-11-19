@@ -38,6 +38,21 @@ describe('ordered journal publication on disposable Mongo', () => {
     expect(second.journey.publishedRevisionId).toEqual(first.revision._id);
   });
 
+  it('shares index initialization and retries it after rejection', async () => {
+    vi.resetModules();
+    const { publishJourney: freshPublish } = await import('@/lib/journeys/publish-service');
+    const revisions = repository.revisions;
+    if (!revisions) throw new Error('Missing fixture revisions');
+    const createIndex = vi.spyOn(revisions, 'createIndex').mockRejectedValueOnce(new Error('injected index failure'));
+    const publishFresh = () => freshPublish(repository, media, input);
+    await expect(publishFresh()).rejects.toThrow('injected index failure');
+    expect(await revisions.countDocuments({})).toBe(0);
+    await Promise.all([publishFresh(), publishFresh()]);
+    await publishFresh();
+    expect(createIndex).toHaveBeenCalledTimes(2);
+    expect(await revisions.countDocuments({})).toBe(1);
+  });
+
   it('retains the previous live pointer on write failure and completes the staged revision on retry', async () => {
     const first = await publish();
     await repository.journeys.updateOne({ _id: first.journey._id }, { $set: { editVersion: 1 } });
