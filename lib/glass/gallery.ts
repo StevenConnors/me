@@ -9,6 +9,8 @@ import { MediaCollectionRepository } from '@/lib/media/collections';
  * Glass is an ordered view over assets in the application media library.
  * Cloudinary folders are no longer a publishing source for this page.
  */
+const monthLabel = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+
 export async function loadGlassGallery(): Promise<GalleryMediaItem[]> {
   const collectionRepository = await MediaCollectionRepository.connect();
   const glassCollection = (await collectionRepository.list()).find((collection) => collection.name === 'Glass');
@@ -40,6 +42,7 @@ export async function loadGlassGallery(): Promise<GalleryMediaItem[]> {
       width: asset.width,
       height: asset.height,
       alt: asset.altText?.trim() || asset.title?.trim() || `Glass photograph ${index + 1}`,
+      group: monthLabel.format(asset.captureDate ? new Date(`${asset.captureDate}T00:00:00Z`) : asset.createdAt),
     };
   });
 }
