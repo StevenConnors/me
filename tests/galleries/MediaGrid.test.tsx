@@ -21,7 +21,9 @@ describe('site galleries', () => {
     expect(screen.queryByRole('link', { name: /Yuji/ })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Photos' })).toHaveAttribute('href', '/photos');
     expect(screen.getByRole('link', { name: 'Glass' })).toHaveAttribute('href', '/glass');
-    expect(screen.getByRole('link', { name: 'Work' })).toHaveAttribute('href', 'https://www.linkedin.com/in/steven-connors/');
+    const work = screen.getByRole('link', { name: /^Work\b.*LinkedIn, opens in a new tab/ });
+    expect(work).toHaveAttribute('href', 'https://www.linkedin.com/in/steven-connors/');
+    expect(work).toHaveAttribute('target', '_blank');
   });
 
   it('opens an item in place and supports keyboard navigation and closing', () => {

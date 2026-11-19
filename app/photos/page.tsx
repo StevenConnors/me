@@ -1,4 +1,6 @@
-import { HeldPlacesHeader } from '@/components/held-places/HeldPlaces';
+import type { Metadata } from 'next';
+
+import { HeldPlacesFooter, HeldPlacesHeader } from '@/components/held-places/HeldPlaces';
 import { PhotosGallery } from '@/components/photos/PhotosGallery';
 import styles from '@/components/held-places/held-places.module.css';
 import { getCloudinaryMediaProvider } from '@/lib/media/provider';
@@ -8,6 +10,7 @@ import type { PublicPhoto } from '@/lib/photos/presentation';
 import { PhotosPageRepository } from '@/lib/photos/repository';
 
 export const dynamic = 'force-dynamic';
+export const metadata: Metadata = { title: 'Photos' };
 
 export default async function PhotosPage() {
   let photos: PublicPhoto[] = [];
@@ -23,8 +26,9 @@ export default async function PhotosPage() {
     if (page.unavailable.length) console.error('Photos page skipped unavailable published media', page.unavailable);
     return (
       <main className={styles.paper}>
-        <HeldPlacesHeader />
+        <HeldPlacesHeader current="photos" />
         {photos.length ? <PhotosGallery initialCursor={page.nextCursor} initialItems={photos} sections={page.sections} /> : <section className={styles.indexEmpty}><h1>Photos, soon.</h1><p>The next collection is being prepared.</p></section>}
+        <HeldPlacesFooter />
       </main>
     );
   } catch (error) {
@@ -34,8 +38,9 @@ export default async function PhotosPage() {
 
   return (
     <main className={styles.paper}>
-      <HeldPlacesHeader />
+      <HeldPlacesHeader current="photos" />
       {unavailable ? <section className={styles.indexEmpty}><h1>Photos are temporarily unavailable.</h1></section> : photos.length ? <PhotosGallery initialCursor={null} initialItems={photos} /> : <section className={styles.indexEmpty}><h1>Photos, soon.</h1><p>The next collection is being prepared.</p></section>}
+      <HeldPlacesFooter />
     </main>
   );
 }

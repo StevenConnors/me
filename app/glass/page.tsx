@@ -1,9 +1,12 @@
-import { HeldPlacesHeader } from '@/components/held-places/HeldPlaces';
+import type { Metadata } from 'next';
+
+import { HeldPlacesFooter, HeldPlacesHeader } from '@/components/held-places/HeldPlaces';
 import { MediaGrid, type GalleryMediaItem } from '@/components/MediaGrid';
 import styles from '@/components/held-places/held-places.module.css';
 import { loadGlassGallery } from '@/lib/glass/gallery';
 
 export const dynamic = 'force-dynamic';
+export const metadata: Metadata = { title: 'Glass' };
 
 export default async function GlassPage() {
   let glass: GalleryMediaItem[] = [];
@@ -17,7 +20,7 @@ export default async function GlassPage() {
 
   return (
     <main className={styles.paper}>
-      <HeldPlacesHeader />
+      <HeldPlacesHeader current="glass" />
       {unavailable ? (
         <section className={styles.indexEmpty}><h1>Glass is temporarily unavailable.</h1><p>Please try again shortly.</p></section>
       ) : glass.length ? (
@@ -25,6 +28,7 @@ export default async function GlassPage() {
       ) : (
         <section className={styles.indexEmpty}><h1>Glass is being prepared.</h1><p>Photos will appear here once they are added to the Glass collection.</p></section>
       )}
+      <HeldPlacesFooter />
     </main>
   );
 }

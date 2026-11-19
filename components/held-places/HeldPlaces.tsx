@@ -32,17 +32,40 @@ type MediaContext = {
   buildMediaUrl: BuildMediaUrl;
 };
 
-export function HeldPlacesHeader() {
+const sections = [
+  { key: 'photos', href: '/photos', label: 'Photos' },
+  { key: 'travel', href: '/travel', label: 'Travel' },
+  { key: 'glass', href: '/glass', label: 'Glass' },
+] as const;
+const workUrl = 'https://www.linkedin.com/in/steven-connors/';
+
+type HeldPlacesSection = (typeof sections)[number]['key'];
+
+export function HeldPlacesHeader({ current }: { current?: HeldPlacesSection }) {
   return (
     <header className={styles.header}>
       <Link className={styles.identity} href="/">佑治</Link>
       <nav aria-label="Primary navigation" className={styles.navigation}>
-        <Link className={styles.indexLink} href="/photos">Photos</Link>
-        <Link className={styles.indexLink} href="/travel">Travel</Link>
-        <Link className={styles.indexLink} href="/glass">Glass</Link>
-        <Link className={styles.indexLink} href="https://www.linkedin.com/in/steven-connors/">Work</Link>
+        {sections.map((section) => (
+          <Link aria-current={section.key === current ? 'page' : undefined} className={styles.indexLink} href={section.href} key={section.key}>{section.label}</Link>
+        ))}
+        <a className={styles.indexLink} href={workUrl} rel="noopener noreferrer" target="_blank">
+          Work<span aria-hidden="true"> ↗</span><span className={styles.visuallyHidden}> (LinkedIn, opens in a new tab)</span>
+        </a>
       </nav>
     </header>
+  );
+}
+
+export function HeldPlacesFooter() {
+  return (
+    <footer className={styles.footer}>
+      <p><Link className={styles.identity} href="/">佑治</Link> Travel stories and photography by Yuji.</p>
+      <nav aria-label="Footer navigation" className={styles.footerLinks}>
+        {sections.map((section) => <Link href={section.href} key={section.key}>{section.label}</Link>)}
+        <a href={workUrl} rel="noopener noreferrer" target="_blank">Work<span aria-hidden="true"> ↗</span><span className={styles.visuallyHidden}> (LinkedIn, opens in a new tab)</span></a>
+      </nav>
+    </footer>
   );
 }
 
@@ -119,6 +142,7 @@ export function HeldPlacesJourneyPage({
           })}
         </div>
       </article>
+      <HeldPlacesFooter />
     </main>
   );
 }
@@ -180,6 +204,7 @@ export function HeldPlacesIndex({
           </div>
         ) : <p className={styles.archiveEmpty}>{failed ? 'Journeys are temporarily unavailable.' : 'New journeys are being prepared.'}</p>}
       </section>
+      <HeldPlacesFooter />
     </main>
   );
 }

@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 
-import { HeldPlacesHeader } from '@/components/held-places/HeldPlaces';
+import { HeldPlacesFooter, HeldPlacesHeader } from '@/components/held-places/HeldPlaces';
 import { TravelOverview } from '@/components/travel/TravelOverview';
 import styles from '@/components/held-places/held-places.module.css';
 import { EMPTY_TRAVEL_SELECTIONS } from '@/lib/travel/catalog';
@@ -8,7 +8,7 @@ import { getTravel } from '@/lib/travel/repository';
 
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = {
-  title: 'Travel | Yuji',
+  title: 'Travel',
   description: 'An atlas of countries, US states, and Japanese prefectures visited.',
 };
 
@@ -27,8 +27,9 @@ export default async function TravelPage() {
 
   return (
     <main className={styles.paper}>
-      <HeldPlacesHeader />
+      <HeldPlacesHeader current="travel" />
       <TravelOverview selections={selections} updatedAt={updatedAt} failed={failed} />
+      <HeldPlacesFooter />
     </main>
   );
 }
