@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 const legacyStories = [
   { slug: 'poc', heading: 'Autumn in Tōhoku' },
-  { slug: 'newpoc', heading: 'Whisy with an e' },
+  { slug: 'newpoc', heading: 'Whisky with an e' },
   { slug: 'dfw-okc', heading: 'Oklahoma! Oklahoma?' },
 ] as const;
 
@@ -65,7 +65,7 @@ test('legacy story content differs per slug and unknown slugs return 404', async
   await page.goto('/stories/poc');
   await expect(page.getByRole('heading', { level: 1, name: 'Autumn in Tōhoku' })).toBeVisible();
   await page.goto('/stories/newpoc');
-  await expect(page.getByRole('heading', { level: 1, name: 'Whisy with an e' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Whisky with an e' })).toBeVisible();
   await expect(page.getByRole('heading', { level: 1, name: 'Autumn in Tōhoku' })).toHaveCount(0);
 
   const missing = await page.request.get(`/stories/not-a-legacy-story-${Date.now()}`);
@@ -83,4 +83,13 @@ test('legacy story fits a 390 px viewport', async ({ page }) => {
   const screenshot = test.info().outputPath('e2e-fixture-legacy-story-mobile.png');
   await page.screenshot({ path: screenshot, fullPage: false });
   await test.info().attach('e2e-fixture-legacy-story-mobile.png', { path: screenshot, contentType: 'image/png' });
+});
+
+test('Home and the story agree on the corrected legacy title', async ({ page }) => {
+  await page.goto('/');
+  const html = await page.content();
+  expect(html).not.toContain('Whisy');
+  const storyHtml = await (await page.request.get('/stories/newpoc')).text();
+  expect(storyHtml).toContain('Whisky with an e');
+  expect(storyHtml).not.toContain('Whisy');
 });
