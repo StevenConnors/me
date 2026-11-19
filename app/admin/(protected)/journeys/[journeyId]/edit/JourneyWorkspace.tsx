@@ -352,7 +352,7 @@ export function JourneyWorkspace({ initialJourney, media }: { initialJourney: Ed
           <button className={styles.button} type="button" disabled={publishState.state === 'publishing' || saveState === 'conflict' || deleteState === 'deleting'} onClick={() => void publish()}>{publishState.state === 'publishing' ? 'Publishing…' : journey.status === 'published' ? 'Publish update' : 'Publish journey'}</button>
         </div>
         {publishState.message && <p className={styles.publishMessage} data-state={publishState.state}>{publishState.message}</p>}
-        {publishState.state === 'published' && <Link className={styles.quietButton} href={`/stories/${journey.publishedSlug ?? journey.slug}`} target="_blank" rel="noreferrer">View public journey ↗</Link>}
+        {journey.status === 'published' && <Link className={styles.quietButton} href={`/stories/${journey.publishedSlug ?? journey.slug}`} target="_blank" rel="noreferrer">View public journey ↗</Link>}
         {publishState.issues?.length ? <ul className={styles.publishIssues}>{publishState.issues.map((issue, index) => <li key={`${issue.message}-${index}`}>{issue.message}</li>)}</ul> : null}
         {deleteState === 'error' ? <p className={styles.deleteError} role="alert">{deleteError}</p> : null}
       </section>
