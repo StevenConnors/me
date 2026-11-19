@@ -142,14 +142,30 @@ export async function uploadMedia(
   const providerPayload = await sendToProvider(file, authorization, idempotencyKey, resourceType);
 
   options.onPhase?.('finalizing');
-  const finalizationResponse = await fetch('/api/admin/media/finalize', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ idempotencyKey, result: toProviderResult(providerPayload) }),
-  });
-  const finalizationPayload = await finalizationResponse.json();
-  if (!finalizationResponse.ok) {
-    throw new Error(responseErrorMessage(finalizationPayload, 'The upload needs finalizing again'));
+  const body = JSON.stringify({ idempotencyKey, result: toProviderResult(providerPayload) });
+  const maxAttempts = 3;
+  let message = 'The upload needs finalizing again';
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    let response: Response | undefined;
+    let payload;
+    try {
+      response = await fetch('/api/admin/media/finalize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body,
+      });
+      payload = await response.json();
+    } catch {
+      message = 'The finalization service could not be reached or returned an unreadable response';
+    }
+    if (response?.ok && payload !== undefined) return payload.media as UploadedMedia;
+    if (response && !response.ok) {
+      message = responseErrorMessage(payload, 'The upload needs finalizing again');
+      if (response.status < 500 || response.status >= 600) throw new Error(message);
+    }
+    if (attempt < maxAttempts) {
+      await new Promise((resolve) => setTimeout(resolve, 250 * attempt));
+    }
   }
-  return finalizationPayload.media as UploadedMedia;
+  throw new Error(`The file uploaded but could not be finalized after ${maxAttempts} attempts. ${message}`);
 }
