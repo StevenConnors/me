@@ -2,11 +2,12 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 
 import { HeldPlacesEditor } from '@/components/editor/HeldPlacesEditor';
 import { JourneyVisualEditor, type EditorMedia } from '@/components/editor/JourneyVisualEditor';
 import styles from '@/app/admin/admin.module.css';
+import { useDraftSave } from '@/lib/client/use-draft-save';
 import type {
   JourneyDocument,
   JourneyLocation,
@@ -30,139 +31,83 @@ type EditableJourney = {
   draftDocument: JourneyDocument;
 };
 
-type SaveState = 'dirty' | 'saving' | 'saved' | 'error' | 'conflict';
 type SaveResponse = { journey?: EditableJourney; error?: { code?: string; message?: string; details?: unknown } };
 type PublishState = { state: 'idle' | 'publishing' | 'published' | 'error'; message?: string; issues?: { message: string }[] };
 
+function sameDraft(left: EditableJourney, right: EditableJourney) {
+  return journeyReleaseSnapshot(left) === journeyReleaseSnapshot(right);
+}
+
+async function persistJourney({ draft, version }: { draft: EditableJourney; version: number }) {
+  const response = await fetch(`/api/admin/journeys/${draft._id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      expectedEditVersion: version,
+      title: draft.title,
+      slug: draft.slug,
+      summary: draft.summary || null,
+      cover: draft.cover ?? null,
+      experiencedAt: draft.experiencedAt ?? null,
+      locations: draft.locations ?? [],
+      draftDocument: draft.draftDocument,
+    }),
+  });
+  if (response.status === 409) return null;
+  const payload: SaveResponse = await response.json();
+  if (!response.ok || !payload.journey) throw new Error(payload.error?.message ?? 'Save failed');
+  return { draft: payload.journey, version: payload.journey.editVersion };
+}
+
 export function JourneyWorkspace({ initialJourney, initialPublishedSnapshot, media }: { initialJourney: EditableJourney; initialPublishedSnapshot: string | null; media: EditorMedia[] }) {
   const router = useRouter();
-  const [journey, setJourney] = useState(initialJourney);
+  const { draft: journey, saved: { draft: savedJourney }, phase: saveState, edit, readDraft, flush, runAction } = useDraftSave({
+    initial: { draft: initialJourney, version: initialJourney.editVersion },
+    debounceMs: 1_000,
+    persist: persistJourney,
+    equal: sameDraft,
+  });
   const draftSnapshot = useMemo(() => journeyReleaseSnapshot(journey), [journey]);
-  const [saveState, setSaveState] = useState<SaveState>('saved');
   const [publishedSnapshot, setPublishedSnapshot] = useState(initialPublishedSnapshot);
-  const lastSavedSnapshot = useRef(draftSnapshot);
   const [publishState, setPublishState] = useState<PublishState>({ state: 'idle' });
   const [summaryOmissionConfirmed, setSummaryOmissionConfirmed] = useState(false);
   const [deleteState, setDeleteState] = useState<'idle' | 'deleting' | 'error'>('idle');
   const [deleteError, setDeleteError] = useState('');
   const [migrationState, setMigrationState] = useState<'idle' | 'migrating' | 'error'>('idle');
-  const current = useRef(journey);
-  const inFlight = useRef<Promise<EditableJourney | null> | null>(null);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => { current.current = journey; }, [journey]);
-  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
-
-  function scheduleSave() {
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => void save(), 1_000);
-  }
+  const releaseBusy = publishState.state === 'publishing' || migrationState === 'migrating';
 
   function change<K extends keyof Pick<EditableJourney, 'title' | 'slug' | 'summary' | 'cover' | 'experiencedAt' | 'locations' | 'draftDocument'>>(key: K, value: EditableJourney[K]) {
-    const next = { ...current.current, [key]: value };
-    current.current = next;
-    setJourney(next);
-    setSaveState((state) => state === 'conflict' ? state : inFlight.current ? 'saving' : 'dirty');
-    scheduleSave();
-  }
-
-  async function save(): Promise<EditableJourney | null> {
-    if (inFlight.current) {
-      const saved = await inFlight.current;
-      if (!saved || current.current === saved) return saved;
-      return save();
-    }
-    const request = persist(current.current);
-    inFlight.current = request;
-    let saved: EditableJourney | null;
-    try {
-      saved = await request;
-    } finally {
-      inFlight.current = null;
-    }
-    if (saved && current.current !== saved) return save();
-    return saved;
-  }
-
-  async function persist(next: EditableJourney): Promise<EditableJourney | null> {
-    if (timer.current) {
-      clearTimeout(timer.current);
-      timer.current = null;
-    }
-    if (saveState === 'conflict') return null;
-    setSaveState('saving');
-    try {
-      const response = await fetch(`/api/admin/journeys/${next._id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          expectedEditVersion: next.editVersion,
-          title: next.title,
-          slug: next.slug,
-          summary: next.summary || null,
-          cover: next.cover ?? null,
-          experiencedAt: next.experiencedAt ?? null,
-          locations: next.locations ?? [],
-          draftDocument: next.draftDocument,
-        }),
-      });
-      const payload = (await response.json()) as SaveResponse;
-      if (response.status === 409) {
-        setSaveState('conflict');
-        return null;
-      }
-      if (!response.ok || !payload.journey) throw new Error(payload.error?.message ?? 'Save failed');
-      const hasNewerEdits = current.current !== next;
-      const reconciled = hasNewerEdits
-        ? { ...current.current, editVersion: payload.journey.editVersion }
-        : payload.journey;
-      current.current = reconciled;
-      lastSavedSnapshot.current = journeyReleaseSnapshot(payload.journey);
-      setJourney(reconciled);
-      setSaveState(hasNewerEdits ? 'dirty' : 'saved');
-      return payload.journey;
-    } catch (error) {
-      console.error(error);
-      setSaveState('error');
-      return null;
-    }
+    edit({ ...readDraft(), [key]: value });
   }
 
   async function publish() {
-    const saved = await save();
-    if (!saved) return;
     setPublishState({ state: 'publishing' });
     try {
-      const response = await fetch(`/api/admin/journeys/${saved._id}/publish`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          expectedEditVersion: saved.editVersion,
-          summaryOmissionConfirmed,
-        }),
+      await runAction('flush', async ({ draft, version }) => {
+        const response = await fetch(`/api/admin/journeys/${draft._id}/publish`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ expectedEditVersion: version, summaryOmissionConfirmed }),
+        });
+        if (response.status === 409) return null;
+        const payload: SaveResponse = await response.json();
+        if (!response.ok || !payload.journey) {
+          const issues = Array.isArray(payload.error?.details)
+            ? payload.error.details.filter((issue): issue is { message: string } => Boolean(issue && typeof issue === 'object' && 'message' in issue && typeof issue.message === 'string'))
+            : undefined;
+          setPublishState({ state: 'error', message: payload.error?.message ?? 'Publishing failed.', issues });
+          return;
+        }
+        const published = { ...payload.journey, publishedSlug: payload.journey.publishedSlug ?? draft.slug };
+        setPublishedSnapshot(journeyReleaseSnapshot(draft));
+        setPublishState({ state: 'published', message: 'Published from a new immutable revision.' });
+        return { draft: published, version: published.editVersion };
       });
-      const payload = (await response.json()) as SaveResponse;
-      if (!response.ok) {
-        const issues = Array.isArray(payload.error?.details)
-          ? payload.error.details.filter((issue): issue is { message: string } => Boolean(issue && typeof issue === 'object' && 'message' in issue && typeof issue.message === 'string'))
-          : undefined;
-        setPublishState({ state: 'error', message: payload.error?.message ?? 'Publishing failed.', issues });
-        return;
-      }
-      const published = payload.journey;
-      const next = {
-        ...current.current,
-        status: 'published' as const,
-        publishedSlug: published?.publishedSlug ?? saved.slug,
-        editVersion: Math.max(current.current.editVersion, typeof published?.editVersion === 'number' ? published.editVersion : saved.editVersion),
-      };
-      setJourney(next);
-      current.current = next;
-      setPublishedSnapshot(journeyReleaseSnapshot(saved));
-      setPublishState({ state: 'published', message: 'Published from a new immutable revision.' });
     } catch (error) {
       console.error(error);
       setPublishState({ state: 'error', message: 'Publishing failed; check your connection and try again.' });
+    } finally {
+      setPublishState((state) => state.state === 'publishing' ? { state: 'idle' } : state);
     }
   }
 
@@ -187,32 +132,30 @@ export function JourneyWorkspace({ initialJourney, initialPublishedSnapshot, med
 
   async function startMigration() {
     if (!window.confirm('Start the Held Places migration? Your current draft will be saved as an immutable checkpoint before the new empty chapter is created. The published journey will not change.')) return;
-    const saved = await save();
-    if (!saved) return;
     setMigrationState('migrating');
     try {
-      const response = await fetch(`/api/admin/journeys/${saved._id}/migration`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ expectedEditVersion: saved.editVersion }),
+      await runAction('flush', async ({ draft, version }, local) => {
+        const response = await fetch(`/api/admin/journeys/${draft._id}/migration`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ expectedEditVersion: version }),
+        });
+        if (response.status === 409) return null;
+        const payload: SaveResponse = await response.json();
+        if (!response.ok || !payload.journey) throw new Error(payload.error?.message ?? 'Migration failed');
+        // The old canvas cannot be merged into a migrated draft.
+        if (readDraft() !== local) return null;
+        return { draft: payload.journey, version: payload.journey.editVersion };
       });
-      const payload = (await response.json()) as SaveResponse;
-      if (!response.ok || !payload.journey) {
-        throw new Error(payload.error?.message ?? 'Migration failed');
-      }
-      setJourney(payload.journey);
-      current.current = payload.journey;
-      lastSavedSnapshot.current = journeyReleaseSnapshot(payload.journey);
       setMigrationState('idle');
-      setSaveState('saved');
     } catch (error) {
       console.error(error);
       setMigrationState('error');
     }
   }
 
-  const saveLabel: Record<SaveState, string> = {
-    dirty: draftSnapshot === lastSavedSnapshot.current ? 'Draft saved' : 'Local changes · not saved',
+  const saveLabel = {
+    dirty: 'Local changes · not saved',
     saving: 'Saving…',
     saved: 'Draft saved',
     error: 'Save failed; try again',
@@ -221,7 +164,7 @@ export function JourneyWorkspace({ initialJourney, initialPublishedSnapshot, med
 
   return (
     <>
-      <form className={styles.form} onSubmit={(event) => { event.preventDefault(); void save(); }}>
+      <form className={styles.form} onSubmit={(event) => { event.preventDefault(); void flush(); }}>
         <div className={styles.field}>
           <label htmlFor="journey-title">Title</label>
           <input id="journey-title" value={journey.title} onChange={(event) => change('title', event.target.value)} placeholder="A journey title" maxLength={200} autoFocus />
@@ -337,7 +280,7 @@ export function JourneyWorkspace({ initialJourney, initialPublishedSnapshot, med
           <span aria-live="polite" className={styles.status} data-state={saveState}>{saveLabel[saveState]}</span>
           <div className={styles.actionGroup}>
             <Link className={styles.quietButton} href={`/admin/preview/${journey._id}`}>Preview</Link>
-            <button className={styles.button} type="submit" disabled={saveState === 'saving' || saveState === 'conflict'}>Save now</button>
+            <button className={styles.button} type="submit" disabled={releaseBusy || saveState === 'saving' || saveState === 'conflict'}>Save now</button>
           </div>
         </div>
       </form>
@@ -356,7 +299,7 @@ export function JourneyWorkspace({ initialJourney, initialPublishedSnapshot, med
               <h2 className={styles.publishTitle}>Move this draft into Held Places</h2>
               <p className={styles.publishDescription}>A checkpoint preserves the current draft. The public revision stays live while you manually curate the new chapter slots.</p>
             </div>
-            <button className={styles.button} disabled={migrationState === 'migrating'} onClick={() => void startMigration()} type="button">{migrationState === 'migrating' ? 'Preparing…' : 'Start Held Places migration'}</button>
+            <button className={styles.button} disabled={releaseBusy || saveState === 'conflict'} onClick={() => void startMigration()} type="button">{migrationState === 'migrating' ? 'Preparing…' : 'Start Held Places migration'}</button>
             {migrationState === 'error' ? <p className={styles.deleteError} role="alert">Migration failed. Reload and try again.</p> : null}
           </section>
           <p className={styles.eyebrow} style={{ marginTop: 48 }}>Legacy visual canvas</p>
@@ -374,7 +317,7 @@ export function JourneyWorkspace({ initialJourney, initialPublishedSnapshot, med
         <div>
           <p className={styles.eyebrow}>Release</p>
           <p aria-live="polite" className={styles.releaseStatus}>{publishedSnapshot === null ? 'Never published' : draftSnapshot === publishedSnapshot ? 'Live · no unpublished changes' : 'Live · unpublished changes'}</p>
-          <h2 className={styles.publishTitle}>{journey.status === 'published' ? 'Publish an updated revision' : 'Ready for the public archive?'}</h2>
+          <h2 className={styles.publishTitle}>{savedJourney.status === 'published' ? 'Publish an updated revision' : 'Ready for the public archive?'}</h2>
           <p className={styles.publishDescription}>Publishing validates the draft, records an immutable revision, and makes that revision the public journey.</p>
           {journey.draftDocument.schemaVersion === 1 && !journey.summary && (
             <label className={styles.checkbox}><input type="checkbox" checked={summaryOmissionConfirmed} onChange={(event) => setSummaryOmissionConfirmed(event.target.checked)} /> This journey intentionally has no summary.</label>
@@ -382,10 +325,10 @@ export function JourneyWorkspace({ initialJourney, initialPublishedSnapshot, med
         </div>
         <div className={styles.actionGroup}>
           <button className={styles.quietButton} type="button" disabled={deleteState === 'deleting'} onClick={() => void deleteJourney()}>{deleteState === 'deleting' ? 'Deleting…' : 'Delete journey'}</button>
-          <button className={styles.button} type="button" disabled={publishState.state === 'publishing' || saveState === 'conflict' || deleteState === 'deleting'} onClick={() => void publish()}>{publishState.state === 'publishing' ? 'Publishing…' : journey.status === 'published' ? 'Publish update' : 'Publish journey'}</button>
+          <button className={styles.button} type="button" disabled={releaseBusy || saveState === 'conflict' || deleteState === 'deleting'} onClick={() => void publish()}>{publishState.state === 'publishing' ? 'Publishing…' : savedJourney.status === 'published' ? 'Publish update' : 'Publish journey'}</button>
         </div>
         {publishState.message && <p className={styles.publishMessage} data-state={publishState.state}>{publishState.message}</p>}
-        {journey.status === 'published' && <Link className={styles.quietButton} href={`/stories/${journey.publishedSlug ?? journey.slug}`} target="_blank" rel="noreferrer">View public journey ↗</Link>}
+        {savedJourney.status === 'published' && <Link className={styles.quietButton} href={`/stories/${savedJourney.publishedSlug ?? savedJourney.slug}`} target="_blank" rel="noreferrer">View public journey ↗</Link>}
         {publishState.issues?.length ? <ul className={styles.publishIssues}>{publishState.issues.map((issue, index) => <li key={`${issue.message}-${index}`}>{issue.message}</li>)}</ul> : null}
         {deleteState === 'error' ? <p className={styles.deleteError} role="alert">{deleteError}</p> : null}
       </section>

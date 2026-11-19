@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 
 import { PhotosPageView, type PhotoSection, type PublicPhoto } from '@/components/photos/PhotosPageView';
 import { uploadMedia } from '@/lib/client/upload-media';
+import { useDraftSave } from '@/lib/client/use-draft-save';
 import {
   insertMedia,
   moveMedia,
@@ -44,16 +45,25 @@ type EditorCanvasPhoto = PublicPhoto & {
   loading?: boolean;
 };
 
-type SaveState = 'saved' | 'saving' | 'error' | 'conflict';
 type UploadState = 'idle' | 'uploading' | 'error';
 type DropTarget = { blockId: string; position: 'before' | 'after' };
 const PHOTO_BATCH_SIZE = 24;
 type PhotosApiPage = {
   draftDocument: PhotosPageDocument;
   draftVersion: number;
-  hasUnpublishedChanges: boolean;
   publishedDocument?: PhotosPageDocument;
 };
+type PhotosDraftResponse = { page?: PhotosApiPage; error?: { message?: string; details?: unknown } };
+
+async function persistPhotosDraft({ draft, version }: { draft: PhotosPageDocument; version: number }) {
+  const response = await fetch('/api/admin/photos-page/draft', {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ expectedVersion: version, document: draft }),
+  });
+  if (response.status === 409) return null;
+  const payload: PhotosDraftResponse = await response.json();
+  if (!response.ok || !payload.page) throw new Error(payload.error?.message ?? 'Unable to save the Photos draft');
+  return payload.page;
+}
 type DeletionPlanItem = MediaDeletionPlanItem & {
   result?: 'deleted' | 'protected' | 'not_found' | 'failed';
 };
@@ -139,13 +149,19 @@ export function PhotosWorkspace({
   media: EditorMedia[];
 }) {
   const router = useRouter();
-  const documentRef = useRef(initialDocument);
-  const lastSavedDocumentRef = useRef(initialDocument);
-  const versionRef = useRef(initialDraftVersion);
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const savePromiseRef = useRef<Promise<boolean> | null>(null);
-  const conflictRef = useRef(false);
-  const [document, setDocument] = useState(initialDocument);
+  const [publishedDocument, setPublishedDocument] = useState(initialPublishedDocument);
+  const persist = useCallback(async (snapshot: { draft: PhotosPageDocument; version: number }) => {
+    const page = await persistPhotosDraft(snapshot);
+    if (!page) return null;
+    setPublishedDocument(page.publishedDocument);
+    return { draft: page.draftDocument, version: page.draftVersion };
+  }, []);
+  const { draft: document, phase: saveState, edit, readDraft, isDirty, flush: flushDraft, runAction } = useDraftSave({
+    initial: { draft: initialDocument, version: initialDraftVersion },
+    debounceMs: 550,
+    persist,
+    equal: documentEqual,
+  });
   const [history, setHistory] = useState<PhotosPageDocument[]>([initialDocument]);
   const [historyIndex, setHistoryIndex] = useState(0);
   const [media, setMedia] = useState(initialMedia);
@@ -157,11 +173,8 @@ export function PhotosWorkspace({
   const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
   const [reorderMessage, setReorderMessage] = useState('');
   const [viewport, setViewport] = useState<'desktop' | 'mobile'>('desktop');
-  const [saveState, setSaveState] = useState<SaveState>('saved');
-  const [publishedDocument, setPublishedDocument] = useState(initialPublishedDocument);
   const hasUnpublishedChanges = !publishedDocument || !documentEqual(document, publishedDocument);
-  const hasLocalChanges = !documentEqual(document, lastSavedDocumentRef.current);
-  const [releaseState, setReleaseState] = useState<'idle' | 'publishing' | 'restoring'>('idle');
+  const [releaseState, setReleaseState] = useState<'idle' | 'publishing' | 'restoring' | 'recovering'>('idle');
   const [uploadState, setUploadState] = useState<UploadState>('idle');
   const [uploadMessage, setUploadMessage] = useState('');
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -207,71 +220,17 @@ export function PhotosWorkspace({
     ? selectedMediaBlockIds.size
     : 1;
 
-  const scheduleSave = useCallback(() => {
-    if (conflictRef.current) return;
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    saveTimerRef.current = setTimeout(() => {
-      saveTimerRef.current = null;
-      void saveCurrent();
-    }, 550);
-  // saveCurrent uses refs, so its declaration stays stable for autosave.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  async function saveCurrent(): Promise<boolean> {
-    if (conflictRef.current) return false;
-    if (savePromiseRef.current) return savePromiseRef.current;
-    if (documentEqual(documentRef.current, lastSavedDocumentRef.current)) return true;
-
-    const snapshot = documentRef.current;
-    const expectedVersion = versionRef.current;
-    setSaveState('saving');
-    const request = (async () => {
-      try {
-        const response = await fetch('/api/admin/photos-page/draft', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ expectedVersion, document: snapshot }),
-        });
-        const payload = await response.json();
-        if (response.status === 409) {
-          conflictRef.current = true;
-          setSaveState('conflict');
-          return false;
-        }
-        if (!response.ok) throw new Error(payload?.error?.message ?? 'Unable to save the Photos draft');
-        const page = payload.page as PhotosApiPage;
-        lastSavedDocumentRef.current = page.draftDocument;
-        versionRef.current = page.draftVersion;
-        setPublishedDocument(page.publishedDocument);
-        setSaveState(documentEqual(documentRef.current, page.draftDocument) ? 'saved' : 'saving');
-        return true;
-      } catch (error) {
-        console.error(error);
-        setSaveState('error');
-        return false;
-      } finally {
-        savePromiseRef.current = null;
-        if (!conflictRef.current && !documentEqual(documentRef.current, lastSavedDocumentRef.current)) scheduleSave();
-      }
-    })();
-    savePromiseRef.current = request;
-    return request;
-  }
-
   const applyDocument = useCallback((next: PhotosPageDocument) => {
-    if (documentEqual(next, documentRef.current)) return;
-    documentRef.current = next;
+    if (documentEqual(next, readDraft())) return;
     setPublishError('');
     setPublishIssues([]);
-    setDocument(next);
+    edit(next);
     setHistory((current) => {
       const nextHistory = [...current.slice(0, historyIndex + 1), next].slice(-80);
       setHistoryIndex(nextHistory.length - 1);
       return nextHistory;
     });
-    scheduleSave();
-  }, [historyIndex, scheduleSave]);
+  }, [edit, historyIndex, readDraft]);
 
   function toggleMediaSelection(blockId: string) {
     setSelectedMediaBlockIds((current) => {
@@ -285,8 +244,8 @@ export function PhotosWorkspace({
 
   function moveSelectionToSection() {
     if (!moveTargetSectionId || !selectedMediaBlockIds.size) return;
-    const next = moveMediaBlocksTo(documentRef.current, selectedMediaBlockIds, moveTargetSectionId, 'after');
-    if (documentEqual(next, documentRef.current)) return;
+    const next = moveMediaBlocksTo(readDraft(), selectedMediaBlockIds, moveTargetSectionId, 'after');
+    if (documentEqual(next, readDraft())) return;
     applyDocument(next);
     setCollapsedSectionIds((current) => {
       if (!current.has(moveTargetSectionId)) return current;
@@ -301,7 +260,7 @@ export function PhotosWorkspace({
   function selectBlock(blockId: string | null) {
     setActiveBlockId(blockId);
     setInsertionTarget(null);
-    const block = documentRef.current.blocks.find((item) => item.id === blockId);
+    const block = readDraft().blocks.find((item) => item.id === blockId);
     setSectionDraft(block?.type === 'section' ? { blockId: block.id, title: block.title ?? '', text: block.text ?? '' } : null);
   }
 
@@ -310,10 +269,10 @@ export function PhotosWorkspace({
       ...(current?.blockId === block.id ? current : { blockId: block.id, title: block.title ?? '', text: block.text ?? '' }),
       [field]: value,
     }));
-    applyDocument(updateSectionBlock(documentRef.current, block.id, { [field]: value.trim() || undefined }));
+    applyDocument(updateSectionBlock(readDraft(), block.id, { [field]: value.trim() || undefined }));
   }
 
-  function revealBlock(blockId: string, nextDocument = documentRef.current, openEditor = false) {
+  function revealBlock(blockId: string, nextDocument = readDraft(), openEditor = false) {
     const index = nextDocument.blocks.findIndex((block) => block.id === blockId);
     const count = nextDocument.blocks.slice(0, index + 1).filter(isMediaBlock).length;
     setVisiblePhotoCount((current) => Math.max(current, count));
@@ -409,9 +368,9 @@ export function PhotosWorkspace({
       if (upEvent.pointerId !== event.pointerId) return;
       if (active && target) {
         const next = draggedIds.size > 1
-          ? moveMediaBlocksTo(documentRef.current, draggedIds, target.blockId, target.position)
-          : moveMediaTo(documentRef.current, blockId, target.blockId, target.position);
-        if (!documentEqual(next, documentRef.current)) {
+          ? moveMediaBlocksTo(readDraft(), draggedIds, target.blockId, target.position)
+          : moveMediaTo(readDraft(), blockId, target.blockId, target.position);
+        if (!documentEqual(next, readDraft())) {
           applyDocument(next);
           setReorderMessage(draggedIds.size > 1 ? `${draggedIds.size} photos moved together.` : `${mediaFilename(blockId)} moved.`);
         }
@@ -433,7 +392,7 @@ export function PhotosWorkspace({
   }
 
   function mediaFilename(blockId: string) {
-    const block = documentRef.current.blocks.find((candidate) => candidate.id === blockId);
+    const block = readDraft().blocks.find((candidate) => candidate.id === blockId);
     return block?.type === 'media' ? mediaById.get(block.mediaAssetId)?.originalFilename ?? 'Photo' : 'Photo';
   }
 
@@ -481,9 +440,9 @@ export function PhotosWorkspace({
     if (dragged && !draggedBlockIds(dragged).has(targetBlockId)) {
       const draggedIds = draggedBlockIds(dragged);
       const next = draggedIds.size > 1
-        ? moveMediaBlocksTo(documentRef.current, draggedIds, targetBlockId, position)
-        : moveMediaTo(documentRef.current, dragged, targetBlockId, position);
-      const moved = !documentEqual(next, documentRef.current);
+        ? moveMediaBlocksTo(readDraft(), draggedIds, targetBlockId, position)
+        : moveMediaTo(readDraft(), dragged, targetBlockId, position);
+      const moved = !documentEqual(next, readDraft());
       applyDocument(next);
       setActiveBlockId(dragged);
       if (moved) setReorderMessage(draggedIds.size > 1 ? `${draggedIds.size} photos moved together.` : `${mediaFilename(dragged)} moved.`);
@@ -503,8 +462,8 @@ export function PhotosWorkspace({
         : null;
     if (!direction) return;
     event.preventDefault();
-    const next = moveMedia(documentRef.current, blockId, direction);
-    if (next === documentRef.current) return;
+    const next = moveMedia(readDraft(), blockId, direction);
+    if (next === readDraft()) return;
     applyDocument(next);
     setActiveBlockId(blockId);
     setReorderMessage(`${mediaFilename(blockId)} moved ${direction === 'before' ? 'earlier' : 'later'}.`);
@@ -512,27 +471,21 @@ export function PhotosWorkspace({
 
   function undo() {
     if (historyIndex <= 0) return;
-    const next = history[historyIndex - 1];
-    documentRef.current = next;
-    setDocument(next);
+    edit(history[historyIndex - 1]);
     setSectionDraft(null);
     setHistoryIndex(historyIndex - 1);
-    scheduleSave();
   }
 
   function redo() {
     if (historyIndex >= history.length - 1) return;
-    const next = history[historyIndex + 1];
-    documentRef.current = next;
-    setDocument(next);
+    edit(history[historyIndex + 1]);
     setSectionDraft(null);
     setHistoryIndex(historyIndex + 1);
-    scheduleSave();
   }
 
   function addSection() {
     const section: PhotosSectionBlock = { id: newBlockId(), type: 'section' };
-    const current = documentRef.current;
+    const current = readDraft();
     const targetIndex = insertionTarget ? current.blocks.findIndex((block) => block.id === insertionTarget.blockId) : -1;
     const index = targetIndex < 0 ? 0 : targetIndex + (insertionTarget?.position === 'after' ? 1 : 0);
     const next = {
@@ -567,7 +520,7 @@ export function PhotosWorkspace({
     }
     if (uploaded.length) {
       setMedia((current) => [...current, ...uploaded]);
-      const next = insertMedia(documentRef.current, activeBlockId, uploaded, newBlockId);
+      const next = insertMedia(readDraft(), activeBlockId, uploaded, newBlockId);
       applyDocument(next);
       const inserted = next.blocks.find((block) => block.type === 'media' && uploaded.some((asset) => asset.id === block.mediaAssetId));
       if (inserted) revealBlock(inserted.id, next);
@@ -599,7 +552,7 @@ export function PhotosWorkspace({
       resourceType: item.resourceType,
     }));
     setMedia((current) => [...current, ...selected.filter((asset) => !current.some((known) => known.id === asset.id))]);
-    const next = insertMedia(documentRef.current, activeBlockId, selected, newBlockId);
+    const next = insertMedia(readDraft(), activeBlockId, selected, newBlockId);
     applyDocument(next);
     const inserted = next.blocks.find((block) => block.type === 'media' && selected.some((asset) => asset.id === block.mediaAssetId));
     if (inserted) revealBlock(inserted.id, next);
@@ -607,16 +560,8 @@ export function PhotosWorkspace({
     if (await flushDraft()) router.refresh();
   }
 
-  async function flushDraft() {
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    while (!documentEqual(documentRef.current, lastSavedDocumentRef.current)) {
-      if (!await saveCurrent()) return false;
-    }
-    return true;
-  }
-
   async function requestDeletionPlan() {
-    const mediaIds = documentRef.current.blocks.flatMap((block) => (
+    const mediaIds = readDraft().blocks.flatMap((block) => (
       block.type === 'media' && selectedMediaBlockIds.has(block.id) ? [block.mediaAssetId] : []
     ));
     if (!mediaIds.length) return;
@@ -638,8 +583,8 @@ export function PhotosWorkspace({
     const readyIds = deletionPlan?.filter(canDeleteFromPhotosDraft).map((item) => item.id) ?? [];
     if (!readyIds.length) return;
     const readySet = new Set(readyIds);
-    const blocksToRemove = documentRef.current.blocks.flatMap((block) => block.type === 'media' && readySet.has(block.mediaAssetId) ? [block.id] : []);
-    applyDocument(removeMediaBlocks(documentRef.current, blocksToRemove));
+    const blocksToRemove = readDraft().blocks.flatMap((block) => block.type === 'media' && readySet.has(block.mediaAssetId) ? [block.id] : []);
+    applyDocument(removeMediaBlocks(readDraft(), blocksToRemove));
     if (!await flushDraft()) {
       setDeletionMessage('The draft removal could not be saved, so no uploads were deleted.');
       return;
@@ -669,29 +614,26 @@ export function PhotosWorkspace({
     setPublishError('');
     setPublishIssues([]);
     try {
-      if (!await flushDraft()) return;
-      const response = await fetch('/api/admin/photos-page/publish', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ expectedVersion: versionRef.current }),
-      });
-      const payload = await response.json();
-      if (response.status === 409) { conflictRef.current = true; setSaveState('conflict'); return; }
-      if (!response.ok) {
-        setPublishError(payload?.error?.message ?? 'Unable to publish the Photos page');
-        if (Array.isArray(payload?.error?.details)) {
-          setPublishIssues(payload.error.details.filter((issue: { blockId?: unknown; message?: unknown }) => typeof issue.blockId === 'string' && typeof issue.message === 'string'));
+      await runAction('flush', async ({ version }) => {
+        const response = await fetch('/api/admin/photos-page/publish', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ expectedVersion: version }),
+        });
+        if (response.status === 409) return null;
+        const payload: PhotosDraftResponse = await response.json();
+        if (!response.ok || !payload.page) {
+          setPublishError(payload.error?.message ?? 'Unable to publish the Photos page');
+          if (Array.isArray(payload.error?.details)) {
+            setPublishIssues(payload.error.details.filter((issue: { blockId?: unknown; message?: unknown }) => typeof issue?.blockId === 'string' && typeof issue.message === 'string'));
+          }
+          return;
         }
-        setSaveState('saved');
-        return;
-      }
-      const page = payload.page as PhotosApiPage;
-      versionRef.current = page.draftVersion;
-      lastSavedDocumentRef.current = page.draftDocument;
-      setPublishedDocument(page.publishedDocument);
-      setSaveState('saved');
-      router.refresh();
+        const page = payload.page;
+        setPublishedDocument(page.publishedDocument);
+        router.refresh();
+        return { draft: page.draftDocument, version: page.draftVersion };
+      });
     } catch (error) {
       setPublishError(error instanceof Error ? error.message : 'Unable to publish the Photos page');
-      setSaveState('saved');
     } finally {
       setReleaseState('idle');
     }
@@ -701,27 +643,23 @@ export function PhotosWorkspace({
     if (!publishedDocument) return;
     if (!window.confirm('Discard all unpublished Photos page changes? This restores the last published layout.')) return;
     setReleaseState('restoring');
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     try {
-      if (savePromiseRef.current && !await savePromiseRef.current) return;
-      const response = await fetch('/api/admin/photos-page/discard', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ expectedVersion: versionRef.current }),
+      await runAction('replace', async ({ version }, local) => {
+        const response = await fetch('/api/admin/photos-page/discard', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ expectedVersion: version }),
+        });
+        if (response.status === 409) return null;
+        const payload: PhotosDraftResponse = await response.json();
+        if (!response.ok || !payload.page) throw new Error(payload.error?.message ?? 'Unable to discard the Photos draft');
+        if (readDraft() !== local) return null;
+        resetCanvas(payload.page);
+        return { draft: payload.page.draftDocument, version: payload.page.draftVersion };
       });
-      const payload = await response.json();
-      if (response.status === 409) { conflictRef.current = true; setSaveState('conflict'); return; }
-      if (!response.ok) throw new Error(payload?.error?.message ?? 'Unable to discard the Photos draft');
-      const page = payload.page as PhotosApiPage;
-      replaceLocalDocument(page);
     } catch (error) { setPublishError(error instanceof Error ? error.message : 'Unable to restore the published layout'); }
     finally { setReleaseState('idle'); }
   }
 
-  function replaceLocalDocument(page: PhotosApiPage, resolvedMediaIds?: string[]) {
-    conflictRef.current = false;
-    documentRef.current = page.draftDocument;
-    lastSavedDocumentRef.current = page.draftDocument;
-    versionRef.current = page.draftVersion;
-    setDocument(page.draftDocument);
+  function resetCanvas(page: PhotosApiPage, resolvedMediaIds?: string[]) {
     setHistory([page.draftDocument]);
     setHistoryIndex(0);
     setSelectedMediaBlockIds(new Set());
@@ -737,50 +675,46 @@ export function PhotosWorkspace({
     // the batch loader resolve any newly visible assets in the restored layout.
     if (resolvedMediaIds) setLoadedMediaIds(new Set(resolvedMediaIds));
     setPublishedDocument(page.publishedDocument);
-    setSaveState('saved');
   }
 
-  async function reloadServerDraft() {
-    setSaveState('saving');
+  async function recoverDraft(mode: 'reload' | 'replace') {
+    setReleaseState('recovering');
+    setPublishError('');
     try {
-      const response = await fetch('/api/admin/photos-page');
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload?.error?.message ?? 'Unable to reload the server draft');
-      setMedia(Object.values((payload.mediaById ?? {}) as Record<string, EditorMedia>));
-      const page = payload.page as PhotosApiPage;
-      replaceLocalDocument(page, page.draftDocument.blocks.filter(isMediaBlock).slice(0, PHOTO_BATCH_SIZE).map((block) => block.mediaAssetId));
-    } catch (error) { console.error(error); setSaveState('error'); }
-  }
-
-  async function replaceServerDraft() {
-    const mine = documentRef.current;
-    setSaveState('saving');
-    try {
-      const serverResponse = await fetch('/api/admin/photos-page');
-      const serverPayload = await serverResponse.json();
-      if (!serverResponse.ok) throw new Error(serverPayload?.error?.message ?? 'Unable to reload the server draft');
-      const serverPage = serverPayload.page as PhotosApiPage;
-      const replace = await fetch('/api/admin/photos-page/draft', {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ expectedVersion: serverPage.draftVersion, document: mine }),
+      await runAction('replace', async (_saved, local) => {
+        const response = await fetch('/api/admin/photos-page');
+        const payload: PhotosDraftResponse & { mediaById?: Record<string, EditorMedia> } = await response.json();
+        if (!response.ok || !payload.page) throw new Error(payload.error?.message ?? 'Unable to reload the server draft');
+        const page = mode === 'replace'
+          ? await persistPhotosDraft({ draft: local, version: payload.page.draftVersion })
+          : payload.page;
+        if (!page || (mode === 'reload' && readDraft() !== local)) return null;
+        if (mode === 'reload') {
+          setMedia(Object.values(payload.mediaById ?? {}));
+          resetCanvas(page, page.draftDocument.blocks.filter(isMediaBlock).slice(0, PHOTO_BATCH_SIZE).map((block) => block.mediaAssetId));
+        } else if (readDraft() === local) {
+          resetCanvas(page);
+        } else {
+          setPublishedDocument(page.publishedDocument);
+        }
+        return { draft: page.draftDocument, version: page.draftVersion };
       });
-      const replacePayload = await replace.json();
-      if (!replace.ok) throw new Error(replacePayload?.error?.message ?? 'Unable to replace the server draft');
-      replaceLocalDocument(replacePayload.page as PhotosApiPage);
-    } catch (error) { console.error(error); conflictRef.current = true; setSaveState('conflict'); }
+    } catch (error) {
+      setPublishError(error instanceof Error ? error.message : 'Unable to recover the Photos draft');
+    } finally {
+      setReleaseState('idle');
+    }
   }
 
   useEffect(() => {
     const beforeUnload = (event: BeforeUnloadEvent) => {
-      if (documentEqual(documentRef.current, lastSavedDocumentRef.current)) return;
+      if (!isDirty()) return;
       event.preventDefault();
       event.returnValue = '';
     };
     window.addEventListener('beforeunload', beforeUnload);
-    return () => {
-      window.removeEventListener('beforeunload', beforeUnload);
-      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    };
-  }, []);
+    return () => window.removeEventListener('beforeunload', beforeUnload);
+  }, [isDirty]);
 
   // A successful upload refreshes this Server Component with the signed
   // preview URL. Merge those server DTOs without disturbing a local draft.
@@ -866,7 +800,7 @@ export function PhotosWorkspace({
       {selected ? <>
         <label>Section heading<input autoFocus maxLength={500} onChange={(event) => editSection(block, 'title', event.target.value)} placeholder="Optional heading" value={sectionDraft?.blockId === block.id ? sectionDraft.title : block.title ?? ''} /></label>
         <label>Section note<textarea maxLength={2_000} onChange={(event) => editSection(block, 'text', event.target.value)} placeholder="Optional note" value={sectionDraft?.blockId === block.id ? sectionDraft.text : block.text ?? ''} /></label>
-        <span className={styles.inlineActions}><button className={styles.doneButton} onClick={() => selectBlock(null)} type="button">Done</button><button onClick={() => applyDocument(moveSectionGroup(documentRef.current, block.id, 'before'))} type="button">Move earlier</button><button onClick={() => applyDocument(moveSectionGroup(documentRef.current, block.id, 'after'))} type="button">Move later</button><button onClick={() => { applyDocument(removeSection(documentRef.current, block.id)); setActiveBlockId(null); }} type="button">Remove section break</button></span>
+        <span className={styles.inlineActions}><button className={styles.doneButton} onClick={() => selectBlock(null)} type="button">Done</button><button onClick={() => applyDocument(moveSectionGroup(readDraft(), block.id, 'before'))} type="button">Move earlier</button><button onClick={() => applyDocument(moveSectionGroup(readDraft(), block.id, 'after'))} type="button">Move later</button><button onClick={() => { applyDocument(removeSection(readDraft(), block.id)); setActiveBlockId(null); }} type="button">Remove section break</button></span>
       </> : <div className={styles.sectionHeader}>
         <button className={styles.sectionSelect} onClick={() => selectBlock(block.id)} type="button">{block.title ? <h2>{block.title}</h2> : <span className={styles.blankSection}>Blank section break</span>}{block.text ? <p>{block.text}</p> : null}</button>
         <button aria-expanded={!collapsed} aria-label={`${collapsed ? 'Expand' : 'Collapse'} section ${sectionName}`} className={styles.foldSection} onClick={() => setCollapsedSectionIds((current) => {
@@ -883,7 +817,8 @@ export function PhotosWorkspace({
       <div className={styles.toolbarMain}>
         <span className={styles.viewportButtons} aria-label="Preview viewport"><button aria-pressed={viewport === 'desktop'} onClick={() => setViewport('desktop')} type="button">Desktop</button><button aria-pressed={viewport === 'mobile'} onClick={() => setViewport('mobile')} type="button">Mobile</button></span>
         <span className={styles.historyButtons}><button disabled={historyIndex === 0} onClick={undo} type="button">Undo</button><button disabled={historyIndex === history.length - 1} onClick={redo} type="button">Redo</button></span>
-        <span aria-live="polite" className={styles.saveState} data-state={saveState}>{saveState === 'saving' ? 'Saving…' : saveState === 'conflict' ? 'Draft changed elsewhere' : saveState === 'error' ? 'Could not save' : hasLocalChanges ? 'Local changes · not saved' : 'Draft saved'}</span>
+        <span aria-live="polite" className={styles.saveState} data-state={saveState}>{saveState === 'saving' ? 'Saving…' : saveState === 'conflict' ? 'Draft changed elsewhere' : saveState === 'error' ? 'Could not save' : saveState === 'dirty' ? 'Local changes · not saved' : 'Draft saved'}</span>
+        {saveState === 'error' ? <button disabled={releaseState !== 'idle'} onClick={() => void flushDraft()} type="button">Retry save</button> : null}
         <span className={styles.primaryActions}>
           <button disabled={uploadState === 'uploading'} onClick={() => setPickerOpen(true)} type="button">{uploadState === 'uploading' ? 'Uploading…' : 'Add media'}</button><button onClick={addSection} type="button">Insert section at top</button><button disabled={releaseState !== 'idle' || saveState === 'conflict' || !hasUnpublishedChanges} onClick={() => void publish()} type="button">{releaseState === 'publishing' ? 'Publishing…' : 'Publish'}</button>{publishedDocument ? <button disabled={releaseState !== 'idle' || saveState === 'saving' || saveState === 'conflict' || !hasUnpublishedChanges} onClick={() => void discard()} type="button">{releaseState === 'restoring' ? 'Restoring…' : 'Restore last published'}</button> : null}
         </span>
@@ -898,13 +833,13 @@ export function PhotosWorkspace({
           <strong>{selectedMediaBlockIds.size} selected</strong>
           <span>Drag any selected photo to move the selection together.</span>
           <span className={styles.moveToSection}><label htmlFor="photos-move-to-section">Move to</label><select id="photos-move-to-section" onChange={(event) => setMoveTargetSectionId(event.target.value)} value={moveTargetSectionId}><option value="">Choose a section…</option>{document.blocks.filter((block): block is PhotosSectionBlock => block.type === 'section').map((section, index) => <option key={section.id} value={section.id}>{section.title || `Untitled section ${index + 1}`}</option>)}</select><button disabled={!moveTargetSectionId} onClick={moveSelectionToSection} type="button">Move</button></span>
-          <span className={styles.bulkActions}><button onClick={() => { applyDocument(removeMediaBlocks(documentRef.current, selectedMediaBlockIds)); setSelectedMediaBlockIds(new Set()); setActiveBlockId(null); }} type="button">Remove selected from page</button><button onClick={() => void requestDeletionPlan()} type="button">Delete selected uploads…</button><button onClick={() => { setSelectedMediaBlockIds(new Set()); setMoveTargetSectionId(''); }} type="button">Clear selection</button></span>
+          <span className={styles.bulkActions}><button onClick={() => { applyDocument(removeMediaBlocks(readDraft(), selectedMediaBlockIds)); setSelectedMediaBlockIds(new Set()); setActiveBlockId(null); }} type="button">Remove selected from page</button><button onClick={() => void requestDeletionPlan()} type="button">Delete selected uploads…</button><button onClick={() => { setSelectedMediaBlockIds(new Set()); setMoveTargetSectionId(''); }} type="button">Clear selection</button></span>
         </> : <p className={styles.editorHint}>Click photos to select them. Press Edit to change photo details. Use + at a photo edge to insert a section there; “Insert section at top” starts one at the beginning.</p>}
       </div>
     </div>
-    {publishError ? <aside className={styles.publishError} role="alert"><p>{publishError}</p>{publishIssues.length ? <ul>{publishIssues.map((issue, index) => <li key={`${issue.blockId}-${index}`}><button onClick={() => revealBlock(issue.blockId, documentRef.current, true)} type="button">Edit: {issue.message}</button></li>)}</ul> : null}</aside> : null}
+    {publishError ? <aside className={styles.publishError} role="alert"><p>{publishError}</p>{publishIssues.length ? <ul>{publishIssues.map((issue, index) => <li key={`${issue.blockId}-${index}`}><button onClick={() => revealBlock(issue.blockId, readDraft(), true)} type="button">Edit: {issue.message}</button></li>)}</ul> : null}</aside> : null}
     {uploadMessage ? <p className={styles.uploadStatus} data-error={uploadState === 'error' || undefined}>{uploadMessage}</p> : null}
-    {saveState === 'conflict' ? <aside className={styles.conflict} role="alert">Another editor saved this page. Your local layout is preserved. <button onClick={() => void reloadServerDraft()} type="button">Reload server draft</button><button onClick={() => void replaceServerDraft()} type="button">Replace server draft with mine</button></aside> : null}
+    {saveState === 'conflict' ? <aside className={styles.conflict} role="alert">Another editor saved this page. Your local layout is preserved. <button disabled={releaseState !== 'idle'} onClick={() => void recoverDraft('reload')} type="button">Reload server draft</button><button disabled={releaseState !== 'idle'} onClick={() => void recoverDraft('replace')} type="button">Replace server draft with mine</button></aside> : null}
     <div className={styles.authoringShell} data-viewport={viewport}><div className={styles.canvasFrame} ref={canvasRef}>{canvas.sections.length ? <PhotosPageView intro="A collection of moments, arranged in the order they belong." onOpen={() => undefined} photos={photos} renderSection={renderSection} renderTile={renderTile} sectionGroups={displayedSections} /> : <section className={styles.emptyCanvas}><h2>Photos, soon.</h2><p>Add uploads or insert a section to start shaping this page.</p></section>}
       {(visiblePhotoCount < totalPhotoCount || mediaLoadState !== 'idle') ? <div className={styles.canvasLoader} ref={sentinelRef}>
         <p aria-live="polite">{mediaLoadState === 'loading' ? 'Loading photos…' : mediaLoadState === 'error' ? 'More photos could not be loaded.' : `${Math.min(visiblePhotoCount, totalPhotoCount)} of ${totalPhotoCount} photos loaded`}</p>
@@ -917,13 +852,13 @@ export function PhotosWorkspace({
         <div><p className={styles.inspectorEyebrow}>Selected media</p><strong>{mediaById.get(activeMediaBlock.mediaAssetId)?.originalFilename ?? 'Unavailable upload'}</strong></div>
         <button aria-label="Close selected media inspector" className={styles.closeInspector} onClick={() => setActiveBlockId(null)} type="button">×</button>
       </header>
-      <label>Display date<input max="9999-12-31" onChange={(event) => applyDocument(updateMediaBlock(documentRef.current, activeMediaBlock.id, { displayDate: event.target.value || undefined }))} type="date" value={activeMediaBlock.displayDate ?? ''} /></label>
-      <label>Caption<input maxLength={2_000} onChange={(event) => applyDocument(updateMediaBlock(documentRef.current, activeMediaBlock.id, { caption: event.target.value.trim() || undefined }))} placeholder="Optional text beneath the photo" value={activeMediaBlock.caption ?? ''} /></label>
-      <label>Alt text<input aria-invalid={!activeMediaBlock.decorative && !activeMediaBlock.altText || undefined} maxLength={1_000} onChange={(event) => applyDocument(updateMediaBlock(documentRef.current, activeMediaBlock.id, { altText: event.target.value.trim() || undefined }))} placeholder="Describe the image" value={activeMediaBlock.altText ?? ''} /></label>
-      <label className={styles.decorative}><input checked={Boolean(activeMediaBlock.featuredOnHome)} disabled={!activeMediaBlock.featuredOnHome && featuredPhotoCount >= 8} onChange={(event) => applyDocument(updateMediaBlock(documentRef.current, activeMediaBlock.id, { featuredOnHome: event.target.checked }))} type="checkbox" /> Show on homepage</label>
-      <label className={styles.decorative}><input checked={activeMediaBlock.decorative} onChange={(event) => applyDocument(updateMediaBlock(documentRef.current, activeMediaBlock.id, { decorative: event.target.checked }))} type="checkbox" /> Decorative image</label>
+      <label>Display date<input max="9999-12-31" onChange={(event) => applyDocument(updateMediaBlock(readDraft(), activeMediaBlock.id, { displayDate: event.target.value || undefined }))} type="date" value={activeMediaBlock.displayDate ?? ''} /></label>
+      <label>Caption<input maxLength={2_000} onChange={(event) => applyDocument(updateMediaBlock(readDraft(), activeMediaBlock.id, { caption: event.target.value.trim() || undefined }))} placeholder="Optional text beneath the photo" value={activeMediaBlock.caption ?? ''} /></label>
+      <label>Alt text<input aria-invalid={!activeMediaBlock.decorative && !activeMediaBlock.altText || undefined} maxLength={1_000} onChange={(event) => applyDocument(updateMediaBlock(readDraft(), activeMediaBlock.id, { altText: event.target.value.trim() || undefined }))} placeholder="Describe the image" value={activeMediaBlock.altText ?? ''} /></label>
+      <label className={styles.decorative}><input checked={Boolean(activeMediaBlock.featuredOnHome)} disabled={!activeMediaBlock.featuredOnHome && featuredPhotoCount >= 8} onChange={(event) => applyDocument(updateMediaBlock(readDraft(), activeMediaBlock.id, { featuredOnHome: event.target.checked }))} type="checkbox" /> Show on homepage</label>
+      <label className={styles.decorative}><input checked={activeMediaBlock.decorative} onChange={(event) => applyDocument(updateMediaBlock(readDraft(), activeMediaBlock.id, { decorative: event.target.checked }))} type="checkbox" /> Decorative image</label>
       {!activeMediaBlock.decorative && !activeMediaBlock.altText ? <p className={styles.fieldError}>Alt text is required before publishing.</p> : null}
-      <span className={styles.inspectorActions}><button onClick={() => applyDocument(moveMedia(documentRef.current, activeMediaBlock.id, 'before'))} type="button">Move earlier</button><button onClick={() => applyDocument(moveMedia(documentRef.current, activeMediaBlock.id, 'after'))} type="button">Move later</button><button onClick={() => { applyDocument(removeMediaBlocks(documentRef.current, [activeMediaBlock.id])); setActiveBlockId(null); }} type="button">Remove from page</button></span>
+      <span className={styles.inspectorActions}><button onClick={() => applyDocument(moveMedia(readDraft(), activeMediaBlock.id, 'before'))} type="button">Move earlier</button><button onClick={() => applyDocument(moveMedia(readDraft(), activeMediaBlock.id, 'after'))} type="button">Move later</button><button onClick={() => { applyDocument(removeMediaBlocks(readDraft(), [activeMediaBlock.id])); setActiveBlockId(null); }} type="button">Remove from page</button></span>
     </aside> : null}
     <p aria-live="polite" className="sr-only">{reorderMessage || (selectedMediaBlockIds.size ? `${selectedMediaBlockIds.size} photos selected` : '')}</p>
     <MediaPicker onClose={() => setPickerOpen(false)} onInsert={(items) => void insertPickedMedia(items)} onUpload={(files) => { setPickerOpen(false); void uploadBatch(files); }} open={pickerOpen} placedMediaIds={new Set(document.blocks.flatMap((block) => block.type === 'media' ? [block.mediaAssetId] : []))} />
