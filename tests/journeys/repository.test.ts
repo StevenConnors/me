@@ -166,6 +166,13 @@ describe('JourneyRepository.resolvePublicSlug', () => {
       {
         findOne: vi.fn(async (filter: Record<string, unknown>) =>
           journeys.find((journey) => matches(journey, filter)) ?? null),
+        find: vi.fn((filter: Record<string, unknown>) => ({
+          sort: () => ({
+            toArray: async () => journeys
+              .filter((journey) => matches(journey, filter))
+              .sort((a, b) => Number(b.publishedAt) - Number(a.publishedAt)),
+          }),
+        })),
       } as unknown as Collection<Journey>,
       {
         findOne: vi.fn(async (filter: Record<string, unknown>) =>
@@ -224,6 +231,30 @@ describe('JourneyRepository.resolvePublicSlug', () => {
     await expect(repository.resolvePublicSlug('night-train')).resolves.toMatchObject({ kind: 'live' });
     await expect(repository.findPublicSlugOwner('night-train')).resolves.toEqual(journey._id);
     await expect(repository.resolvePublicSlug('draft-only-slug')).resolves.toBeNull();
+  });
+
+  it('prefers the journey still live on a slug over one that published it earlier', async () => {
+    const liveRevision = new ObjectId();
+    const live = makeJourney({
+      _id: new ObjectId(),
+      status: 'published',
+      publishedRevisionId: liveRevision,
+      publishedAt: new Date('2026-09-01T00:00:00.000Z'),
+    });
+    const movedRevision = new ObjectId();
+    const moved = makeJourney({
+      _id: new ObjectId(),
+      status: 'published',
+      publishedRevisionId: movedRevision,
+      publishedAt: new Date('2026-10-01T00:00:00.000Z'),
+    });
+    const repository = repositoryWith([live, moved], [
+      publishedRevision(live, 'night-train', liveRevision),
+      publishedRevision(moved, 'night-train'),
+      publishedRevision(moved, 'night-train-elsewhere', movedRevision),
+    ]);
+
+    await expect(repository.findPublicSlugOwner('night-train')).resolves.toEqual(live._id);
   });
 
   it('does not resolve any slug of an unpublished journey', async () => {

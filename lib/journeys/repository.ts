@@ -143,19 +143,21 @@ export class JourneyRepository {
       'metadataSnapshot.slug': slug,
     });
     if (!journeyIds.length) return null;
-    const match = await this.journeys.findOne(
-      { _id: { $in: journeyIds }, status: 'published' },
-      { sort: { publishedAt: -1 } },
-    );
-    if (!match) return null;
+    const candidates = await this.journeys
+      .find({ _id: { $in: journeyIds }, status: 'published' })
+      .sort({ publishedAt: -1 })
+      .toArray();
 
-    const journey = JourneySchema.parse(match);
-    const revision = await this.findPublishedRevision(journey);
-    if (!revision) return null;
-    const liveSlug = revision.metadataSnapshot.slug;
-    return liveSlug === slug
-      ? { kind: 'live', journey, revision }
-      : { kind: 'moved', slug: liveSlug };
+    let moved: PublicJourneySlug | null = null;
+    for (const candidate of candidates) {
+      const journey = JourneySchema.parse(candidate);
+      const revision = await this.findPublishedRevision(journey);
+      if (!revision) continue;
+      const liveSlug = revision.metadataSnapshot.slug;
+      if (liveSlug === slug) return { kind: 'live', journey, revision };
+      moved ??= { kind: 'moved', slug: liveSlug };
+    }
+    return moved;
   }
 
   /** Who currently serves `slug` publicly, if anyone. */
