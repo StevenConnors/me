@@ -1,8 +1,8 @@
 'use client';
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { Tweet } from 'react-tweet';
 import Header from '../../components/header';
+import { TweetEmbed } from '../../components/TweetEmbed';
 import styles from '../../styles/ThoughtsAloud.module.css';
 
 const PAGE_LIMIT = 50;
@@ -139,7 +139,7 @@ export default function ThoughtsAloud() {
                   // Add Tweet embed
                   parts.push(
                     <div key={`tweet-${twitterMatch[1]}-${idx}`} style={{ margin: '1rem 0' }}>
-                      <Tweet id={twitterMatch[1]} />
+                      <TweetEmbed id={twitterMatch[1]} />
                     </div>
                   );
                 } else {
@@ -164,10 +164,8 @@ export default function ThoughtsAloud() {
                   }
                   const videoId = match[1];
                   ytParts.push(
-                    <div key={`yt-${videoId}-${i}-${match.index}`} style={{ margin: '1rem 0' }}>
+                    <div key={`yt-${videoId}-${i}-${match.index}`} className={styles['ta-iframe-wrap']}>
                       <iframe
-                        width="560"
-                        height="315"
                         src={`https://www.youtube.com/embed/${videoId}`}
                         title="YouTube video player"
                         frameBorder="0"
