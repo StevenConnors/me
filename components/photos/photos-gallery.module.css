@@ -2,7 +2,7 @@
 .gallery h1, .section h2 { margin: 0; font-family: Georgia, 'Times New Roman', serif; font-weight: 400; letter-spacing: -.045em; }
 .gallery h1 { font-size: clamp(62px, 9vw, 132px); line-height: .85; }
 .intro { max-width: 360px; margin: 22px 0 72px; color: #615f58; font: 20px/1.35 Georgia, 'Times New Roman', serif; }
-.sectionLinks { position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; gap: 10px 22px; margin: -42px 0 58px; padding: 14px 0; background: #f1f0eb; border-bottom: 1px solid rgba(22, 21, 16, .12); font: 14px/1.4 Arial, sans-serif; }
+.sectionLinks { position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: nowrap; overflow-x: auto; white-space: nowrap; gap: 10px 22px; margin: -42px 0 58px; padding: 14px 0; background: #f1f0eb; border-bottom: 1px solid rgba(22, 21, 16, .12); font: 14px/1.4 Arial, sans-serif; }
 .sectionLinks .sectionCount { margin-left: 6px; color: #615f58; font-size: 12px; }
 p.sectionCount { margin: 10px 0 0; color: #615f58; font: 13px/1.4 Arial, sans-serif; }
 .sectionLinks a { color: #25231e; text-decoration-color: #aaa69c; text-underline-offset: 4px; }
