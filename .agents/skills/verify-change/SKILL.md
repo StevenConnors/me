@@ -28,6 +28,7 @@ Start the disposable DB once: `npm run e2e:db:up`. Run the narrowest specs first
 | `app/photos/**`, `components/photos/**`, `lib/photos/**` | `e2e/photo-viewer.spec.ts`, `e2e/home-photos-media.spec.ts` |
 | `app/travel/**`, `components/travel/**`, `lib/travel/**` | `e2e/travel*.spec.ts` |
 | `app/glass/**`, `lib/glass/**` | `e2e/glass-collection.spec.ts` |
+| `app/stories/**`, `content/stories/**`, `components/Story.tsx`, `components/Step.tsx` | `e2e/legacy-story.spec.ts`, `e2e/authoring-flow.spec.ts` |
 | collections / suggestions | `e2e/collection*.spec.ts`, `e2e/media-enrichment*.spec.ts` |
 | auth, `middleware`, `next.config.js`, `package.json`, shared layout | full suite |
 
