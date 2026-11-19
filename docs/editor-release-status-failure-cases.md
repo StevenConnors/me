@@ -11,3 +11,9 @@
 - Save, conflict, or publishing messages hide the separate live state.
 - Status text or actions overflow the editor toolbar at 390px, or emit runtime errors.
 - Admin-only status work adds queries or JavaScript to public routes.
+
+## Save queue regressions
+
+- A failed Photos autosave repeats indefinitely without any new edit or explicit retry.
+- A save during publish can invalidate the version being published or drop the newer draft.
+- A competing release does not block further saves, clears local edits, or leaves Photos recovery unusable.

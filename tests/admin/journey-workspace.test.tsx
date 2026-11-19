@@ -94,7 +94,7 @@ describe('JourneyWorkspace', () => {
   it('shows the public story URL after publishing', async () => {
     const savedJourney = {
       _id: 'journey-1',
-      title: 'A journey',
+      title: 'The revised journey',
       slug: 'a-journey',
       summary: 'A short summary',
       status: 'draft' as const,
@@ -121,12 +121,14 @@ describe('JourneyWorkspace', () => {
         initialPublishedSnapshot={null}
         initialJourney={{
           ...savedJourney,
+          title: 'A journey',
           editVersion: 0,
         }}
         media={[]}
       />,
     );
 
+    fireEvent.change(screen.getByLabelText('Title', { exact: true }), { target: { value: savedJourney.title } });
     fireEvent.click(screen.getByRole('button', { name: 'Publish journey' }));
 
     const publicLink = await screen.findByRole('link', { name: 'View public journey ↗' });
