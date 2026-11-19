@@ -90,7 +90,7 @@ export function validateJourneyForPublication(
     issues.push({
       code: 'slug_unavailable',
       path: 'slug',
-      message: 'This slug is already used by another active journey',
+      message: 'This slug is already used by another published journey',
     });
   }
   if (!journey.cover) {

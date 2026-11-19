@@ -132,4 +132,24 @@ describe('JourneyWorkspace', () => {
     expect(publicLink).toHaveAttribute('href', '/stories/a-journey');
     expect(publicLink).toHaveAttribute('target', '_blank');
   });
+
+  it('links a reopened published journey to its live URL, not the draft slug', () => {
+    render(
+      <JourneyWorkspace
+        initialJourney={{
+          _id: 'journey-1',
+          title: 'A journey',
+          slug: 'a-journey-renamed',
+          publishedSlug: 'a-journey',
+          status: 'published',
+          editVersion: 3,
+          draftDocument: EMPTY_JOURNEY_DOCUMENT,
+        }}
+        media={[]}
+      />,
+    );
+
+    expect(screen.getByRole('link', { name: 'View public journey ↗' }))
+      .toHaveAttribute('href', '/stories/a-journey');
+  });
 });

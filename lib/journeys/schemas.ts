@@ -367,6 +367,8 @@ export const JourneySchema = z
     social: JourneySocialSchema.optional(),
     editVersion: z.number().int().nonnegative(),
     publishedRevisionId: z.instanceof(ObjectId).optional(),
+    /** The live public slug; `slug` is only the draft's proposal until published. */
+    publishedSlug: JourneySlugSchema.optional(),
     firstPublishedAt: z.date().optional(),
     publishedAt: z.date().optional(),
     createdAt: z.date(),
@@ -437,7 +439,7 @@ export const JourneyRevisionSchema = z
     sequence: z.number().int().positive(),
     schemaVersion: z.literal(JOURNEY_SCHEMA_VERSION),
     reason: JourneyRevisionReasonSchema,
-    publishedEditVersion: z.number().int().nonnegative().optional(),
+    publishedEditVersion: z.number().int().nonnegative().nullish(),
     document: JourneyDocumentSchema,
     metadataSnapshot: JourneyRevisionMetadataSchema,
     createdAt: z.date(),

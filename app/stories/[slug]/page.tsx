@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { notFound } from 'next/navigation';
+import { notFound, redirect, unstable_rethrow } from 'next/navigation';
 import { cache } from 'react';
 
 import { LegacyStory } from './LegacyStory';
@@ -8,7 +8,6 @@ import { HeldPlacesJourneyPage } from '@/components/held-places/HeldPlaces';
 import { JourneyRenderer } from '@/components/journey/JourneyRenderer';
 import { loadJourneyMediaPresentation } from '@/lib/journeys/media-presentation';
 import { JourneyRepository } from '@/lib/journeys/repository';
-import { findJourneyRevision } from '@/lib/journeys/revisions';
 import {
   collectMediaPlacements,
   isHeldPlacesDocument,
@@ -17,24 +16,9 @@ import {
 
 export const dynamic = 'force-dynamic';
 
-const loadPublishedJourney = cache(async (slug: string) => {
-  const repository = await JourneyRepository.connect();
-  const journey = await repository.findBySlug(slug);
-  if (
-    !journey ||
-    journey.status !== 'published' ||
-    !journey.publishedRevisionId ||
-    !repository.revisions
-  ) {
-    return null;
-  }
-  const revision = await findJourneyRevision(
-    repository.revisions,
-    journey._id,
-    journey.publishedRevisionId,
-  );
-  return revision ? { journey, revision } : null;
-});
+const resolvePublicSlug = cache(async (slug: string) =>
+  (await JourneyRepository.connect()).resolvePublicSlug(slug),
+);
 
 export async function generateMetadata({
   params,
@@ -43,8 +27,8 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   try {
-    const result = await loadPublishedJourney(slug);
-    if (!result) return {};
+    const result = await resolvePublicSlug(slug);
+    if (result?.kind !== 'live') return {};
     const metadata = result.revision.metadataSnapshot;
     const title = metadata.social?.title ?? metadata.title;
     const description = metadata.social?.description ?? metadata.summary;
@@ -96,7 +80,8 @@ export default async function StoryPage({
 }) {
   const { slug } = await params;
   try {
-    const result = await loadPublishedJourney(slug);
+    const result = await resolvePublicSlug(slug);
+    if (result?.kind === 'moved') redirect(`/stories/${result.slug}`);
     if (!result) {
       if (isLegacyStorySlug(slug)) return <LegacyStory slug={slug} />;
       notFound();
@@ -142,7 +127,7 @@ export default async function StoryPage({
       </main>
     );
   } catch (error) {
-    if (isNotFoundError(error)) throw error;
+    unstable_rethrow(error);
     console.error('Unable to load database journey; falling back to the legacy story', error);
     if (isLegacyStorySlug(slug)) return <LegacyStory slug={slug} />;
     notFound();
@@ -165,14 +150,4 @@ function coverAsHeldPlacesMedia(placement: {
       ? { decorative: placement.decorative }
       : {}),
   };
-}
-
-function isNotFoundError(error: unknown): boolean {
-  return Boolean(
-    error &&
-      typeof error === 'object' &&
-      'digest' in error &&
-      (error as { digest?: unknown }).digest ===
-        'NEXT_HTTP_ERROR_FALLBACK;404',
-  );
 }

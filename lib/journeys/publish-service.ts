@@ -26,8 +26,8 @@ export async function publishJourney(
     throw new Error('A revisions collection is required to publish a journey');
   }
 
-  const existingSlug = await journeyRepository.findBySlug(journey.slug);
-  const slugAvailable = !existingSlug || existingSlug._id.equals(journey._id);
+  const slugOwner = await journeyRepository.findPublicSlugOwner(journey.slug);
+  const slugAvailable = !slugOwner || slugOwner.equals(journey._id);
   const mediaIds = new Set([
     ...(journey.cover ? [journey.cover.mediaAssetId] : []),
     ...(journey.social?.image ? [journey.social.image.mediaAssetId] : []),
@@ -65,7 +65,7 @@ export async function publishJourney(
   const publishedJourney = await journeyRepository.publish(
     journey._id,
     input.expectedEditVersion,
-    revision._id,
+    revision,
     { now: revision.createdAt },
   );
 
