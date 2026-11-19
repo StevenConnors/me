@@ -10,7 +10,7 @@ export type PublicPhotosPage = {
   items: PublicPhoto[];
   nextCursor: string | null;
   unavailable: UnavailablePhotosBlock[];
-  sections: Array<PublicPhotoSectionBreak & { id: string }>;
+  sections: Array<PublicPhotoSectionBreak & { id: string; count: number }>;
 };
 
 const legacyPublishedAt = new Date(0).toISOString();
@@ -53,8 +53,8 @@ export async function loadPublicPhotosPage(
     return {
       ...pageResolvedPhotos(legacy, legacyPublishedAt, limit, cursor?.mediaAssetId),
       unavailable: [],
-      sections: legacy.flatMap((photo) => photo.sectionBreak && photo.sectionBlockId
-        ? [{ id: photo.sectionBlockId, ...photo.sectionBreak }] : []),
+      sections: countSections(legacy.map((photo) => photo.sectionBreak && photo.sectionBlockId
+        ? { id: photo.sectionBlockId, ...photo.sectionBreak, photo: true } : { photo: true })),
     };
   }
 
@@ -98,9 +98,25 @@ export async function loadPublicPhotosPage(
       ? encodeGalleryCursor({ version: 1, publishedAt, mediaAssetId: last.id })
       : null,
     unavailable: resolved.unavailable,
-    sections: publishedBlocks.flatMap((block) => block.type === 'section'
-      ? [{ id: block.id, title: block.title, text: block.text }] : []),
+    sections: countSections(publishedBlocks.map((block) => block.type === 'section'
+      ? { id: block.id, title: block.title, text: block.text, photo: false } : { photo: true })),
   };
+}
+
+/** Section links with the number of photographs that follow each section start. */
+function countSections(
+  entries: Array<(PublicPhotoSectionBreak & { id: string; photo: boolean }) | { id?: undefined; photo: boolean }>,
+) {
+  const sections: Array<PublicPhotoSectionBreak & { id: string; count: number }> = [];
+  for (const entry of entries) {
+    if (entry.id !== undefined) {
+      const { photo, ...section } = entry;
+      sections.push({ ...section, count: 0 });
+      if (!photo) continue;
+    }
+    if (entry.photo && sections.length) sections[sections.length - 1].count += 1;
+  }
+  return sections;
 }
 
 /** Homepage picks follow the published Photos order, independently of pagination. */
