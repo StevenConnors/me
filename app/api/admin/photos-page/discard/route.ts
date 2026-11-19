@@ -5,6 +5,7 @@ import { apiError, requireAuthorApi } from '@/lib/http/admin-api';
 import {
   PhotosPageConflictError,
   PhotosPageNotFoundError,
+  PhotosPageNotPublishedError,
   PhotosPageRepository,
 } from '@/lib/photos/repository';
 import { serializePhotosPage } from '@/lib/photos/serializers';
@@ -22,6 +23,9 @@ export async function POST(request: NextRequest) {
     const page = await (await PhotosPageRepository.connect()).discardDraft(expectedVersion);
     return NextResponse.json({ page: serializePhotosPage(page) });
   } catch (error) {
+    if (error instanceof PhotosPageNotPublishedError) {
+      return apiError('PHOTOS_NOT_PUBLISHED', error.message, 422);
+    }
     if (error instanceof PhotosPageConflictError) {
       return apiError('PHOTOS_DRAFT_CONFLICT', 'This Photos draft changed in another session', 409, {
         expectedVersion: error.expectedDraftVersion,

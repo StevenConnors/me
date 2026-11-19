@@ -39,10 +39,11 @@ test('delayed autosave preserves newer typing and saves with the acknowledged ve
     await page.locator('.ProseMirror').fill('Body B');
     // Advance past the debounce while A remains in flight.
     await page.clock.fastForward(1_100);
+    await expect(page.getByText('Saving…', { exact: true })).toBeVisible();
     await page.screenshot({ path: test.info().outputPath('e2e-fixture-autosave-in-flight.png'), fullPage: true });
     release();
     await page.clock.resume();
-    await expect(page.getByText('Saved', { exact: true })).toBeVisible();
+    await expect(page.getByText('Draft saved', { exact: true })).toBeVisible();
     await expect(page.getByLabel('Title', { exact: true })).toHaveValue('Autosave B');
     await expect(page.locator('.ProseMirror')).toHaveText('Body B');
     expect(requests).toHaveLength(2);
@@ -51,7 +52,7 @@ test('delayed autosave preserves newer typing and saves with the acknowledged ve
     await expect(page.getByLabel('Title', { exact: true })).toHaveValue('Autosave B');
     await expect(page.locator('.ProseMirror')).toHaveText('Body B');
     await page.getByRole('button', { name: 'Save now' }).click();
-    await expect(page.getByText('Saved', { exact: true })).toBeVisible();
+    await expect(page.getByText('Draft saved', { exact: true })).toBeVisible();
     expect(errors).toEqual([]);
     expectingConflict = true;
     const competing = await page.request.get(`/api/admin/journeys/${journeyId}`);

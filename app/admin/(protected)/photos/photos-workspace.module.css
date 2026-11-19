@@ -12,6 +12,9 @@
 .saveState { margin-left: auto; color: #635f54; font: 12px/1 Arial, sans-serif; }
 .saveState[data-state="error"], .saveState[data-state="conflict"], .fieldError { color: #9b271b; }
 .primaryActions { margin-left: auto; }
+.releaseStatus { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; padding-top: 10px; border-top: 1px solid #d6d1c4; color: #635f54; font: 12px/1.5 Arial, sans-serif; }
+.releaseStatus > :first-child { color: #343128; }
+.releaseStatus a { color: #343128; text-underline-offset: 3px; }
 .primaryActions button:last-child { color: #8b281b; }
 .uploadStatus { margin: 0; color: #625f56; font: 13px/1.4 Arial, sans-serif; }
 .uploadStatus[data-error] { color: #9b271b; }

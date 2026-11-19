@@ -87,7 +87,7 @@ test('home previews published photos, section navigation reaches later pages, an
     const publishResponse = page.waitForResponse((response) => response.url().endsWith('/api/admin/photos-page/publish') && response.request().method() === 'POST');
     await page.getByRole('button', { name: 'Publish', exact: true }).click();
     expect((await publishResponse).ok()).toBe(true);
-    await expect(page.getByText('Published', { exact: true })).toBeVisible();
+    await expect(page.getByText('Live · no unpublished changes', { exact: true })).toBeVisible();
     await page.goto('/');
     await expect(page.locator('[data-home-photo]')).toHaveCount(2);
     await expect(page.locator('[data-home-photo]').first().locator('img')).toHaveAttribute('alt', 'E2E photo 6');

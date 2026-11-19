@@ -64,7 +64,7 @@ test('Photos editor saves draft removal before deleting a draft-only upload', as
     const publication = page.waitForResponse((response) => response.url().endsWith('/api/admin/photos-page/publish'));
     await page.getByRole('button', { name: 'Publish', exact: true }).click();
     expect((await publication).status()).toBe(200);
-    await expect(page.getByText('Published', { exact: true })).toBeVisible();
+    await expect(page.getByText('Live · no unpublished changes', { exact: true })).toBeVisible();
     observations.published = true;
     expect(errors).toEqual([]);
     await test.info().attach('e2e-fixture-photos-delete-published.png', { body: await page.screenshot(), contentType: 'image/png' });

@@ -56,7 +56,7 @@ test('an author imports and uploads videos, builds a mixed journey carousel, and
     await expect(page.getByRole('region', { name: 'Held Places chapter editor' }).getByText('existing-video.mp4')).toBeVisible();
     await expect(page.getByRole('region', { name: 'Held Places chapter editor' }).getByText('sample-video.mp4')).toBeVisible();
     await page.getByRole('button', { name: 'Save now' }).click();
-    await expect(page.getByText('Saved', { exact: true })).toBeVisible();
+    await expect(page.getByText('Draft saved', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Publish journey' }).click();
     await expect(page.getByText('Published from a new immutable revision.')).toBeVisible();
 

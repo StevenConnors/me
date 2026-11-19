@@ -52,6 +52,7 @@ describe('JourneyWorkspace', () => {
 
     render(
       <JourneyWorkspace
+        initialPublishedSnapshot={null}
         initialJourney={{
           _id: 'journey-1',
           title: 'A journey',
@@ -117,6 +118,7 @@ describe('JourneyWorkspace', () => {
 
     render(
       <JourneyWorkspace
+        initialPublishedSnapshot={null}
         initialJourney={{
           ...savedJourney,
           editVersion: 0,
@@ -136,6 +138,7 @@ describe('JourneyWorkspace', () => {
   it('links a reopened published journey to its live URL, not the draft slug', () => {
     render(
       <JourneyWorkspace
+        initialPublishedSnapshot={null}
         initialJourney={{
           _id: 'journey-1',
           title: 'A journey',
