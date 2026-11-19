@@ -7,7 +7,7 @@ import styles from './photos-gallery.module.css';
 import { MasonryGrid } from './MasonryGrid';
 
 export type PublicPhotoSectionBreak = { title?: string; text?: string };
-export type PublicPhotoSection = PublicPhotoSectionBreak & { id: string };
+export type PublicPhotoSection = PublicPhotoSectionBreak & { id: string; count?: number };
 
 export type PublicPhoto = {
   id: string;
@@ -104,14 +104,16 @@ export function PhotosPageView({
       <h1 id="photos-title">{title}</h1>
       {intro ? <p className={styles.intro}>{intro}</p> : null}
       {sectionLinks?.length ? <nav aria-label="Photo sections" className={styles.sectionLinks}>
-        {sectionLinks.map((section, index) => <a href={`#section-${section.id}`} key={section.id} onClick={(event) => onSectionLinkClick?.(event, section.id)}>{section.title ?? `Section ${index + 1}`}</a>)}
+        {sectionLinks.map((section, index) => <a href={`#section-${section.id}`} key={section.id} onClick={(event) => onSectionLinkClick?.(event, section.id)}>{section.title ?? `Section ${index + 1}`}{section.count !== undefined ? <span className={styles.sectionCount}>{section.count}</span> : null}</a>)}
       </nav> : null}
       {sections.map((section, sectionIndex) => {
         const sectionNumber = sectionLinks?.findIndex((item) => item.id === section.sectionBlockId);
+        const sectionCount = sectionNumber !== undefined && sectionNumber >= 0 ? sectionLinks?.[sectionNumber].count : undefined;
         const sectionTitle = section.sectionBreak?.title ?? (section.sectionBreak ? `Section ${sectionNumber !== undefined && sectionNumber >= 0 ? sectionNumber + 1 : sectionIndex + 1}` : undefined);
         return <section aria-label={sectionTitle ?? 'Photographs'} className={styles.section} id={section.sectionBlockId ? `section-${section.sectionBlockId}` : undefined} key={section.sectionBlockId ?? `opening-${sectionIndex}`}>
           {renderSection ? renderSection(section, sectionIndex) : <>
             {sectionTitle ? <h2>{onToggleSection && section.sectionBlockId ? <button aria-label={`${collapsedSections?.has(section.sectionBlockId) ? 'Expand' : 'Collapse'} ${sectionTitle}`} aria-expanded={!collapsedSections?.has(section.sectionBlockId)} className={styles.sectionToggle} onClick={() => onToggleSection(section.sectionBlockId!)} type="button">{sectionTitle}<span aria-hidden="true">{collapsedSections?.has(section.sectionBlockId) ? '+' : '−'}</span></button> : sectionTitle}</h2> : null}
+            {sectionCount !== undefined ? <p className={styles.sectionCount}>{sectionCount} {sectionCount === 1 ? 'photo' : 'photos'}</p> : null}
             {section.sectionBreak?.text ? <p className={styles.sectionNote}>{section.sectionBreak.text}</p> : null}
           </>}
           {!section.sectionBlockId || !collapsedSections?.has(section.sectionBlockId) ? <MasonryGrid
