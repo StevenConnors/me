@@ -1,15 +1,18 @@
 'use client';
 
+import Link from 'next/link';
 import { useMemo, useState, type KeyboardEvent } from 'react';
 import { TRAVEL_PLACES, TRAVEL_REGION_LABELS, type TravelRegion, type TravelSelections } from '@/lib/travel/catalog';
 import { TravelMap } from '@/components/travel/TravelMap';
+import type { TravelJourneyLinks } from '@/lib/travel/journey-links';
 import styles from './travel-overview.module.css';
 
 const REGIONS: TravelRegion[] = ['countries', 'usStates', 'japanPrefectures'];
 const LIMITS: Record<TravelRegion, number> = { countries: 249, usStates: 50, japanPrefectures: 47 };
 
-export function TravelOverview({ selections, updatedAt, failed = false }: {
+export function TravelOverview({ selections, updatedAt, failed = false, journeyLinks = {} }: {
   selections: TravelSelections;
+  journeyLinks?: TravelJourneyLinks;
   updatedAt: string | null;
   failed?: boolean;
 }) {
@@ -54,7 +57,10 @@ export function TravelOverview({ selections, updatedAt, failed = false }: {
       <section className={styles.visited} aria-labelledby="visited-places-heading">
         <div className={styles.visitedHeading}><h2 id="visited-places-heading">Visited places</h2><span>{visited[activeRegion].length}</span></div>
         <ul aria-label="Visited places" className={styles.placeList}>
-          {visited[activeRegion].map((place) => <li key={place.code}><span>{place.name}</span><span aria-hidden="true">{place.code}</span></li>)}
+          {visited[activeRegion].map((place) => {
+            const journeys = activeRegion === 'countries' ? journeyLinks[place.code] : undefined;
+            return <li key={place.code}><span className={styles.placeName}>{place.name}{journeys?.length ? <span className={styles.placeJourneys}>{journeys.map((journey) => <Link href={`/stories/${journey.slug}`} key={journey.slug}>{journey.title}</Link>)}</span> : null}</span><span aria-hidden="true">{place.code}</span></li>;
+          })}
           {!failed && visited[activeRegion].length === 0 ? <li className={styles.listEmpty}>No places visited yet.</li> : null}
         </ul>
         {updatedAt && !failed ? <p className={styles.updated}>Updated {new Date(updatedAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' })}</p> : null}
