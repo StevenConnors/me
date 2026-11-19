@@ -73,11 +73,8 @@ test('held-places pages meet the viewport edge on paper', async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
-test('legacy stories and the admin journey preview keep the old page padding', async ({ page }) => {
+test('the admin journey preview keeps the old page padding', async ({ page }) => {
   await page.setViewportSize(viewports[0]);
-  await page.goto('/stories/poc');
-  expect(await page.evaluate(() => getComputedStyle(document.body).padding)).toBe('8px 48px');
-
   await page.goto(`/admin/preview/${journeyId.toHexString()}`);
   await expect(page.locator('main[class*="paper"]').first()).toBeVisible();
   expect(await page.evaluate(() => getComputedStyle(document.body).padding)).toBe('8px 48px');

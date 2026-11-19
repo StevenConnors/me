@@ -4,7 +4,8 @@ import { cache } from 'react';
 
 import { LegacyStory } from './LegacyStory';
 import { isLegacyStorySlug } from './legacyStorySlugs';
-import { HeldPlacesJourneyPage } from '@/components/held-places/HeldPlaces';
+import { HeldPlacesFooter, HeldPlacesHeader, HeldPlacesJourneyPage } from '@/components/held-places/HeldPlaces';
+import heldPlacesStyles from '@/components/held-places/held-places.module.css';
 import { JourneyRenderer } from '@/components/journey/JourneyRenderer';
 import { loadJourneyMediaPresentation } from '@/lib/journeys/media-presentation';
 import { JourneyRepository } from '@/lib/journeys/repository';
@@ -83,7 +84,7 @@ export default async function StoryPage({
     const result = await resolvePublicSlug(slug);
     if (result?.kind === 'moved') redirect(`/stories/${result.slug}`);
     if (!result) {
-      if (isLegacyStorySlug(slug)) return <LegacyStory slug={slug} />;
+      if (isLegacyStorySlug(slug)) return <LegacyStoryShell slug={slug} />;
       notFound();
     }
 
@@ -130,7 +131,7 @@ export default async function StoryPage({
   } catch (error) {
     unstable_rethrow(error);
     console.error('Unable to load database journey; falling back to the legacy story', error);
-    if (isLegacyStorySlug(slug)) return <LegacyStory slug={slug} />;
+    if (isLegacyStorySlug(slug)) return <LegacyStoryShell slug={slug} />;
     notFound();
   }
 }
@@ -161,4 +162,14 @@ function coverAsHeldPlacesMedia(placement: {
       ? { decorative: placement.decorative }
       : {}),
   };
+}
+
+function LegacyStoryShell({ slug }: { slug: string }) {
+  return (
+    <main className={heldPlacesStyles.paper}>
+      <HeldPlacesHeader />
+      <div className={heldPlacesStyles.legacyStory}><LegacyStory slug={slug} /></div>
+      <div className="relative z-20 bg-[#f1f0eb]"><HeldPlacesFooter /></div>
+    </main>
+  );
 }

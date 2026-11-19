@@ -2,7 +2,6 @@
 import { createContext, useContext, useMemo, useRef, useState, useEffect, RefObject, useCallback } from 'react';
 import MediaPanel from './MediaPanel';
 import StepIndicators from './StepIndicators';
-import Header from './header';
 
 type StepInfo = { media: string; kind: 'image' | 'video' };
 type Ctx = {
@@ -259,7 +258,6 @@ export default function Story({ children, ifDebug = false }: { children: React.R
 
   return (
     <StoryCtx.Provider value={ctx}>
-      <Header />
       
       {isMobile ? (
         // Mobile layout: vertical stack with inline media
@@ -274,10 +272,6 @@ export default function Story({ children, ifDebug = false }: { children: React.R
             <div className="pb-24">{children}</div>
           </div>
           
-          {/* Footer spanning full width */}
-          <footer className="py-2 text-center text-gray-500 text-sm bg-white">
-            <p>taken by yuji</p>
-          </footer>
         </div>
       ) : (
         // Desktop layout: original design
@@ -302,15 +296,11 @@ export default function Story({ children, ifDebug = false }: { children: React.R
             </aside>
             
             {/* Media panel - fixed to viewport */}
-            <div className="w-[500px] h-[calc(100vh-80px)] flex items-center justify-center fixed top-[80px] right-[48px] z-10 bg-gray-100">
+            <div className="w-[500px] h-[calc(100vh-190px)] flex items-center justify-center fixed top-[166px] right-[48px] z-10 bg-[#e6e4dd]" data-legacy-media-panel>
               <MediaPanel />
             </div>
           </div>
           
-          {/* Footer spanning full width */}
-          <footer className="py-2 text-center text-gray-500 text-sm bg-white">
-            <p>taken by yuji</p>
-          </footer>
         </div>
       )}
     </StoryCtx.Provider>

@@ -12,6 +12,9 @@
    replace that shell so the paper meets the viewport edge. */
 :global(body):has(> .paper) { margin: 0; padding: 0; background: #f1f0eb; }
 
+.legacyStory { padding: 0 0 0 24px; }
+@media (max-width: 768px) { .legacyStory { padding: 0 16px; } }
+
 .paper *,
 .paper *::before,
 .paper *::after {
