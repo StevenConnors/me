@@ -6,6 +6,8 @@ import { MediaRepository } from '@/lib/media/repository';
 
 export { PublicationValidationError };
 
+let publicationIndexReady: Promise<string> | undefined;
+
 export async function publishJourney(
   journeyRepository: JourneyRepository,
   mediaRepository: MediaRepository,
@@ -40,15 +42,31 @@ export async function publishJourney(
     slugAvailable,
   });
 
+  // Standalone Mongo cannot transact: stage once, then advance the guarded pointer.
+  publicationIndexReady ??= journeyRepository.revisions.createIndex(
+    { journeyId: 1, publishedEditVersion: 1 },
+    { unique: true, partialFilterExpression: { publishedEditVersion: { $type: 'number' } } },
+  );
+  try {
+    await publicationIndexReady;
+  } catch (error) {
+    publicationIndexReady = undefined;
+    console.error('Unable to ensure journey publication index', error);
+  }
   const revision = await createJourneyRevision(
     journeyRepository.revisions,
     validated,
     'published',
+    { publishedEditVersion: input.expectedEditVersion },
   );
+  if (journey.status === 'published' && journey.publishedRevisionId?.equals(revision._id)) {
+    return { journey, revision };
+  }
   const publishedJourney = await journeyRepository.publish(
     journey._id,
     input.expectedEditVersion,
     revision,
+    { now: revision.createdAt },
   );
 
   return { journey: publishedJourney, revision };
