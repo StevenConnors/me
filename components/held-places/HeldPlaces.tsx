@@ -5,6 +5,7 @@ import type { ReactNode } from 'react';
 
 import { HeldPlacesCarousel, HeldPlacesPicture } from './HeldPlacesCarousel';
 import styles from './held-places.module.css';
+import type { JourneyLink } from '@/lib/journeys/repository';
 import type { HeldPlacesSlide } from './types';
 import type { PublicPhoto } from '@/lib/photos/presentation';
 import type {
@@ -78,6 +79,7 @@ export function HeldPlacesJourneyPage({
   document,
   assets,
   buildMediaUrl,
+  neighbours,
 }: {
   title: string;
   summary?: string;
@@ -87,6 +89,7 @@ export function HeldPlacesJourneyPage({
   document: HeldPlacesDocumentV2;
   assets: JourneyMediaAssetMap;
   buildMediaUrl: BuildMediaUrl;
+  neighbours?: { newer?: JourneyLink; older?: JourneyLink };
 }) {
   const context = { assets, buildMediaUrl };
   const coverSlide = cover ? prepareSlide(cover, context, 'cover') : null;
@@ -94,6 +97,7 @@ export function HeldPlacesJourneyPage({
 
   return (
     <main className={`${styles.paper} ${styles.journeyPage}`}>
+      <div aria-hidden="true" className={styles.readingProgress} data-reading-progress />
       <HeldPlacesHeader />
       <article>
         <header className={styles.journeyHero}>
@@ -110,6 +114,21 @@ export function HeldPlacesJourneyPage({
             )}
           </div>
         </header>
+        {document.chapters.length > 1 ? (
+          <nav aria-label="Chapters" className={styles.contents}>
+            <p className={styles.kicker}>Chapters</p>
+            <ol>
+              {document.chapters.map((chapter, index) => (
+                <li key={chapter.id}>
+                  <a href={`#chapter-${index + 1}`}>
+                    <span className={styles.chapterNumber}>{String(index + 1).padStart(2, '0')}</span>
+                    {chapterLabel(chapter, index)}
+                  </a>
+                </li>
+              ))}
+            </ol>
+          </nav>
+        ) : null}
         <div className={styles.chapters}>
           {document.chapters.map((chapter, index) => {
             const slides = chapter.media.flatMap((media) => {
@@ -117,7 +136,7 @@ export function HeldPlacesJourneyPage({
               return prepared ? [prepared] : [];
             });
             return (
-              <section className={styles.chapter} key={chapter.id}>
+              <section className={styles.chapter} id={`chapter-${index + 1}`} key={chapter.id}>
                 <div className={styles.chapterProse}>
                   <p className={styles.chapterNumber}>{String(index + 1).padStart(2, '0')}</p>
                   {chapter.heading ? <h2>{chapter.heading}</h2> : null}
@@ -142,6 +161,22 @@ export function HeldPlacesJourneyPage({
           })}
         </div>
       </article>
+      {neighbours?.newer || neighbours?.older ? (
+        <nav aria-label="More journeys" className={styles.journeyNeighbours}>
+          {neighbours.newer ? (
+            <Link href={`/stories/${neighbours.newer.slug}`}>
+              <span className={styles.kicker}><span aria-hidden="true">← </span>Newer journey</span>
+              <span className={styles.neighbourTitle}>{neighbours.newer.title}</span>
+            </Link>
+          ) : <span />}
+          {neighbours.older ? (
+            <Link className={styles.neighbourOlder} href={`/stories/${neighbours.older.slug}`}>
+              <span className={styles.kicker}>Older journey<span aria-hidden="true"> →</span></span>
+              <span className={styles.neighbourTitle}>{neighbours.older.title}</span>
+            </Link>
+          ) : null}
+        </nav>
+      ) : null}
       <HeldPlacesFooter />
     </main>
   );
@@ -284,6 +319,23 @@ function prepareSlide(
       ? `${mobilePoint.x * 100}% ${mobilePoint.y * 100}%`
       : '50% 50%',
   };
+}
+
+const chapterLabelLength = 60;
+
+function chapterLabel(chapter: HeldPlacesDocumentV2['chapters'][number], index: number) {
+  const heading = chapter.heading?.trim();
+  if (heading) return heading;
+  const text = chapter.body.content
+    .flatMap((paragraph) => (paragraph.content ?? []).map((node) => (node.type === 'text' ? node.text : ' ')))
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!text) return `Chapter ${index + 1}`;
+  if (text.length <= chapterLabelLength) return text;
+  const cut = text.slice(0, chapterLabelLength);
+  const wordEnd = cut.lastIndexOf(' ');
+  return `${cut.slice(0, wordEnd > chapterLabelLength / 2 ? wordEnd : chapterLabelLength).replace(/[\s,;:.]+$/, '')}…`;
 }
 
 function RestrictedText({ document }: { document: RestrictedRichTextDocument }) {

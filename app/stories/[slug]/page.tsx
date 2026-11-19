@@ -87,7 +87,7 @@ export default async function StoryPage({
       notFound();
     }
 
-    const { revision } = result;
+    const { journey, revision } = result;
     const metadata = revision.metadataSnapshot;
     const mediaIds = new Set([
       ...(metadata.cover ? [metadata.cover.mediaAssetId] : []),
@@ -107,6 +107,7 @@ export default async function StoryPage({
           experiencedAt={metadata.experiencedAt}
           locations={metadata.locations}
           summary={metadata.summary}
+          neighbours={await loadNeighbours(journey.publishedAt)}
           title={metadata.title}
         />
       );
@@ -131,6 +132,16 @@ export default async function StoryPage({
     console.error('Unable to load database journey; falling back to the legacy story', error);
     if (isLegacyStorySlug(slug)) return <LegacyStory slug={slug} />;
     notFound();
+  }
+}
+
+async function loadNeighbours(publishedAt?: Date) {
+  if (!publishedAt) return undefined;
+  try {
+    return await (await JourneyRepository.connect()).findPublishedNeighbours(publishedAt);
+  } catch (error) {
+    console.error('Unable to load neighbouring journeys', error);
+    return undefined;
   }
 }
 

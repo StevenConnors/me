@@ -22,6 +22,8 @@ import {
   type PublishedJourneySummary,
 } from '@/lib/journeys/schemas';
 
+export type JourneyLink = { slug: string; title: string };
+
 export type PublicJourneySlug =
   | { kind: 'live'; journey: Journey; revision: JourneyRevision }
   | { kind: 'moved'; slug: string };
@@ -210,6 +212,34 @@ export class JourneyRepository {
    * Reads public cards from the immutable revisions selected by each journey.
    * Draft metadata is intentionally never consulted here.
    */
+  /** The published journeys just before and after `publishedAt`, by publish date. */
+  async findPublishedNeighbours(
+    publishedAt: Date,
+  ): Promise<{ newer?: JourneyLink; older?: JourneyLink }> {
+    const revisions = this.revisions;
+    if (!revisions) return {};
+    const published = { status: 'published', publishedRevisionId: { $exists: true } };
+    const neighbour = async (newer: boolean): Promise<JourneyLink | undefined> => {
+      const journey = await this.journeys
+        .find(
+          { ...published, publishedAt: newer ? { $gt: publishedAt } : { $lt: publishedAt } } as Filter<Journey>,
+          { projection: { publishedRevisionId: 1 } },
+        )
+        .sort({ publishedAt: newer ? 1 : -1 })
+        .limit(1)
+        .next();
+      if (!journey?.publishedRevisionId) return undefined;
+      const revision = await revisions.findOne(
+        { _id: journey.publishedRevisionId } as Filter<JourneyRevision>,
+        { projection: { 'metadataSnapshot.slug': 1, 'metadataSnapshot.title': 1 } },
+      );
+      const metadata = revision?.metadataSnapshot;
+      return metadata?.slug ? { slug: metadata.slug, title: metadata.title || 'Untitled journey' } : undefined;
+    };
+    const [newer, older] = await Promise.all([neighbour(true), neighbour(false)]);
+    return { ...(newer ? { newer } : {}), ...(older ? { older } : {}) };
+  }
+
   async listPublishedSummaries(
     options: { limit?: number; session?: ClientSession } = {},
   ): Promise<PublishedJourneySummary[]> {
