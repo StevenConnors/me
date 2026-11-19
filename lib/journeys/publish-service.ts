@@ -35,9 +35,9 @@ export async function publishJourney(
       (placement) => placement.mediaAssetId,
     ),
   ]);
-  const mediaAssets = await Promise.all(Array.from(mediaIds, (mediaId) => mediaRepository.findById(mediaId)));
+  const mediaAssets = await mediaRepository.findByIds(mediaIds);
   const validated = assertJourneyPublishable(journey, {
-    mediaAssets: mediaAssets.filter((asset): asset is NonNullable<typeof asset> => Boolean(asset)),
+    mediaAssets,
     summaryOmissionConfirmed: input.summaryOmissionConfirmed,
     slugAvailable,
   });

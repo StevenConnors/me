@@ -7,7 +7,7 @@ import { JourneyRepository } from '@/lib/journeys/repository';
 import type { Journey, JourneyRevision } from '@/lib/journeys/schemas';
 import { MediaRepository } from '@/lib/media/repository';
 import type { MediaAsset, UploadSession } from '@/lib/media/schemas';
-import { makeHeldPlacesDocument, makeJourney, READY_MEDIA_ID } from './fixtures';
+import { makeHeldPlacesDocument, makeJourney, makePlacement, READY_MEDIA_ID } from './fixtures';
 
 describe('ordered journal publication on disposable Mongo', () => {
   const client = new MongoClient('mongodb://127.0.0.1:27018');
@@ -22,14 +22,72 @@ describe('ordered journal publication on disposable Mongo', () => {
   beforeEach(async () => {
     vi.restoreAllMocks();
     await repository.journeys.deleteMany({});
+    await media.mediaAssets.deleteMany({});
     await repository.revisions?.deleteMany({});
     await repository.revisions?.dropIndexes();
     await repository.revisions?.createIndex({ journeyId: 1, sequence: 1 }, { unique: true });
     await repository.journeys.insertOne(makeJourney({ draftDocument: makeHeldPlacesDocument() }));
-    vi.spyOn(media, 'findById').mockResolvedValue({ _id: READY_MEDIA_ID, status: 'ready', altText: 'Fixture coast' } as MediaAsset);
+    await media.mediaAssets.insertOne(makeAsset(READY_MEDIA_ID));
     vi.resetModules();
     const { publishJourney } = await import('@/lib/journeys/publish-service');
     publish = () => publishJourney(repository, media, input);
+  });
+
+  function makeAsset(id: string, status: MediaAsset['status'] = 'ready'): MediaAsset {
+    return { _id: id, schemaVersion: 1, provider: 'cloudinary', providerAssetId: id,
+      providerPublicId: id, resourceType: 'image', deliveryType: 'upload',
+      originalFilename: 'fixture.jpg', format: 'jpg', width: 1, height: 1, bytes: 1,
+      tags: [], showInPhotos: false, status, altText: 'Fixture coast',
+      createdAt: new Date(), updatedAt: new Date(),
+      ...(status === 'archived' ? { archivedAt: new Date() } : {}) };
+  }
+
+  it('reads unique cover, social and chapter assets in one batch per publish', async () => {
+    const document = makeHeldPlacesDocument();
+    document.chapters[0].media = ['second', READY_MEDIA_ID, 'second'].map((mediaAssetId) => ({ mediaAssetId }));
+    await media.mediaAssets.insertOne(makeAsset('second'));
+    await repository.journeys.updateOne({ _id: new ObjectId(input.journeyId) }, { $set: {
+      draftDocument: document, social: { image: makePlacement({ mediaAssetId: 'second' }) },
+    } });
+    const batch = vi.spyOn(media, 'findByIds');
+    const single = vi.spyOn(media, 'findById');
+    const first = await publish();
+    expect(first.journey.status).toBe('published');
+    expect(batch).toHaveBeenCalledTimes(1);
+    expect(Array.from(batch.mock.calls[0][0])).toEqual([READY_MEDIA_ID, 'second']);
+    expect(single).not.toHaveBeenCalled();
+    await publish();
+    expect(batch).toHaveBeenCalledTimes(2);
+  });
+
+  it('preserves missing and non-ready issues in placement order, including duplicates', async () => {
+    const ids = ['missing', 'pending', 'failed', 'archived', 'missing', 'pending'];
+    const document = makeHeldPlacesDocument();
+    document.chapters[0].media = ids.map((mediaAssetId) => ({ mediaAssetId }));
+    await media.mediaAssets.insertMany([
+      makeAsset('archived', 'archived'), makeAsset('failed', 'failed'), makeAsset('pending', 'pending'),
+    ]);
+    await repository.journeys.updateOne({ _id: new ObjectId(input.journeyId) }, { $set: { draftDocument: document } });
+    await expect(publish()).rejects.toMatchObject({
+      code: 'JOURNEY_NOT_PUBLISHABLE', message: 'Journey cannot be published (6 issues)',
+      issues: ids.map((id, index) => ({
+        code: id === 'missing' ? 'media_missing' : 'media_not_ready',
+        path: `mediaPlacements.${index + 1}.mediaAssetId`,
+        message: id === 'missing' ? 'Media asset missing does not exist' : `Media asset ${id} is ${id}`,
+      })),
+    });
+    expect(await repository.revisions?.countDocuments({})).toBe(0);
+  });
+
+  it('retains cover validation when there are no media references', async () => {
+    const document = makeHeldPlacesDocument();
+    document.chapters[0].media = [];
+    await repository.journeys.updateOne({ _id: new ObjectId(input.journeyId) }, {
+      $unset: { cover: '' }, $set: { draftDocument: document },
+    });
+    await expect(publish()).rejects.toMatchObject({ issues: [
+      { code: 'cover_required', path: 'cover', message: 'Choose a cover image before publishing' },
+    ] });
   });
 
   it('replays a version without another revision or publication timestamp', async () => {
