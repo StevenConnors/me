@@ -11,3 +11,4 @@ Before changing how `/stories/[slug]` renders the bundled MDX stories (`dfw-okc`
 - At 390 px the legacy story must not force horizontal scrolling.
 - Missing Cloudinary configuration locally produces media 404s from `res.cloudinary.com`; that is expected and out of scope, but no other request may fail.
 - Performance: legacy story pages must not ship more client JavaScript than before, and the story content must not wait for hydration to appear.
+- The `newpoc` title is spelled "Whisky with an e" everywhere it appears (story heading, Home archive fallback); the misspelling "Whisy" must not reach visitors.
