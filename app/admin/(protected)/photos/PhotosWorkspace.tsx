@@ -18,6 +18,7 @@ import {
   updateSectionBlock,
 } from '@/lib/photos/editor-commands';
 import type { PhotosMediaBlock, PhotosPageDocument, PhotosSectionBlock } from '@/lib/photos/schemas';
+import type { MediaDeletionPlanItem } from '@/lib/media/bulk-delete-service';
 
 import { MediaPicker, type PickerMedia } from './MediaPicker';
 import styles from './photos-workspace.module.css';
@@ -51,12 +52,13 @@ type PhotosApiPage = {
   draftVersion: number;
   hasUnpublishedChanges: boolean;
 };
-type DeletionPlanItem = {
-  id: string;
-  filename: string;
-  classification: 'ready_to_delete' | 'publish_removal_first' | 'used_by_journey' | 'used_by_collection' | 'not_found';
+type DeletionPlanItem = MediaDeletionPlanItem & {
   result?: 'deleted' | 'protected' | 'not_found' | 'failed';
 };
+
+function canDeleteFromPhotosDraft(item: DeletionPlanItem) {
+  return item.classification === 'ready_to_delete' || item.classification === 'used_by_photos_draft';
+}
 
 function documentEqual(left: PhotosPageDocument, right: PhotosPageDocument) {
   const stableStringify = (document: PhotosPageDocument) => JSON.stringify(document, (_key, value: unknown) => {
@@ -628,7 +630,7 @@ export function PhotosWorkspace({
   }
 
   async function permanentlyDeletePlannedUploads() {
-    const readyIds = deletionPlan?.filter((item) => item.classification === 'ready_to_delete').map((item) => item.id) ?? [];
+    const readyIds = deletionPlan?.filter(canDeleteFromPhotosDraft).map((item) => item.id) ?? [];
     if (!readyIds.length) return;
     const readySet = new Set(readyIds);
     const blocksToRemove = documentRef.current.blocks.flatMap((block) => block.type === 'media' && readySet.has(block.mediaAssetId) ? [block.id] : []);
@@ -913,11 +915,11 @@ export function PhotosWorkspace({
     <MediaPicker onClose={() => setPickerOpen(false)} onInsert={(items) => void insertPickedMedia(items)} onUpload={(files) => { setPickerOpen(false); void uploadBatch(files); }} open={pickerOpen} placedMediaIds={new Set(document.blocks.flatMap((block) => block.type === 'media' ? [block.mediaAssetId] : []))} />
     {deletionPlan ? <div aria-label="Confirm permanent upload deletion" aria-modal="true" className={styles.dialogBackdrop} role="dialog"><section className={styles.deleteDialog}>
       <header><div><p className={styles.inspectorEyebrow}>Permanent deletion</p><h2>Delete uploads?</h2></div><button aria-label="Close deletion confirmation" onClick={() => setDeletionPlan(null)} type="button">×</button></header>
-      <p>Ready to delete: {deletionPlan.filter((item) => item.classification === 'ready_to_delete').length}. This permanently removes the Cloudinary originals and cannot be undone.</p>
+      <p>Ready to delete: {deletionPlan.filter(canDeleteFromPhotosDraft).length}. This permanently removes the Cloudinary originals and cannot be undone.</p>
       <ul>{deletionPlan.map((item) => <li key={item.id}><strong>{item.filename}</strong> — {item.result ?? item.classification.replace(/_/g, ' ')}</li>)}</ul>
       <p className={styles.deleteWarning}>Published page media must first be removed and published. Journey media remains protected.</p>
       {deletionMessage ? <p className={styles.fieldError}>{deletionMessage}</p> : null}
-      <footer><button onClick={() => setDeletionPlan(null)} type="button">Cancel</button><button disabled={!deletionPlan.some((item) => item.classification === 'ready_to_delete')} onClick={() => void permanentlyDeletePlannedUploads()} type="button">Permanently delete ready uploads</button></footer>
+      <footer><button onClick={() => setDeletionPlan(null)} type="button">Cancel</button><button disabled={!deletionPlan.some(canDeleteFromPhotosDraft)} onClick={() => void permanentlyDeletePlannedUploads()} type="button">Permanently delete ready uploads</button></footer>
     </section></div> : null}
   </div>;
 }

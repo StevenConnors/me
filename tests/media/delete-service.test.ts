@@ -70,7 +70,7 @@ describe('deleteMediaAsset', () => {
       deleteMediaAsset(media._id, {
         mediaRepository: { findById: async () => media, deleteById },
         journeyRepository: { isMediaReferenced: async () => false },
-        photosPageRepository: { isMediaReferencedByPublishedDocument: async () => true },
+        photosPageRepository: { isMediaReferenced: async () => true },
         mediaProvider: { deleteAsset },
       }),
     ).rejects.toBeInstanceOf(MediaInUseError);
