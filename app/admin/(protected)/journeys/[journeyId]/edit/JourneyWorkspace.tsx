@@ -41,14 +41,15 @@ export function JourneyWorkspace({ initialJourney, media }: { initialJourney: Ed
   const [deleteError, setDeleteError] = useState('');
   const [migrationState, setMigrationState] = useState<'idle' | 'migrating' | 'error'>('idle');
   const current = useRef(journey);
+  const inFlight = useRef<Promise<EditableJourney | null> | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => { current.current = journey; }, [journey]);
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
 
-  function scheduleSave(next: EditableJourney) {
+  function scheduleSave() {
     if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => void save(next), 1_000);
+    timer.current = setTimeout(() => void save(), 1_000);
   }
 
   function change<K extends keyof Pick<EditableJourney, 'title' | 'slug' | 'summary' | 'cover' | 'experiencedAt' | 'locations' | 'draftDocument'>>(key: K, value: EditableJourney[K]) {
@@ -56,10 +57,28 @@ export function JourneyWorkspace({ initialJourney, media }: { initialJourney: Ed
     current.current = next;
     setJourney(next);
     setSaveState('idle');
-    scheduleSave(next);
+    scheduleSave();
   }
 
-  async function save(next = current.current): Promise<EditableJourney | null> {
+  async function save(): Promise<EditableJourney | null> {
+    if (inFlight.current) {
+      const saved = await inFlight.current;
+      if (!saved || current.current === saved) return saved;
+      return save();
+    }
+    const request = persist(current.current);
+    inFlight.current = request;
+    let saved: EditableJourney | null;
+    try {
+      saved = await request;
+    } finally {
+      inFlight.current = null;
+    }
+    if (saved && current.current !== saved) return save();
+    return saved;
+  }
+
+  async function persist(next: EditableJourney): Promise<EditableJourney | null> {
     if (timer.current) {
       clearTimeout(timer.current);
       timer.current = null;
@@ -87,9 +106,13 @@ export function JourneyWorkspace({ initialJourney, media }: { initialJourney: Ed
         return null;
       }
       if (!response.ok || !payload.journey) throw new Error(payload.error?.message ?? 'Save failed');
-      setJourney(payload.journey);
-      current.current = payload.journey;
-      setSaveState('saved');
+      const hasNewerEdits = current.current !== next;
+      const reconciled = hasNewerEdits
+        ? { ...current.current, editVersion: payload.journey.editVersion }
+        : payload.journey;
+      current.current = reconciled;
+      setJourney(reconciled);
+      setSaveState(hasNewerEdits ? 'idle' : 'saved');
       return payload.journey;
     } catch (error) {
       console.error(error);

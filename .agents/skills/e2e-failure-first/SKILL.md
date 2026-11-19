@@ -13,5 +13,6 @@ description: The repo's required test-first workflow - write the failure cases, 
    - Prefer `getByRole`/`getByLabel`; no `waitForTimeout` for synchronization.
    - Collect `pageerror` and console errors and assert none.
    - Include one 390 px mobile check for any public UI.
-5. **Artifact:** attach screenshots and a JSON observation via `test.info().attach(...)` with an `e2e-fixture-` prefix, using fixture data only. Mention the artifact names in the PR.
-6. Add the spec to the path → spec table in the `verify-change` skill if it covers a new area.
+5. **Test behavior, not implementation** (from pstack, MIT). Assert what a visitor or API caller can observe: rendered content, URLs, persisted state read back, responses. Judge each assertion against two imagined edits: break the behavior (a wrong value, a skipped or doubled save) and the test must fail; change only internals (markup structure, helper names, call order) and it must keep passing. Derive expected values from the failure case, not from the code under test, and never assert on data the test only built itself.
+6. **Artifact:** attach screenshots and a JSON observation via `test.info().attach(...)` with an `e2e-fixture-` prefix, using fixture data only. Mention the artifact names in the PR.
+7. Add the spec to the path → spec table in the `verify-change` skill if it covers a new area.
