@@ -19,7 +19,7 @@ export type MediaDeletionPlanItem = {
 type Dependencies = {
   mediaRepository: Pick<MediaRepository, 'findById'>;
   journeyRepository: Pick<JourneyRepository, 'isMediaReferenced'>;
-  photosPageRepository: Pick<PhotosPageRepository, 'isMediaReferencedByPublishedDocument'>;
+  photosPageRepository: Pick<PhotosPageRepository, 'isMediaReferenced'>;
   collectionRepository?: Pick<MediaCollectionRepository, 'isMediaReferenced'>;
 };
 
@@ -34,7 +34,7 @@ export async function planMediaDeletion(
     if (await dependencies.journeyRepository.isMediaReferenced(id)) {
       return { id, filename: media.originalFilename, classification: 'used_by_journey' as const };
     }
-    if (await dependencies.photosPageRepository.isMediaReferencedByPublishedDocument(id)) {
+    if (await dependencies.photosPageRepository.isMediaReferenced(id)) {
       return { id, filename: media.originalFilename, classification: 'publish_removal_first' as const };
     }
     if (await dependencies.collectionRepository?.isMediaReferenced(id)) {

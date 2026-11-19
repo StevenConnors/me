@@ -1,5 +1,5 @@
 import type { Collection } from 'mongodb';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   PhotosPageConflictError,
@@ -132,6 +132,21 @@ describe('PhotosPageDocumentSchema', () => {
 });
 
 describe('PhotosPageRepository', () => {
+  it('checks both draft and published media placements before deletion', async () => {
+    const findOne = vi.fn(async () => null);
+    const repository = new PhotosPageRepository({ findOne } as unknown as Collection<PhotosPage>);
+
+    await expect(repository.isMediaReferenced('draft-only')).resolves.toBe(false);
+
+    expect(findOne).toHaveBeenCalledWith({
+      _id: 'photos',
+      $or: [
+        { 'draftDocument.blocks': { $elemMatch: { type: 'media', mediaAssetId: 'draft-only' } } },
+        { 'publishedDocument.blocks': { $elemMatch: { type: 'media', mediaAssetId: 'draft-only' } } },
+      ],
+    }, { projection: { _id: 1 } });
+  });
+
   it('saves drafts optimistically and reports a stale version without mutation', async () => {
     const pages = new MemoryPhotosPages();
     const repository = new PhotosPageRepository(

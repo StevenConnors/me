@@ -28,7 +28,7 @@ describe('planMediaDeletion', () => {
     const records = new Map(['ready', 'published', 'journey'].map((id) => [id, media(id)]));
     const plan = await planMediaDeletion(['ready', 'published', 'journey', 'gone'], {
       mediaRepository: { findById: async (id) => records.get(id) ?? null },
-      photosPageRepository: { isMediaReferencedByPublishedDocument: async (id) => id === 'published' },
+      photosPageRepository: { isMediaReferenced: async (id) => id === 'published' },
       journeyRepository: { isMediaReferenced: async (id) => id === 'journey' },
     });
 
