@@ -15,21 +15,27 @@ export type GalleryMediaItem = {
   alt: string;
   width: number;
   height: number;
+  /** Consecutive items sharing a label render under one heading. */
+  group?: string;
 };
 
 export function MediaGrid({
   title,
   items,
   portrait = false,
+  intro,
 }: {
   title: string;
   items: GalleryMediaItem[];
   portrait?: boolean;
+  intro?: string;
 }) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const activeItem = activeIndex === null ? null : items[activeIndex];
+  const gridClassName = `${styles.grid} ${portrait ? styles.portraitGrid : ''}`;
+  const groups = items.some((item) => item.group) ? groupItems(items) : null;
 
   const close = useCallback(() => setActiveIndex(null), []);
   const showPrevious = useCallback(() => {
@@ -82,32 +88,41 @@ export function MediaGrid({
     }
   };
 
+  const renderTile = (item: GalleryMediaItem, index: number) => (
+    <button
+      aria-label={`Open ${item.kind} ${index + 1}`}
+      className={styles.tile}
+      data-kind={item.kind}
+      key={item.id}
+      onClick={() => setActiveIndex(index)}
+      style={{ aspectRatio: `${item.width} / ${item.height}` }}
+      type="button"
+    >
+      <Image
+        alt={item.alt}
+        className={styles.image}
+        fill
+        priority={index === 0}
+        sizes={portrait ? '(max-width: 768px) 50vw, 25vw' : '(max-width: 768px) 50vw, 33vw'}
+        src={item.thumbnailSrc}
+        unoptimized
+      />
+      {item.kind === 'video' ? <span className={styles.videoMarker}>Video</span> : null}
+    </button>
+  );
+
   return (
     <section className={styles.gallery} aria-labelledby={`${title.toLowerCase()}-gallery-title`}>
-      <h1 className={styles.visuallyHidden} id={`${title.toLowerCase()}-gallery-title`}>{title}</h1>
-      <div className={`${styles.grid} ${portrait ? styles.portraitGrid : ''}`}>
-        {items.map((item, index) => (
-          <button
-            aria-label={`Open ${item.kind} ${index + 1}`}
-            className={styles.tile}
-            data-kind={item.kind}
-            key={item.id}
-            onClick={() => setActiveIndex(index)}
-            style={{ aspectRatio: `${item.width} / ${item.height}` }}
-            type="button"
-          >
-            <Image
-              alt={item.alt}
-              className={styles.image}
-              fill
-              sizes={portrait ? '(max-width: 768px) 50vw, 25vw' : '(max-width: 768px) 50vw, 33vw'}
-              src={item.thumbnailSrc}
-              unoptimized
-            />
-            {item.kind === 'video' ? <span className={styles.videoMarker}>Video</span> : null}
-          </button>
-        ))}
-      </div>
+      {intro ? <header className={styles.header}>
+        <h1 className={styles.title} id={`${title.toLowerCase()}-gallery-title`}>{title}</h1>
+        <p className={styles.intro} data-gallery-intro>{intro}</p>
+      </header> : <h1 className={styles.visuallyHidden} id={`${title.toLowerCase()}-gallery-title`}>{title}</h1>}
+      {groups ? groups.map((group) => (
+        <section aria-label={group.label} className={styles.group} key={group.start}>
+          <h2 className={styles.groupTitle}>{group.label}{' '}<span>{group.items.length} {group.items.length === 1 ? 'photo' : 'photos'}</span></h2>
+          <div className={gridClassName}>{group.items.map((item, offset) => renderTile(item, group.start + offset))}</div>
+        </section>
+      )) : <div className={gridClassName}>{items.map(renderTile)}</div>}
 
       {activeItem ? (
         <div
@@ -160,4 +175,15 @@ export function MediaGrid({
       ) : null}
     </section>
   );
+}
+
+function groupItems(items: GalleryMediaItem[]) {
+  const groups: Array<{ label: string; start: number; items: GalleryMediaItem[] }> = [];
+  items.forEach((item, index) => {
+    const label = item.group ?? '';
+    const last = groups[groups.length - 1];
+    if (last && last.label === label) last.items.push(item);
+    else groups.push({ label, start: index, items: [item] });
+  });
+  return groups;
 }

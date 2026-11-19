@@ -24,7 +24,7 @@ export default async function GlassPage() {
       {unavailable ? (
         <section className={styles.indexEmpty}><h1>Glass is temporarily unavailable.</h1><p>Please try again shortly.</p></section>
       ) : glass.length ? (
-        <MediaGrid items={glass} portrait title="Glass" />
+        <MediaGrid intro="A running log of glass work, grouped by month." items={glass} portrait title="Glass" />
       ) : (
         <section className={styles.indexEmpty}><h1>Glass is being prepared.</h1><p>Photos will appear here once they are added to the Glass collection.</p></section>
       )}

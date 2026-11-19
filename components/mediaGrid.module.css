@@ -15,6 +15,13 @@
   border: 0;
 }
 
+.header { margin: 0 0 56px; }
+.title { margin: 0; font: 400 clamp(62px, 9vw, 132px)/.85 Georgia, 'Times New Roman', serif; letter-spacing: -.045em; }
+.intro { max-width: 380px; margin: 22px 0 0; color: #615f58; font: 20px/1.35 Georgia, 'Times New Roman', serif; }
+.group + .group { margin-top: 56px; }
+.groupTitle { margin: 0 0 18px; font: 400 clamp(28px, 4vw, 44px)/1 Georgia, 'Times New Roman', serif; letter-spacing: -.03em; }
+.groupTitle span { margin-left: 10px; color: #615f58; font: 13px/1.4 Arial, sans-serif; letter-spacing: 0; }
+
 .grid {
   display: grid;
   align-items: start;
