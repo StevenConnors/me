@@ -18,6 +18,13 @@ jobs:
     name: Lint, typecheck, unit tests, build
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    services:
+      mongodb:
+        image: mongo:7
+        ports: ["27018:27017"]
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.runCommand({ ping: 1 })'"
+          --health-interval 10s --health-timeout 5s --health-retries 5
     env:
       MONGODB_URI: mongodb://127.0.0.1:27018/journey_editor_e2e
       NEXT_TELEMETRY_DISABLED: 1
