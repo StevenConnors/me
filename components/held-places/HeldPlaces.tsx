@@ -27,7 +27,7 @@ type DateRange = {
   end?: string;
 };
 
-type MediaContext = {
+export type HeldPlacesMediaContext = {
   assets: JourneyMediaAssetMap;
   buildMediaUrl: BuildMediaUrl;
 };
@@ -148,11 +148,13 @@ export function HeldPlacesJourneyPage({
 }
 
 export function HeldPlacesIndex({
+  covers,
   journeys,
   photos,
   failed = false,
   legacyJourneys = [],
 }: {
+  covers?: HeldPlacesMediaContext;
   journeys: PublishedJourneySummary[];
   photos: PublicPhoto[];
   failed?: boolean;
@@ -169,6 +171,7 @@ export function HeldPlacesIndex({
   return (
     <main className={`${styles.paper} ${styles.indexPage}`}>
       <HeldPlacesHeader />
+      <p className={styles.homeIntro} data-home-intro>Stories and photographs from the places I’ve been.</p>
       <section className={styles.homePhotos} aria-labelledby="home-photos-title">
         <div className={styles.homePhotosHeading}>
           <div><p className={styles.kicker}>Selected photographs</p><h1 id="home-photos-title">Photos</h1></div>
@@ -188,19 +191,31 @@ export function HeldPlacesIndex({
         </div>
         {archiveRows.length ? (
           <div className={styles.archiveList}>
-            {archiveRows.map((journey, index) => (
-              <Link
-                className={styles.archiveRow}
-                href={`/stories/${journey.slug}`}
-                key={journey.id}
-                passHref
-              >
-                <span className={styles.archiveMarker} data-palette={index % 4} />
-                <span className={styles.archiveTitle}>{journey.title}</span>
-                <span className={styles.archiveSummary}>{journey.summary}</span>
-                <span aria-hidden="true" className={styles.archiveArrow}>→</span>
-              </Link>
-            ))}
+            {archiveRows.map((journey, index) => {
+              const cover = !journey.legacy && covers ? prepareSlide(journey.cover, covers, 'cover') : null;
+              const coverSrc = cover?.kind === 'video' ? cover.poster : cover?.src;
+              const meta = journey.legacy ? '' : formatJourneyMeta(journey.experiencedAt, journey.locations);
+              return (
+                <Link
+                  className={journey.legacy ? styles.archiveRow : `${styles.archiveRow} ${styles.archiveRowCover}`}
+                  href={`/stories/${journey.slug}`}
+                  key={journey.id}
+                  passHref
+                >
+                  {journey.legacy ? <span className={styles.archiveMarker} data-palette={index % 4} /> : (
+                    <span className={styles.archiveCover} data-palette={index % 4}>
+                      {cover && coverSrc ? <Image alt={cover.alt} fill sizes="(max-width: 768px) 72px, 132px" src={coverSrc} style={{ objectPosition: cover.desktopPosition }} /> : null}
+                    </span>
+                  )}
+                  <span className={styles.archiveText}>
+                    <span className={styles.archiveTitle}>{journey.title}</span>
+                    {meta ? <span className={styles.archiveMeta} data-journey-meta>{meta}</span> : null}
+                  </span>
+                  <span className={styles.archiveSummary}>{journey.summary}</span>
+                  <span aria-hidden="true" className={styles.archiveArrow}>→</span>
+                </Link>
+              );
+            })}
           </div>
         ) : <p className={styles.archiveEmpty}>{failed ? 'Journeys are temporarily unavailable.' : 'New journeys are being prepared.'}</p>}
       </section>
@@ -211,7 +226,7 @@ export function HeldPlacesIndex({
 
 function prepareSlide(
   media: HeldPlacesMedia,
-  context: MediaContext,
+  context: HeldPlacesMediaContext,
   role: 'cover' | 'story',
 ): HeldPlacesSlide | null {
   const asset = assetFromMap(context.assets, media.mediaAssetId);
