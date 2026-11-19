@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 
 vi.mock('next/image', () => ({
@@ -81,10 +81,12 @@ describe('PhotosGallery pagination', () => {
     expect(screen.getByRole('dialog')).toHaveAttribute('aria-label', 'Photos, 2 of 2');
     expect(fetchMock).toHaveBeenCalledTimes(1);
 
-    resolveResponse?.({ ok: true, json: async () => ({ items: [photo('three')], nextCursor: null }) });
-    await waitFor(() => expect(screen.getByRole('dialog')).toHaveAttribute('aria-label', 'Photos, 2 of 3'));
-    fireEvent.click(screen.getByRole('button', { name: 'Next photo' }));
+    await act(async () => {
+      resolveResponse?.({ ok: true, json: async () => ({ items: [photo('three')], nextCursor: null }) });
+    });
     expect(screen.getByRole('dialog')).toHaveAttribute('aria-label', 'Photos, 3 of 3');
+    fireEvent.click(screen.getByRole('button', { name: 'Next photo' }));
+    expect(screen.getByRole('dialog')).toHaveAttribute('aria-label', 'Photos, 1 of 3');
   });
 
   it('uses a poster in the grid and mounts a non-preloading video only while it is active', async () => {
