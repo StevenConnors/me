@@ -192,6 +192,15 @@ export class PhotosPageRepository {
     return this.throwMutationFailure(expectedVersion);
   }
 
+  async isMediaReferencedByPublishedDocument(mediaId: string): Promise<boolean> {
+    return Boolean(
+      await this.photosPages.findOne(
+        { _id: 'photos', 'publishedDocument.blocks': { $elemMatch: { type: 'media', mediaAssetId: mediaId } } } as Filter<PhotosPage>,
+        { projection: { _id: 1 } },
+      ),
+    );
+  }
+
   async isMediaReferenced(mediaId: string): Promise<boolean> {
     return Boolean(
       await this.photosPages.findOne(

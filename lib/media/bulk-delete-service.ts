@@ -6,6 +6,7 @@ import type { MediaCollectionRepository } from '@/lib/media/collections';
 export type MediaDeletionClassification =
   | 'ready_to_delete'
   | 'publish_removal_first'
+  | 'used_by_photos_draft'
   | 'used_by_journey'
   | 'used_by_collection'
   | 'not_found';
@@ -19,7 +20,7 @@ export type MediaDeletionPlanItem = {
 type Dependencies = {
   mediaRepository: Pick<MediaRepository, 'findById'>;
   journeyRepository: Pick<JourneyRepository, 'isMediaReferenced'>;
-  photosPageRepository: Pick<PhotosPageRepository, 'isMediaReferenced'>;
+  photosPageRepository: Pick<PhotosPageRepository, 'isMediaReferenced' | 'isMediaReferencedByPublishedDocument'>;
   collectionRepository?: Pick<MediaCollectionRepository, 'isMediaReferenced'>;
 };
 
@@ -34,11 +35,19 @@ export async function planMediaDeletion(
     if (await dependencies.journeyRepository.isMediaReferenced(id)) {
       return { id, filename: media.originalFilename, classification: 'used_by_journey' as const };
     }
-    if (await dependencies.photosPageRepository.isMediaReferenced(id)) {
+    const [published, referenced, inCollection] = await Promise.all([
+      dependencies.photosPageRepository.isMediaReferencedByPublishedDocument(id),
+      dependencies.photosPageRepository.isMediaReferenced(id),
+      dependencies.collectionRepository?.isMediaReferenced(id),
+    ]);
+    if (published) {
       return { id, filename: media.originalFilename, classification: 'publish_removal_first' as const };
     }
-    if (await dependencies.collectionRepository?.isMediaReferenced(id)) {
+    if (inCollection) {
       return { id, filename: media.originalFilename, classification: 'used_by_collection' as const };
+    }
+    if (referenced) {
+      return { id, filename: media.originalFilename, classification: 'used_by_photos_draft' as const };
     }
     return { id, filename: media.originalFilename, classification: 'ready_to_delete' as const };
   }));

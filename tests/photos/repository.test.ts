@@ -132,6 +132,17 @@ describe('PhotosPageDocumentSchema', () => {
 });
 
 describe('PhotosPageRepository', () => {
+  it.each([null, { _id: 'photos' }])('checks published placements independently for deletion planning (%j)', async (record) => {
+    const findOne = vi.fn(async () => record);
+    const repository = new PhotosPageRepository({ findOne } as unknown as Collection<PhotosPage>);
+
+    await expect(repository.isMediaReferencedByPublishedDocument('photo')).resolves.toBe(Boolean(record));
+    expect(findOne).toHaveBeenCalledWith({
+      _id: 'photos',
+      'publishedDocument.blocks': { $elemMatch: { type: 'media', mediaAssetId: 'photo' } },
+    }, { projection: { _id: 1 } });
+  });
+
   it('checks both draft and published media placements before deletion', async () => {
     const findOne = vi.fn(async () => null);
     const repository = new PhotosPageRepository({ findOne } as unknown as Collection<PhotosPage>);

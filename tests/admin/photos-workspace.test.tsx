@@ -36,6 +36,30 @@ describe('PhotosWorkspace sections', () => {
     vi.restoreAllMocks();
   });
 
+  it('does not delete draft-only uploads when saving their draft removal conflicts', async () => {
+    const { document, media } = photoFixtures(2);
+    const fetchMock = vi.fn(async (input: string) => {
+      if (input.endsWith('/bulk-delete/plan')) {
+        return { ok: true, json: async () => ({ plan: [{ id: media[0].id, filename: media[0].originalFilename, classification: 'used_by_photos_draft' }] }) };
+      }
+      if (input.endsWith('/photos-page/draft')) {
+        return { ok: false, status: 409, json: async () => ({ error: { code: 'PHOTOS_DRAFT_CONFLICT' } }) };
+      }
+      throw new Error(`Unexpected request: ${input}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    render(<PhotosWorkspace initialDocument={document} initialDraftVersion={0} initialHasUnpublishedChanges media={media} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Select photo photo-0.jpg' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete selected uploads…' }));
+    const confirm = await screen.findByRole('button', { name: 'Permanently delete ready uploads' });
+    expect(confirm).toBeEnabled();
+    fireEvent.click(confirm);
+    await screen.findByText('The draft removal could not be saved, so no uploads were deleted.');
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+      '/api/admin/media/bulk-delete/plan', '/api/admin/photos-page/draft',
+    ]);
+  });
+
   it('inserts a section at the chosen gap and returns to its header with Done', () => {
     vi.stubGlobal('crypto', { randomUUID: () => 'gap-section' });
     const { document, media } = photoFixtures(3);
