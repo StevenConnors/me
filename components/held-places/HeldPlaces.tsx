@@ -164,13 +164,13 @@ export function HeldPlacesJourneyPage({
       {neighbours?.newer || neighbours?.older ? (
         <nav aria-label="More journeys" className={styles.journeyNeighbours}>
           {neighbours.newer ? (
-            <Link href={`/stories/${neighbours.newer.slug}`}>
+            <Link href={`/stories/${neighbours.newer.slug}`} passHref>
               <span className={styles.kicker}><span aria-hidden="true">← </span>Newer journey</span>
               <span className={styles.neighbourTitle}>{neighbours.newer.title}</span>
             </Link>
           ) : <span />}
           {neighbours.older ? (
-            <Link className={styles.neighbourOlder} href={`/stories/${neighbours.older.slug}`}>
+            <Link className={styles.neighbourOlder} href={`/stories/${neighbours.older.slug}`} passHref>
               <span className={styles.kicker}>Older journey<span aria-hidden="true"> →</span></span>
               <span className={styles.neighbourTitle}>{neighbours.older.title}</span>
             </Link>
