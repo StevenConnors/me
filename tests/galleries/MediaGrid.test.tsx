@@ -39,7 +39,8 @@ describe('site galleries', () => {
     );
 
     expect(screen.getByAltText('A glass vase')).toHaveAttribute('src', 'https://res.cloudinary.com/demo/one.jpg');
-    expect(screen.getByAltText('A glass vase')).toHaveAttribute('loading', 'lazy');
+    expect(screen.getByAltText('A glass vase')).not.toHaveAttribute('loading', 'lazy');
+    expect(screen.getByAltText('A glass bowl')).toHaveAttribute('loading', 'lazy');
     fireEvent.click(screen.getByRole('button', { name: 'Open photo 1' }));
     expect(screen.getByRole('dialog', { name: 'Glass, 1 of 2' })).toBeInTheDocument();
     expect(screen.getAllByAltText('A glass vase')[1]).toHaveAttribute('src', 'https://res.cloudinary.com/demo/one-full.jpg');

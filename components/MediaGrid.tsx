@@ -102,6 +102,7 @@ export function MediaGrid({
         alt={item.alt}
         className={styles.image}
         fill
+        priority={index === 0}
         sizes={portrait ? '(max-width: 768px) 50vw, 25vw' : '(max-width: 768px) 50vw, 33vw'}
         src={item.thumbnailSrc}
         unoptimized
