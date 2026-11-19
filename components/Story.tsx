@@ -275,7 +275,7 @@ export default function Story({ children, ifDebug = false }: { children: React.R
         </div>
       ) : (
         // Desktop layout: original design
-        <div className="min-h-screen flex flex-col pl-[24px]">
+        <div className="min-h-screen flex flex-col">
           <div className="flex-1 flex">
             {/* Left sidebar with step indicators - fixed positioned */}
             <div className="w-[60px] flex flex-col">

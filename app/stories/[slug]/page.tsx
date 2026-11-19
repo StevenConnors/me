@@ -168,7 +168,7 @@ function LegacyStoryShell({ slug }: { slug: string }) {
   return (
     <main className={heldPlacesStyles.paper}>
       <HeldPlacesHeader />
-      <LegacyStory slug={slug} />
+      <div className={heldPlacesStyles.legacyStory}><LegacyStory slug={slug} /></div>
       <div className="relative z-20 bg-[#f1f0eb]"><HeldPlacesFooter /></div>
     </main>
   );
