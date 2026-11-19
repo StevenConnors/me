@@ -11,7 +11,7 @@ const photos = {
 
 const stories = [
   ['01', 'Oklahoma!', 'Oklahoma?'],
-  ['02', 'Whisy', 'with an e'],
+  ['02', 'Whisky', 'with an e'],
   ['03', 'Autumn in', 'Tōhoku'],
 ];
 

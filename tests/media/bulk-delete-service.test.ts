@@ -25,11 +25,15 @@ const media = (id: string): MediaAsset => ({
 
 describe('planMediaDeletion', () => {
   it('classifies every selected upload before a destructive request', async () => {
-    const records = new Map(['ready', 'published', 'journey'].map((id) => [id, media(id)]));
-    const plan = await planMediaDeletion(['ready', 'published', 'journey', 'gone'], {
+    const records = new Map(['ready', 'published', 'journey', 'draft', 'collection'].map((id) => [id, media(id)]));
+    const plan = await planMediaDeletion(['ready', 'published', 'journey', 'gone', 'draft', 'collection'], {
       mediaRepository: { findById: async (id) => records.get(id) ?? null },
-      photosPageRepository: { isMediaReferencedByPublishedDocument: async (id) => id === 'published' },
+      photosPageRepository: {
+        isMediaReferenced: async (id) => id !== 'ready',
+        isMediaReferencedByPublishedDocument: async (id) => id === 'published',
+      },
       journeyRepository: { isMediaReferenced: async (id) => id === 'journey' },
+      collectionRepository: { isMediaReferenced: async (id) => id === 'collection' },
     });
 
     expect(plan).toEqual([
@@ -37,6 +41,8 @@ describe('planMediaDeletion', () => {
       { id: 'published', filename: 'published.jpg', classification: 'publish_removal_first' },
       { id: 'journey', filename: 'journey.jpg', classification: 'used_by_journey' },
       { id: 'gone', filename: 'Unknown upload', classification: 'not_found' },
+      { id: 'draft', filename: 'draft.jpg', classification: 'used_by_photos_draft' },
+      { id: 'collection', filename: 'collection.jpg', classification: 'used_by_collection' },
     ]);
   });
 });

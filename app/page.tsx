@@ -10,7 +10,7 @@ import { PhotosPageRepository } from '@/lib/photos/repository';
 const legacyJourneys = [
   { slug: 'poc', title: 'Autumn in Tōhoku' },
   { slug: 'dfw-okc', title: 'Oklahoma! Oklahoma?' },
-  { slug: 'newpoc', title: 'Whisy with an e' },
+  { slug: 'newpoc', title: 'Whisky with an e' },
 ];
 
 export const dynamic = 'force-dynamic';

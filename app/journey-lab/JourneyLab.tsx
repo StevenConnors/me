@@ -10,7 +10,7 @@ const photos = {
   station: 'https://res.cloudinary.com/dwsenj1bp/image/upload/f_auto,q_auto,c_fill,w_1600/stories/dfw-okc/dart-dfw',
 };
 
-const archive = ['Formula One', 'Autumn in Tōhoku', 'Whisy with an e', 'Oklahoma! Oklahoma?'];
+const archive = ['Formula One', 'Autumn in Tōhoku', 'Whisky with an e', 'Oklahoma! Oklahoma?'];
 
 function Header({ index = 'Index' }: { index?: string }) {
   return <header className={styles.header}><a href="/">Yuji <span>/ 佑治</span></a><a href="#archive">{index}</a></header>;
