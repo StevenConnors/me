@@ -1,4 +1,5 @@
-import { HeldPlacesIndex } from '@/components/held-places/HeldPlaces';
+import { HeldPlacesIndex, type HeldPlacesMediaContext } from '@/components/held-places/HeldPlaces';
+import { loadJourneyMediaPresentation } from '@/lib/journeys/media-presentation';
 import { JourneyRepository } from '@/lib/journeys/repository';
 import type { PublishedJourneySummary } from '@/lib/journeys/schemas';
 import { getCloudinaryMediaProvider } from '@/lib/media/provider';
@@ -18,6 +19,7 @@ export const dynamic = 'force-dynamic';
 export default async function Home() {
   let journeys: PublishedJourneySummary[] = [];
   let photos: PublicPhoto[] = [];
+  let covers: HeldPlacesMediaContext | undefined;
   let failed = false;
 
   try {
@@ -27,6 +29,14 @@ export default async function Home() {
   } catch (error) {
     failed = true;
     console.error('Unable to load the published journey index', error);
+  }
+
+  if (journeys.length) {
+    try {
+      covers = await loadJourneyMediaPresentation(journeys.map(({ cover }) => cover.mediaAssetId));
+    } catch (error) {
+      console.error('Unable to load journey covers', error);
+    }
   }
 
   try {
@@ -40,5 +50,5 @@ export default async function Home() {
     console.error('Unable to load home photo selection', error);
   }
 
-  return <HeldPlacesIndex failed={failed} journeys={journeys} photos={photos} legacyJourneys={legacyJourneys} />;
+  return <HeldPlacesIndex covers={covers} failed={failed} journeys={journeys} photos={photos} legacyJourneys={legacyJourneys} />;
 }

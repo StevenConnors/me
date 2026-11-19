@@ -231,6 +231,12 @@ video.picture { display: block; width: 100%; height: 100%; object-fit: contain; 
 .archiveArrow { font-size: 20px; }
 .archiveRow:hover .archiveTitle { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 5px; }
 .archiveEmpty { color: var(--muted); margin: 30px 0 0; }
+.archiveRowCover { grid-template-columns: 132px minmax(180px, .7fr) minmax(240px, 1fr) auto; min-height: 132px; }
+.archiveCover { position: relative; display: block; width: 132px; aspect-ratio: 3 / 2; overflow: hidden; background: #d8d5cc; }
+.archiveCover img { object-fit: cover; }
+.archiveText { display: grid; gap: 8px; }
+.archiveMeta { color: var(--muted); font-size: 13px; letter-spacing: .02em; }
+.homeIntro { max-width: 52ch; margin: 4px 44px 12px; color: var(--muted); font: 400 22px/1.35 Georgia, 'Times New Roman', serif; }
 
 .indexEmpty {
   display: grid;
@@ -424,6 +430,10 @@ video.picture { display: block; width: 100%; height: 100%; object-fit: contain; 
   }
   .archiveTitle { font-size: 25px; }
   .archiveSummary { display: none; }
+  .archiveRowCover { grid-template-columns: 72px minmax(0, 1fr) auto; }
+  .archiveCover { width: 72px; }
+  .archiveMeta { font-size: 12px; }
+  .homeIntro { margin: 0 16px; font-size: 19px; }
   .indexEmpty { min-height: 530px; padding: 30px 24px 80px; }
   .indexEmpty h1 { font-size: 56px; }
   .indexEmpty > p:last-child { font-size: 19px; }
