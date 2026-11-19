@@ -36,7 +36,6 @@ jobs:
 
   authoring-e2e:
     name: Browser flows
-    needs: checks
     runs-on: ubuntu-latest
     timeout-minutes: 20
     services:
@@ -53,7 +52,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
+      - run: npx playwright install --with-deps --only-shell chromium
       - run: npm run test:e2e
         env:
           E2E_MONGODB_URI: mongodb://127.0.0.1:27018/journey_editor_e2e
@@ -67,7 +66,6 @@ jobs:
   ux-performance:
     name: UX performance (main vs PR)
     if: github.event_name == 'pull_request'
-    needs: checks
     runs-on: ubuntu-latest
     timeout-minutes: 30
     # Advisory until fixtures are seeded and CI noise is calibrated; remove to make it blocking.
