@@ -25,6 +25,10 @@
 .placeList { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 24px; margin: 20px 0 0; padding: 0; list-style: none; }
 .placeList li { display: flex; justify-content: space-between; gap: 12px; min-height: 45px; align-items: center; border-bottom: 1px solid #dedbd4; color: #39372f; font-size: 14px; }
 .placeList li > span:last-child { flex: 0 0 auto; color: #969188; font: 10px/1 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.placeName { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 8px 0; }
+.placeJourneys { display: flex; flex-wrap: wrap; gap: 2px 12px; font-size: 12px; }
+.placeJourneys a { color: #615f58; text-decoration-color: #aaa69c; text-underline-offset: 3px; overflow-wrap: anywhere; }
+.placeJourneys a:hover { color: #161510; text-decoration-color: currentColor; }
 .placeList .listEmpty { grid-column: 1 / -1; justify-content: flex-start; color: #77736b; }
 .updated { margin: 18px 0 0; color: #8c877e; font-size: 11px; }
 @media (max-width: 760px) {
