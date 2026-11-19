@@ -35,5 +35,9 @@ If any red flag is present, run the `measure-ux-performance` skill and include i
 ## Blast radius
 If the diff touches shared code (`lib/`, schemas, auth, `middleware`, `next.config.js`, shared layouts/components) or changes a stored document shape, run the `blast-radius` skill and put its one safety fact and risks in the PR's Risk section.
 
-## PR text
-Write the PR description with the `unslop` skill.
+## PR text (it becomes the squash commit)
+PRs are squash-merged: the title is the commit subject on `master` and the description is its body. Branch commit messages are discarded.
+- Title: imperative, sentence case, at most 72 characters, no trailing period, no prefix tags. Name the outcome, not the activity ("Keep map controls active after touch gestures", not "Fix bug" or "Updates").
+- Description: follow `.github/pull_request_template.md`. Summary bullets say what changed and why; keep the Verification evidence and Risk sections accurate.
+- Update the title and description whenever the PR scope changes, before it is merged.
+- Write both with the `unslop` skill.

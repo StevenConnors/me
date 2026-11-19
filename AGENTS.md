@@ -22,4 +22,5 @@ Personal site and publishing system: Next.js 15 App Router, React 19, TypeScript
 ## Guardrails
 - `E2E_TEST_MODE` and `/api/e2e/*` must stay inert in production.
 - Never point tests or scripts at a non-disposable database. Media and migration scripts are dry-run unless `--apply`; never apply without the user.
+- PRs merge with **squash and merge** only. The PR title and description become the commit on `master`, so write them as the commit message (see `self-review`).
 - Do not commit `.env*`, screenshots, traces, `.DS_Store` or local reports.
