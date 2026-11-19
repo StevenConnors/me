@@ -9,7 +9,10 @@ export const metadata: Metadata = {
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000',
   ),
-  title: 'Yuji - Heal the person to your right',
+  title: {
+    default: 'Yuji - Heal the person to your right',
+    template: '%s | Yuji',
+  },
   description: 'Travel stories and photography by Yuji',
   keywords: ['photography', 'travel', 'stories', 'blog'],
   authors: [{ name: 'Yuji' }],
