@@ -51,14 +51,14 @@ test('draft slug edits leave the live URL alone until the rename is published', 
     await page.getByLabel('Cover image').selectOption(mediaId);
     await page.locator('.ProseMirror').fill(bodyText);
     await page.getByRole('button', { name: 'Save now' }).click();
-    await expect(page.getByText('Saved', { exact: true })).toBeVisible();
+    await expect(page.getByText('Draft saved', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Publish journey' }).click();
     await expect(page.getByText('Published from a new immutable revision.')).toBeVisible();
 
     // Cases 1–3: an autosaved slug edit is only a draft.
     await page.getByLabel('Public slug').fill(renamedSlug);
     await page.getByRole('button', { name: 'Save now' }).click();
-    await expect(page.getByText('Saved', { exact: true })).toBeVisible();
+    await expect(page.getByText('Draft saved', { exact: true })).toBeVisible();
     await expect(page.getByRole('link', { name: 'View public journey ↗' }))
       .toHaveAttribute('href', `/stories/${liveSlug}`);
     await page.reload();

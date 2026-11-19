@@ -5,19 +5,26 @@ import styles from '@/app/admin/admin.module.css';
 import type { EditorMedia } from '@/components/editor/JourneyVisualEditor';
 import { loadJourneyEditorMedia } from '@/lib/journeys/editor-media';
 import { JourneyRepository } from '@/lib/journeys/repository';
+import { findJourneyRevision } from '@/lib/journeys/revisions';
+import { journeyReleaseSnapshot } from '@/lib/journeys/release-status';
 import { getCloudinaryMediaProvider } from '@/lib/media/provider';
 import { MediaRepository } from '@/lib/media/repository';
 
 export default async function JourneyEditPage({ params }: { params: Promise<{ journeyId: string }> }) {
   const { journeyId } = await params;
   let journey;
+  let repository;
   try {
-    journey = await (await JourneyRepository.connect()).findById(journeyId);
+    repository = await JourneyRepository.connect();
+    journey = await repository.findById(journeyId);
   } catch (error) {
     console.error('Unable to load journey editor', error);
     throw error;
   }
   if (!journey) notFound();
+  const publishedRevision = journey.status === 'published' && journey.publishedRevisionId && repository.revisions
+    ? await findJourneyRevision(repository.revisions, journey._id, journey.publishedRevisionId)
+    : null;
 
   let media: EditorMedia[] = [];
   try {
@@ -43,10 +50,14 @@ export default async function JourneyEditPage({ params }: { params: Promise<{ jo
         cover: journey.cover,
         experiencedAt: journey.experiencedAt,
         locations: journey.locations,
+        social: journey.social,
         status: journey.status,
         editVersion: journey.editVersion,
         draftDocument: journey.draftDocument,
-      }} media={media} />
+      }} initialPublishedSnapshot={publishedRevision ? journeyReleaseSnapshot({
+        ...publishedRevision.metadataSnapshot,
+        draftDocument: publishedRevision.document,
+      }) : null} media={media} />
     </>
   );
 }

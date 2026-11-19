@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import Link from 'next/link';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
@@ -51,6 +52,7 @@ type PhotosApiPage = {
   draftDocument: PhotosPageDocument;
   draftVersion: number;
   hasUnpublishedChanges: boolean;
+  publishedDocument?: PhotosPageDocument;
 };
 type DeletionPlanItem = MediaDeletionPlanItem & {
   result?: 'deleted' | 'protected' | 'not_found' | 'failed';
@@ -128,12 +130,12 @@ function isMediaBlock(block: PhotosPageDocument['blocks'][number] | undefined): 
 export function PhotosWorkspace({
   initialDocument,
   initialDraftVersion,
-  initialHasUnpublishedChanges,
+  initialPublishedDocument,
   media: initialMedia,
 }: {
   initialDocument: PhotosPageDocument;
   initialDraftVersion: number;
-  initialHasUnpublishedChanges: boolean;
+  initialPublishedDocument?: PhotosPageDocument;
   media: EditorMedia[];
 }) {
   const router = useRouter();
@@ -156,7 +158,10 @@ export function PhotosWorkspace({
   const [reorderMessage, setReorderMessage] = useState('');
   const [viewport, setViewport] = useState<'desktop' | 'mobile'>('desktop');
   const [saveState, setSaveState] = useState<SaveState>('saved');
-  const [hasUnpublishedChanges, setHasUnpublishedChanges] = useState(initialHasUnpublishedChanges);
+  const [publishedDocument, setPublishedDocument] = useState(initialPublishedDocument);
+  const hasUnpublishedChanges = !publishedDocument || !documentEqual(document, publishedDocument);
+  const hasLocalChanges = !documentEqual(document, lastSavedDocumentRef.current);
+  const [releaseState, setReleaseState] = useState<'idle' | 'publishing' | 'restoring'>('idle');
   const [uploadState, setUploadState] = useState<UploadState>('idle');
   const [uploadMessage, setUploadMessage] = useState('');
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -238,8 +243,8 @@ export function PhotosWorkspace({
         const page = payload.page as PhotosApiPage;
         lastSavedDocumentRef.current = page.draftDocument;
         versionRef.current = page.draftVersion;
-        setHasUnpublishedChanges(page.hasUnpublishedChanges);
-        setSaveState('saved');
+        setPublishedDocument(page.publishedDocument);
+        setSaveState(documentEqual(documentRef.current, page.draftDocument) ? 'saved' : 'saving');
         return true;
       } catch (error) {
         console.error(error);
@@ -660,11 +665,11 @@ export function PhotosWorkspace({
   }
 
   async function publish() {
+    setReleaseState('publishing');
     setPublishError('');
     setPublishIssues([]);
-    if (!await flushDraft()) return;
-    setSaveState('saving');
     try {
+      if (!await flushDraft()) return;
       const response = await fetch('/api/admin/photos-page/publish', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ expectedVersion: versionRef.current }),
       });
@@ -681,20 +686,24 @@ export function PhotosWorkspace({
       const page = payload.page as PhotosApiPage;
       versionRef.current = page.draftVersion;
       lastSavedDocumentRef.current = page.draftDocument;
-      setHasUnpublishedChanges(page.hasUnpublishedChanges);
+      setPublishedDocument(page.publishedDocument);
       setSaveState('saved');
       router.refresh();
     } catch (error) {
       setPublishError(error instanceof Error ? error.message : 'Unable to publish the Photos page');
       setSaveState('saved');
+    } finally {
+      setReleaseState('idle');
     }
   }
 
   async function discard() {
+    if (!publishedDocument) return;
     if (!window.confirm('Discard all unpublished Photos page changes? This restores the last published layout.')) return;
+    setReleaseState('restoring');
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    setSaveState('saving');
     try {
+      if (savePromiseRef.current && !await savePromiseRef.current) return;
       const response = await fetch('/api/admin/photos-page/discard', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ expectedVersion: versionRef.current }),
       });
@@ -703,7 +712,8 @@ export function PhotosWorkspace({
       if (!response.ok) throw new Error(payload?.error?.message ?? 'Unable to discard the Photos draft');
       const page = payload.page as PhotosApiPage;
       replaceLocalDocument(page);
-    } catch (error) { console.error(error); setSaveState('error'); }
+    } catch (error) { setPublishError(error instanceof Error ? error.message : 'Unable to restore the published layout'); }
+    finally { setReleaseState('idle'); }
   }
 
   function replaceLocalDocument(page: PhotosApiPage, resolvedMediaIds?: string[]) {
@@ -726,7 +736,7 @@ export function PhotosWorkspace({
     // Discard/replacement responses contain no previews. Keep the cache and let
     // the batch loader resolve any newly visible assets in the restored layout.
     if (resolvedMediaIds) setLoadedMediaIds(new Set(resolvedMediaIds));
-    setHasUnpublishedChanges(page.hasUnpublishedChanges);
+    setPublishedDocument(page.publishedDocument);
     setSaveState('saved');
   }
 
@@ -873,10 +883,14 @@ export function PhotosWorkspace({
       <div className={styles.toolbarMain}>
         <span className={styles.viewportButtons} aria-label="Preview viewport"><button aria-pressed={viewport === 'desktop'} onClick={() => setViewport('desktop')} type="button">Desktop</button><button aria-pressed={viewport === 'mobile'} onClick={() => setViewport('mobile')} type="button">Mobile</button></span>
         <span className={styles.historyButtons}><button disabled={historyIndex === 0} onClick={undo} type="button">Undo</button><button disabled={historyIndex === history.length - 1} onClick={redo} type="button">Redo</button></span>
-        <span aria-live="polite" className={styles.saveState} data-state={saveState}>{saveState === 'saving' ? 'Saving…' : saveState === 'conflict' ? 'Draft changed elsewhere' : saveState === 'error' ? 'Could not save' : hasUnpublishedChanges ? 'Unpublished changes' : 'Published'}</span>
+        <span aria-live="polite" className={styles.saveState} data-state={saveState}>{saveState === 'saving' ? 'Saving…' : saveState === 'conflict' ? 'Draft changed elsewhere' : saveState === 'error' ? 'Could not save' : hasLocalChanges ? 'Local changes · not saved' : 'Draft saved'}</span>
         <span className={styles.primaryActions}>
-          <button disabled={uploadState === 'uploading'} onClick={() => setPickerOpen(true)} type="button">{uploadState === 'uploading' ? 'Uploading…' : 'Add media'}</button><button onClick={addSection} type="button">Insert section at top</button><button disabled={saveState === 'saving' || saveState === 'conflict' || !hasUnpublishedChanges} onClick={() => void publish()} type="button">Publish</button><button disabled={saveState === 'saving' || !hasUnpublishedChanges} onClick={() => void discard()} type="button">Discard</button>
+          <button disabled={uploadState === 'uploading'} onClick={() => setPickerOpen(true)} type="button">{uploadState === 'uploading' ? 'Uploading…' : 'Add media'}</button><button onClick={addSection} type="button">Insert section at top</button><button disabled={releaseState !== 'idle' || saveState === 'conflict' || !hasUnpublishedChanges} onClick={() => void publish()} type="button">{releaseState === 'publishing' ? 'Publishing…' : 'Publish'}</button>{publishedDocument ? <button disabled={releaseState !== 'idle' || saveState === 'saving' || saveState === 'conflict' || !hasUnpublishedChanges} onClick={() => void discard()} type="button">{releaseState === 'restoring' ? 'Restoring…' : 'Restore last published'}</button> : null}
         </span>
+      </div>
+      <div className={styles.releaseStatus}>
+        <span aria-live="polite">{!publishedDocument ? 'Never published' : hasUnpublishedChanges ? 'Live · unpublished changes' : 'Live · no unpublished changes'}</span>
+        {publishedDocument ? <Link href="/photos" target="_blank" rel="noreferrer">View public Photos ↗</Link> : <span>Publish to release this draft. Saving keeps it private.</span>}
       </div>
       <div className={styles.toolbarContext}>
         <p className={styles.homeSelectionHint}>Homepage: {featuredPhotoCount}/8 selected. Edit a photo to include it. Picks follow the Photos order when published; until then, the first eight photos appear.</p>

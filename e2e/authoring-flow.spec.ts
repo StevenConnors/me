@@ -32,7 +32,7 @@ test('an author can create, revise, publish, view, and delete a journey', async 
     await page.getByLabel('Summary').fill('A browser-tested publishing workflow.');
     await page.locator('.ProseMirror').fill(firstText);
     await page.getByRole('button', { name: 'Save now' }).click();
-    await expect(page.getByText('Saved', { exact: true })).toBeVisible();
+    await expect(page.getByText('Draft saved', { exact: true })).toBeVisible();
 
     await page.goto('/admin/media');
     const finalizeResponse = page.waitForResponse((response) =>
@@ -60,7 +60,7 @@ test('an author can create, revise, publish, view, and delete a journey', async 
     await page.getByRole('button', { name: 'Add selected' }).click();
     await page.getByRole('region', { name: 'Held Places chapter editor' }).getByRole('textbox', { name: 'Alt text (optional)' }).fill('A small cove after rain');
     await page.getByRole('button', { name: 'Save now' }).click();
-    await expect(page.getByText('Saved', { exact: true })).toBeVisible();
+    await expect(page.getByText('Draft saved', { exact: true })).toBeVisible();
 
     await page.getByRole('button', { name: 'Publish journey' }).click();
     await expect(page.getByText('Published from a new immutable revision.')).toBeVisible();
@@ -74,7 +74,7 @@ test('an author can create, revise, publish, view, and delete a journey', async 
     await page.getByLabel('Title').fill(updatedTitle);
     await page.locator('.ProseMirror').fill(revisedText);
     await page.getByRole('button', { name: 'Save now' }).click();
-    await expect(page.getByText('Saved', { exact: true })).toBeVisible();
+    await expect(page.getByText('Draft saved', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Publish update' }).click();
     await expect(page.getByText('Published from a new immutable revision.')).toBeVisible();
 

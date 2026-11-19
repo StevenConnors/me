@@ -45,6 +45,13 @@ export class PhotosPageConflictError extends Error {
   }
 }
 
+export class PhotosPageNotPublishedError extends Error {
+  constructor() {
+    super('There is no published Photos layout to restore. Your draft has not changed.');
+    this.name = 'PhotosPageNotPublishedError';
+  }
+}
+
 export class PhotosPublishValidationError extends Error {
   readonly code = 'PHOTOS_PUBLISH_INVALID';
 
@@ -189,7 +196,12 @@ export class PhotosPageRepository {
     );
     const discarded = unwrapFindOneAndUpdate<WithId<PhotosPage>>(raw);
     if (discarded) return PhotosPageSchema.parse(discarded);
-    return this.throwMutationFailure(expectedVersion);
+    const current = await this.get();
+    if (!current) throw new PhotosPageNotFoundError();
+    if (current.draftVersion !== expectedVersion) {
+      throw new PhotosPageConflictError(expectedVersion, current.draftVersion);
+    }
+    throw new PhotosPageNotPublishedError();
   }
 
   async isMediaReferencedByPublishedDocument(mediaId: string): Promise<boolean> {

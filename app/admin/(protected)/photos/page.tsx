@@ -32,7 +32,7 @@ export default async function PhotosEditorPage() {
       <p className={styles.eyebrow}>Photo-first publishing</p>
       <h1 className={styles.title}>Photos</h1>
       <p className={styles.lede}>Arrange the published page directly. Edits are autosaved to a private draft and become public only when you publish.</p>
-      <PhotosWorkspace initialDocument={serialized.draftDocument} initialDraftVersion={serialized.draftVersion} initialHasUnpublishedChanges={serialized.hasUnpublishedChanges} media={editorMedia} />
+      <PhotosWorkspace initialDocument={serialized.draftDocument} initialDraftVersion={serialized.draftVersion} initialPublishedDocument={serialized.publishedDocument} media={editorMedia} />
     </>;
   } catch (error) {
     console.error('Unable to render the Photos editor', error);

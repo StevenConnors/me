@@ -48,7 +48,7 @@ describe('PhotosWorkspace sections', () => {
       throw new Error(`Unexpected request: ${input}`);
     });
     vi.stubGlobal('fetch', fetchMock);
-    render(<PhotosWorkspace initialDocument={document} initialDraftVersion={0} initialHasUnpublishedChanges media={media} />);
+    render(<PhotosWorkspace initialDocument={document} initialDraftVersion={0} media={media} />);
     fireEvent.click(screen.getByRole('button', { name: 'Select photo photo-0.jpg' }));
     fireEvent.click(screen.getByRole('button', { name: 'Delete selected uploads…' }));
     const confirm = await screen.findByRole('button', { name: 'Permanently delete ready uploads' });
@@ -63,7 +63,7 @@ describe('PhotosWorkspace sections', () => {
   it('inserts a section at the chosen gap and returns to its header with Done', () => {
     vi.stubGlobal('crypto', { randomUUID: () => 'gap-section' });
     const { document, media } = photoFixtures(3);
-    render(<PhotosWorkspace initialDocument={document} initialDraftVersion={0} initialHasUnpublishedChanges={false} media={media} />);
+    render(<PhotosWorkspace initialDocument={document} initialDraftVersion={0} initialPublishedDocument={document} media={media} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Insert point after photo-0.jpg' }));
     fireEvent.click(screen.getByRole('button', { name: 'Insert section here' }));
@@ -94,7 +94,7 @@ describe('PhotosWorkspace sections', () => {
       return { ok: true, json: async () => ({ mediaById: Object.fromEntries(media.filter((asset) => ids.includes(asset.id)).map((asset) => [asset.id, asset])) }) };
     });
     vi.stubGlobal('fetch', fetchMock);
-    render(<PhotosWorkspace initialDocument={document} initialDraftVersion={0} initialHasUnpublishedChanges={false} media={media.slice(0, 24)} />);
+    render(<PhotosWorkspace initialDocument={document} initialDraftVersion={0} initialPublishedDocument={document} media={media.slice(0, 24)} />);
     expect(screen.getAllByRole('button', { name: /Edit photo/ })).toHaveLength(24);
     expect(fetchMock).not.toHaveBeenCalled();
 
@@ -116,7 +116,7 @@ describe('PhotosWorkspace sections', () => {
       .mockResolvedValueOnce({ ok: false, json: async () => ({ error: { message: 'Temporary failure' } }) })
       .mockResolvedValueOnce({ ok: true, json: async () => ({ mediaById: { [media[24].id]: media[24] } }) });
     vi.stubGlobal('fetch', fetchMock);
-    render(<PhotosWorkspace initialDocument={document} initialDraftVersion={0} initialHasUnpublishedChanges={false} media={media.slice(0, 24)} />);
+    render(<PhotosWorkspace initialDocument={document} initialDraftVersion={0} initialPublishedDocument={document} media={media.slice(0, 24)} />);
     fireEvent.click(screen.getByRole('button', { name: 'Load more photos' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Retry loading photos' }));
     await screen.findByRole('button', { name: 'Edit photo photo-24.jpg' });
@@ -131,7 +131,7 @@ describe('PhotosWorkspace sections', () => {
       status: 422,
       json: async () => ({ error: { message: 'Fix this photo before publishing.', details: [{ blockId: 'block-0', message: 'Add alt text or mark this photo decorative.' }] } }),
     }));
-    render(<PhotosWorkspace initialDocument={document} initialDraftVersion={0} initialHasUnpublishedChanges media={media} />);
+    render(<PhotosWorkspace initialDocument={document} initialDraftVersion={0} media={media} />);
     fireEvent.click(screen.getByRole('button', { name: 'Publish' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Fix this photo before publishing.');
     fireEvent.click(screen.getByRole('button', { name: 'Edit: Add alt text or mark this photo decorative.' }));
@@ -145,7 +145,6 @@ describe('PhotosWorkspace sections', () => {
       <PhotosWorkspace
         initialDocument={{ schemaVersion: 1, blocks: [] }}
         initialDraftVersion={0}
-        initialHasUnpublishedChanges={false}
         media={[]}
       />,
     );
@@ -168,7 +167,6 @@ describe('PhotosWorkspace sections', () => {
           blocks: [{ id: 'existing-media-block', type: 'media', mediaAssetId: 'existing-media', decorative: true }],
         }}
         initialDraftVersion={0}
-        initialHasUnpublishedChanges={false}
         media={[{
           id: 'existing-media',
           originalFilename: 'existing.jpg',
@@ -211,7 +209,6 @@ describe('PhotosWorkspace sections', () => {
           ],
         }}
         initialDraftVersion={0}
-        initialHasUnpublishedChanges={false}
         media={[
           { id: 'one', originalFilename: 'one.jpg', width: 1200, height: 800, source: 'https://images.test/one.jpg', resourceType: 'image' },
           { id: 'two', originalFilename: 'two.jpg', width: 1200, height: 800, source: 'https://images.test/two.jpg', resourceType: 'image' },
@@ -252,7 +249,6 @@ describe('PhotosWorkspace sections', () => {
           ],
         }}
         initialDraftVersion={0}
-        initialHasUnpublishedChanges={false}
         media={[
           { id: 'one', originalFilename: 'one.jpg', width: 1200, height: 800, source: 'https://images.test/one.jpg', resourceType: 'image' },
           { id: 'two', originalFilename: 'two.jpg', width: 1200, height: 800, source: 'https://images.test/two.jpg', resourceType: 'image' },
@@ -281,7 +277,7 @@ describe('PhotosWorkspace sections', () => {
 
   it('opens photo details only from the Edit button', () => {
     const { document, media } = photoFixtures(1);
-    render(<PhotosWorkspace initialDocument={document} initialDraftVersion={0} initialHasUnpublishedChanges={false} media={media} />);
+    render(<PhotosWorkspace initialDocument={document} initialDraftVersion={0} initialPublishedDocument={document} media={media} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Select photo photo-0.jpg' }));
     expect(screen.queryByRole('complementary', { name: 'Selected photo inspector' })).toBeNull();
@@ -306,7 +302,6 @@ describe('PhotosWorkspace sections', () => {
           ],
         }}
         initialDraftVersion={0}
-        initialHasUnpublishedChanges={false}
         media={[
           { id: 'one', originalFilename: 'one.jpg', width: 1200, height: 800, source: 'https://images.test/one.jpg', resourceType: 'image' },
           { id: 'two', originalFilename: 'two.jpg', width: 1200, height: 800, source: 'https://images.test/two.jpg', resourceType: 'image' },
@@ -330,7 +325,6 @@ describe('PhotosWorkspace sections', () => {
           blocks: [{ id: 'decorative-block', type: 'media', mediaAssetId: 'decorative-media', decorative: true }],
         }}
         initialDraftVersion={0}
-        initialHasUnpublishedChanges={false}
         media={[{
           id: 'decorative-media',
           originalFilename: 'private-filename.jpg',
@@ -354,7 +348,6 @@ describe('PhotosWorkspace sections', () => {
           blocks: [{ id: 'media-block', type: 'media', mediaAssetId: 'media', decorative: true }],
         }}
         initialDraftVersion={0}
-        initialHasUnpublishedChanges={false}
         media={[{
           id: 'media',
           originalFilename: 'panam.jpg',
@@ -394,7 +387,6 @@ describe('PhotosWorkspace sections', () => {
           ],
         }}
         initialDraftVersion={0}
-        initialHasUnpublishedChanges={false}
         media={[
           { id: 'one', originalFilename: 'one.jpg', width: 1200, height: 800, source: 'https://images.test/one.jpg', resourceType: 'image' },
           { id: 'two', originalFilename: 'two.jpg', width: 1200, height: 800, source: 'https://images.test/two.jpg', resourceType: 'image' },

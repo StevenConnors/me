@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 import { HeldPlacesEditor } from '@/components/editor/HeldPlacesEditor';
 import { JourneyVisualEditor, type EditorMedia } from '@/components/editor/JourneyVisualEditor';
@@ -12,6 +12,8 @@ import type {
   JourneyLocation,
 } from '@/lib/journeys/schemas';
 import type { MediaPlacement } from '@/lib/media/schemas';
+import { journeyReleaseSnapshot } from '@/lib/journeys/release-status';
+import type { Journey } from '@/lib/journeys/schemas';
 
 type EditableJourney = {
   _id: string;
@@ -22,19 +24,23 @@ type EditableJourney = {
   cover?: MediaPlacement | null;
   experiencedAt?: { start: string; end?: string } | null;
   locations?: JourneyLocation[];
+  social?: Journey['social'];
   status: 'draft' | 'preview' | 'published' | 'archived';
   editVersion: number;
   draftDocument: JourneyDocument;
 };
 
-type SaveState = 'idle' | 'saving' | 'saved' | 'error' | 'conflict';
+type SaveState = 'dirty' | 'saving' | 'saved' | 'error' | 'conflict';
 type SaveResponse = { journey?: EditableJourney; error?: { code?: string; message?: string; details?: unknown } };
 type PublishState = { state: 'idle' | 'publishing' | 'published' | 'error'; message?: string; issues?: { message: string }[] };
 
-export function JourneyWorkspace({ initialJourney, media }: { initialJourney: EditableJourney; media: EditorMedia[] }) {
+export function JourneyWorkspace({ initialJourney, initialPublishedSnapshot, media }: { initialJourney: EditableJourney; initialPublishedSnapshot: string | null; media: EditorMedia[] }) {
   const router = useRouter();
   const [journey, setJourney] = useState(initialJourney);
-  const [saveState, setSaveState] = useState<SaveState>('idle');
+  const draftSnapshot = useMemo(() => journeyReleaseSnapshot(journey), [journey]);
+  const [saveState, setSaveState] = useState<SaveState>('saved');
+  const [publishedSnapshot, setPublishedSnapshot] = useState(initialPublishedSnapshot);
+  const lastSavedSnapshot = useRef(draftSnapshot);
   const [publishState, setPublishState] = useState<PublishState>({ state: 'idle' });
   const [summaryOmissionConfirmed, setSummaryOmissionConfirmed] = useState(false);
   const [deleteState, setDeleteState] = useState<'idle' | 'deleting' | 'error'>('idle');
@@ -56,7 +62,7 @@ export function JourneyWorkspace({ initialJourney, media }: { initialJourney: Ed
     const next = { ...current.current, [key]: value };
     current.current = next;
     setJourney(next);
-    setSaveState('idle');
+    setSaveState((state) => state === 'conflict' ? state : inFlight.current ? 'saving' : 'dirty');
     scheduleSave();
   }
 
@@ -111,8 +117,9 @@ export function JourneyWorkspace({ initialJourney, media }: { initialJourney: Ed
         ? { ...current.current, editVersion: payload.journey.editVersion }
         : payload.journey;
       current.current = reconciled;
+      lastSavedSnapshot.current = journeyReleaseSnapshot(payload.journey);
       setJourney(reconciled);
-      setSaveState(hasNewerEdits ? 'idle' : 'saved');
+      setSaveState(hasNewerEdits ? 'dirty' : 'saved');
       return payload.journey;
     } catch (error) {
       console.error(error);
@@ -144,13 +151,14 @@ export function JourneyWorkspace({ initialJourney, media }: { initialJourney: Ed
       }
       const published = payload.journey;
       const next = {
-        ...saved,
+        ...current.current,
         status: 'published' as const,
         publishedSlug: published?.publishedSlug ?? saved.slug,
-        editVersion: typeof published?.editVersion === 'number' ? published.editVersion : saved.editVersion,
+        editVersion: Math.max(current.current.editVersion, typeof published?.editVersion === 'number' ? published.editVersion : saved.editVersion),
       };
       setJourney(next);
       current.current = next;
+      setPublishedSnapshot(journeyReleaseSnapshot(saved));
       setPublishState({ state: 'published', message: 'Published from a new immutable revision.' });
     } catch (error) {
       console.error(error);
@@ -194,6 +202,7 @@ export function JourneyWorkspace({ initialJourney, media }: { initialJourney: Ed
       }
       setJourney(payload.journey);
       current.current = payload.journey;
+      lastSavedSnapshot.current = journeyReleaseSnapshot(payload.journey);
       setMigrationState('idle');
       setSaveState('saved');
     } catch (error) {
@@ -203,9 +212,9 @@ export function JourneyWorkspace({ initialJourney, media }: { initialJourney: Ed
   }
 
   const saveLabel: Record<SaveState, string> = {
-    idle: 'Changes save automatically',
+    dirty: draftSnapshot === lastSavedSnapshot.current ? 'Draft saved' : 'Local changes · not saved',
     saving: 'Saving…',
-    saved: 'Saved',
+    saved: 'Draft saved',
     error: 'Save failed; try again',
     conflict: 'Another tab changed this journey. Reload before saving again.',
   };
@@ -325,7 +334,7 @@ export function JourneyWorkspace({ initialJourney, media }: { initialJourney: Ed
           <span className={styles.fieldHint}>Separate public location labels with commas.</span>
         </div>
         <div className={styles.formFooter}>
-          <span className={styles.status} data-state={saveState}>{saveLabel[saveState]}</span>
+          <span aria-live="polite" className={styles.status} data-state={saveState}>{saveLabel[saveState]}</span>
           <div className={styles.actionGroup}>
             <Link className={styles.quietButton} href={`/admin/preview/${journey._id}`}>Preview</Link>
             <button className={styles.button} type="submit" disabled={saveState === 'saving' || saveState === 'conflict'}>Save now</button>
@@ -364,6 +373,7 @@ export function JourneyWorkspace({ initialJourney, media }: { initialJourney: Ed
       <section className={styles.publishPanel} aria-label="Publish journey">
         <div>
           <p className={styles.eyebrow}>Release</p>
+          <p aria-live="polite" className={styles.releaseStatus}>{publishedSnapshot === null ? 'Never published' : draftSnapshot === publishedSnapshot ? 'Live · no unpublished changes' : 'Live · unpublished changes'}</p>
           <h2 className={styles.publishTitle}>{journey.status === 'published' ? 'Publish an updated revision' : 'Ready for the public archive?'}</h2>
           <p className={styles.publishDescription}>Publishing validates the draft, records an immutable revision, and makes that revision the public journey.</p>
           {journey.draftDocument.schemaVersion === 1 && !journey.summary && (
