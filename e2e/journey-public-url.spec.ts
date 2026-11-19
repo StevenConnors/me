@@ -14,6 +14,14 @@ test('draft slug edits leave the live URL alone until the rename is published', 
   const bodyText = 'The ferry horn carried across the harbour.';
   let journeyId: string | undefined;
   let mediaId: string | undefined;
+  const runtimeErrors: string[] = [];
+  page.on('pageerror', (error) => runtimeErrors.push(`pageerror: ${error.message}`));
+  page.on('console', (message) => {
+    // The deliberate 404 for the unpublished draft slug is logged as a failed resource load.
+    if (message.type() === 'error' && !message.text().includes('404')) {
+      runtimeErrors.push(`console: ${message.text()}`);
+    }
+  });
 
   try {
     await page.goto('/admin/journeys');
@@ -60,6 +68,10 @@ test('draft slug edits leave the live URL alone until the rename is published', 
 
     const draftResponse = await page.goto(`/stories/${renamedSlug}`);
     expect(draftResponse?.status()).toBe(404);
+    await test.info().attach('e2e-fixture-draft-slug-404', {
+      body: await page.screenshot({ fullPage: true }),
+      contentType: 'image/png',
+    });
 
     // Cases 4–5: publishing the rename moves the live URL and redirects the old one.
     await page.goto(editUrl);
@@ -78,6 +90,34 @@ test('draft slug edits leave the live URL alone until the rename is published', 
     await page.goto(`/stories/${liveSlug}`);
     await expect(page).toHaveURL(new RegExp(`/stories/${renamedSlug}$`));
     await expect(page.getByRole('heading', { name: title })).toBeVisible();
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`/stories/${liveSlug}`);
+    await expect(page).toHaveURL(new RegExp(`/stories/${renamedSlug}$`));
+    await expect(page.getByRole('heading', { name: title })).toBeVisible();
+    const mobileScrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+    expect(mobileScrollWidth).toBeLessThanOrEqual(390);
+    await test.info().attach('e2e-fixture-renamed-story-390px', {
+      body: await page.screenshot({ fullPage: true }),
+      contentType: 'image/png',
+    });
+
+    expect(runtimeErrors).toEqual([]);
+    await test.info().attach('e2e-fixture-journey-public-url-result', {
+      body: JSON.stringify({
+        liveSlug,
+        renamedSlug,
+        draftOnly: { liveStatus: liveResponse?.status(), draftStatus: draftResponse?.status() },
+        afterRename: {
+          renamedStatus: renamedResponse?.status(),
+          oldUrlStatus: oldUrl.status(),
+          oldUrlLocation: oldUrl.headers().location,
+        },
+        mobileScrollWidth,
+        runtimeErrors,
+      }, null, 2),
+      contentType: 'application/json',
+    });
   } finally {
     if (journeyId) await page.request.delete(`/api/admin/journeys/${journeyId}`);
     if (mediaId) await page.request.delete(`/api/admin/media/${mediaId}`);

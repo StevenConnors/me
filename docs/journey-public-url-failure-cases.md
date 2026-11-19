@@ -13,5 +13,7 @@ A published journey's public URL belongs to its published revision, not to the e
 | 7 | Another journey tries to publish a slug that is live elsewhere. | Publication is rejected with `slug_unavailable`. |
 | 8 | A journey is unpublished or archived. | Neither its live slug nor its old slugs resolve. |
 | 9 | A legacy MDX slug with no published journey. | The bundled MDX story still renders. |
+| 10 | The rename flow throws page errors or console errors. | None, apart from the deliberate draft-slug 404. |
+| 11 | The redirected story overflows a 390 px viewport. | No horizontal overflow at 390 px. |
 
-`e2e/journey-public-url.spec.ts` covers cases 1–5 through the editor; `tests/journeys/repository.test.ts` and `tests/journeys/publishing.test.ts` cover 6–8, and `e2e/legacy-story.spec.ts` covers 9.
+`e2e/journey-public-url.spec.ts` covers cases 1–5, 10 and 11 through the editor; `tests/journeys/repository.test.ts` and `tests/journeys/publishing.test.ts` cover 6–8, and `e2e/legacy-story.spec.ts` covers 9.
