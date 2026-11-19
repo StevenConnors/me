@@ -17,10 +17,11 @@ test('draft slug edits leave the live URL alone until the rename is published', 
   const runtimeErrors: string[] = [];
   page.on('pageerror', (error) => runtimeErrors.push(`pageerror: ${error.message}`));
   page.on('console', (message) => {
+    if (message.type() !== 'error') return;
     // The deliberate 404 for the unpublished draft slug is logged as a failed resource load.
-    if (message.type() === 'error' && !message.text().includes('404')) {
-      runtimeErrors.push(`console: ${message.text()}`);
-    }
+    if (new URL(message.location().url || 'about:blank').pathname === `/stories/${renamedSlug}`
+      && message.text().includes('404')) return;
+    runtimeErrors.push(`console: ${message.text()}`);
   });
 
   try {
@@ -58,6 +59,9 @@ test('draft slug edits leave the live URL alone until the rename is published', 
     await page.getByLabel('Public slug').fill(renamedSlug);
     await page.getByRole('button', { name: 'Save now' }).click();
     await expect(page.getByText('Saved', { exact: true })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'View public journey ↗' }))
+      .toHaveAttribute('href', `/stories/${liveSlug}`);
+    await page.reload();
     await expect(page.getByRole('link', { name: 'View public journey ↗' }))
       .toHaveAttribute('href', `/stories/${liveSlug}`);
 

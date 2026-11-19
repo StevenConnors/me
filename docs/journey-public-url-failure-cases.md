@@ -6,7 +6,7 @@ A published journey's public URL belongs to its published revision, not to the e
 | --- | --- | --- |
 | 1 | The author autosaves a new slug on a published journey. | The live URL keeps serving the published story. |
 | 2 | A visitor opens the unpublished draft slug. | `404`; the draft slug is not public until Publish. |
-| 3 | The admin "View public journey" link after a draft-only slug edit. | Still points at the live URL. |
+| 3 | The admin "View public journey" link after a draft-only slug edit. | Still points at the live URL, including after the editor is reopened. |
 | 4 | The author publishes the renamed slug. | The new URL serves the new revision. |
 | 5 | A visitor opens the old URL after a published rename. | Redirects to the new URL. |
 | 6 | A journey published before the live slug was stored on the journey. | Still resolves through its published revision's slug. |
