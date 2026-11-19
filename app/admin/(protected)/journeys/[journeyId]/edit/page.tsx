@@ -38,6 +38,7 @@ export default async function JourneyEditPage({ params }: { params: Promise<{ jo
         _id: journey._id.toHexString(),
         title: journey.title,
         slug: journey.slug,
+        publishedSlug: journey.publishedSlug,
         summary: journey.summary,
         cover: journey.cover,
         experiencedAt: journey.experiencedAt,

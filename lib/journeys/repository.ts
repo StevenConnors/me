@@ -22,6 +22,10 @@ import {
   type PublishedJourneySummary,
 } from '@/lib/journeys/schemas';
 
+export type PublicJourneySlug =
+  | { kind: 'live'; journey: Journey; revision: JourneyRevision }
+  | { kind: 'moved'; slug: string };
+
 export class JourneyNotFoundError extends Error {
   readonly code = 'JOURNEY_NOT_FOUND';
 
@@ -118,16 +122,55 @@ export class JourneyRepository {
     return result ? JourneySchema.parse(result) : null;
   }
 
-  async findBySlug(
-    slug: string,
-    options: { includeArchived?: boolean; session?: ClientSession } = {},
-  ): Promise<Journey | null> {
-    const filter: Filter<Journey> = { slug };
-    if (!options.includeArchived) filter.status = { $ne: 'archived' };
-    const result = await this.journeys.findOne(filter, {
-      session: options.session,
+  /**
+   * Resolves a public story slug against published revisions, never the draft
+   * slug. A slug the journey published earlier resolves to its current one.
+   */
+  async resolvePublicSlug(slug: string): Promise<PublicJourneySlug | null> {
+    if (!this.revisions) return null;
+
+    const live = await this.journeys.findOne({ status: 'published', publishedSlug: slug });
+    if (live) {
+      const journey = JourneySchema.parse(live);
+      const revision = await this.findPublishedRevision(journey);
+      return revision ? { kind: 'live', journey, revision } : null;
+    }
+
+    // Retired slugs, and journeys published before `publishedSlug` was stored,
+    // are only recorded on the revisions that published them.
+    const journeyIds = await this.revisions.distinct('journeyId', {
+      reason: 'published',
+      'metadataSnapshot.slug': slug,
     });
-    return result ? JourneySchema.parse(result) : null;
+    if (!journeyIds.length) return null;
+    const match = await this.journeys.findOne(
+      { _id: { $in: journeyIds }, status: 'published' },
+      { sort: { publishedAt: -1 } },
+    );
+    if (!match) return null;
+
+    const journey = JourneySchema.parse(match);
+    const revision = await this.findPublishedRevision(journey);
+    if (!revision) return null;
+    const liveSlug = revision.metadataSnapshot.slug;
+    return liveSlug === slug
+      ? { kind: 'live', journey, revision }
+      : { kind: 'moved', slug: liveSlug };
+  }
+
+  /** Who currently serves `slug` publicly, if anyone. */
+  async findPublicSlugOwner(slug: string): Promise<ObjectId | null> {
+    const resolved = await this.resolvePublicSlug(slug);
+    return resolved?.kind === 'live' ? resolved.journey._id : null;
+  }
+
+  private async findPublishedRevision(journey: Journey): Promise<JourneyRevision | null> {
+    if (!journey.publishedRevisionId || !this.revisions) return null;
+    const revision = await this.revisions.findOne({
+      _id: journey.publishedRevisionId,
+      journeyId: journey._id,
+    });
+    return revision ? JourneyRevisionSchema.parse(revision) : null;
   }
 
   async list(
@@ -336,6 +379,7 @@ export class JourneyRepository {
 
     if (status !== 'published') {
       unset.publishedRevisionId = '';
+      unset.publishedSlug = '';
       unset.publishedAt = '';
     }
 
@@ -356,7 +400,7 @@ export class JourneyRepository {
   async publish(
     id: string | ObjectId,
     expectedEditVersion: number,
-    publishedRevisionId: string | ObjectId,
+    revision: Pick<JourneyRevision, '_id' | 'metadataSnapshot'>,
     options: { now?: Date; session?: ClientSession } = {},
   ): Promise<Journey> {
     const current = await this.findById(id, { session: options.session });
@@ -371,7 +415,8 @@ export class JourneyRepository {
       {
         $set: {
           status: 'published',
-          publishedRevisionId: toJourneyObjectId(publishedRevisionId),
+          publishedRevisionId: revision._id,
+          publishedSlug: revision.metadataSnapshot.slug,
           publishedAt: now,
           firstPublishedAt: current.firstPublishedAt ?? now,
           updatedAt: now,

@@ -51,7 +51,7 @@ export default async function JourneysPage() {
                 {journey.status === 'published' ? (
                   <Link
                     className={styles.quietButton}
-                    href={`/stories/${journey.slug}`}
+                    href={`/stories/${journey.publishedSlug ?? journey.slug}`}
                     target="_blank"
                     rel="noreferrer"
                   >
