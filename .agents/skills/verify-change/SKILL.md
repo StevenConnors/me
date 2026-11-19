@@ -23,6 +23,7 @@ Start the disposable DB once: `npm run e2e:db:up`. Run the narrowest specs first
 
 | Changed paths | Specs to run |
 | --- | --- |
+| Journal publication replay / recovery | `e2e/journal-publish.spec.ts` |
 | `app/admin/(protected)/journeys/**`, `components/editor/**`, `lib/journeys/**` | `e2e/authoring-flow.spec.ts` |
 | `app/admin/(protected)/media/**`, `lib/media/**`, `components/media/**` | `e2e/media-*.spec.ts`, `e2e/mobile-admin-media.spec.ts` |
 | `app/photos/**`, `components/photos/**`, `lib/photos/**` | `e2e/photo-viewer.spec.ts`, `e2e/home-photos-media.spec.ts` |

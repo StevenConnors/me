@@ -437,6 +437,7 @@ export const JourneyRevisionSchema = z
     sequence: z.number().int().positive(),
     schemaVersion: z.literal(JOURNEY_SCHEMA_VERSION),
     reason: JourneyRevisionReasonSchema,
+    publishedEditVersion: z.number().int().nonnegative().optional(),
     document: JourneyDocumentSchema,
     metadataSnapshot: JourneyRevisionMetadataSchema,
     createdAt: z.date(),

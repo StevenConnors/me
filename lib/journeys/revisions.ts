@@ -34,8 +34,16 @@ export async function createJourneyRevision(
   revisions: Collection<JourneyRevision>,
   journey: Journey,
   reason: JourneyRevisionReason,
-  options: { now?: Date; session?: ClientSession } = {},
+  options: { now?: Date; session?: ClientSession; publishedEditVersion?: number } = {},
 ): Promise<JourneyRevision> {
+  const publicationKey = options.publishedEditVersion === undefined ? undefined : {
+    journeyId: journey._id,
+    publishedEditVersion: options.publishedEditVersion,
+  };
+  if (publicationKey) {
+    const existing = await revisions.findOne(publicationKey, { session: options.session });
+    if (existing) return JourneyRevisionSchema.parse(existing);
+  }
   for (let attempt = 0; attempt < MAX_SEQUENCE_RETRIES; attempt += 1) {
     const previous = await revisions.findOne(
       { journeyId: journey._id },
@@ -47,6 +55,7 @@ export async function createJourneyRevision(
       sequence: (previous?.sequence ?? 0) + 1,
       schemaVersion: 1,
       reason,
+      ...(publicationKey ? { publishedEditVersion: options.publishedEditVersion } : {}),
       document: journey.draftDocument,
       metadataSnapshot: snapshotJourneyMetadata(journey),
       createdAt: options.now ?? new Date(),
@@ -56,6 +65,10 @@ export async function createJourneyRevision(
       await revisions.insertOne(revision, { session: options.session });
       return revision;
     } catch (error) {
+      if (publicationKey && isDuplicateKeyError(error)) {
+        const existing = await revisions.findOne(publicationKey, { session: options.session });
+        if (existing) return JourneyRevisionSchema.parse(existing);
+      }
       if (!isDuplicateKeyError(error) || attempt === MAX_SEQUENCE_RETRIES - 1) {
         throw error;
       }
