@@ -8,9 +8,9 @@
   font-family: Arial, Helvetica, sans-serif;
 }
 
-/* The global site shell still carries legacy page padding. Photos is designed
-   to meet the viewport edge, so it cancels that shell only on this route. */
-.photosPaper { margin: -8px -56px; }
+/* Legacy pages still rely on the global body padding; pages rendered on paper
+   replace that shell so the paper meets the viewport edge. */
+:global(body):has(> .paper) { margin: 0; padding: 0; background: #f1f0eb; }
 
 .paper *,
 .paper *::before,
@@ -346,8 +346,6 @@ video.picture { display: block; width: 100%; height: 100%; object-fit: contain; 
 .missingPhotograph { display: grid; width: 100%; height: 100%; min-height: 320px; place-items: center; color: var(--muted); font-size: 14px; }
 
 @media (max-width: 768px) {
-  .paper { margin: 0 -10px; }
-  .photosPaper { margin: -18px; }
   .header { min-height: 93px; padding: 0 16px; font-size: 14px; }
   .homePhotos { padding: 12px 16px 64px; }
   .homePhotosHeading { align-items: start; flex-direction: column; gap: 22px; margin-bottom: 28px; }
@@ -462,6 +460,3 @@ video.picture { display: block; width: 100%; height: 100%; object-fit: contain; 
   .carouselDots span { width: 5px; height: 5px; border-radius: 50%; background: #b5b2aa; }
   .carouselDots span[data-active='true'] { background: var(--ink); }
 }
-
-.travelPaper { margin: -8px -56px; }
-@media (max-width: 768px) { .travelPaper { margin: -10px; } }

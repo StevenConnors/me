@@ -22,7 +22,7 @@ export default async function PhotosPage() {
     photos = page.items;
     if (page.unavailable.length) console.error('Photos page skipped unavailable published media', page.unavailable);
     return (
-      <main className={`${styles.paper} ${styles.photosPaper}`}>
+      <main className={styles.paper}>
         <HeldPlacesHeader />
         {photos.length ? <PhotosGallery initialCursor={page.nextCursor} initialItems={photos} sections={page.sections} /> : <section className={styles.indexEmpty}><h1>Photos, soon.</h1><p>The next collection is being prepared.</p></section>}
       </main>
@@ -33,7 +33,7 @@ export default async function PhotosPage() {
   }
 
   return (
-    <main className={`${styles.paper} ${styles.photosPaper}`}>
+    <main className={styles.paper}>
       <HeldPlacesHeader />
       {unavailable ? <section className={styles.indexEmpty}><h1>Photos are temporarily unavailable.</h1></section> : photos.length ? <PhotosGallery initialCursor={null} initialItems={photos} /> : <section className={styles.indexEmpty}><h1>Photos, soon.</h1><p>The next collection is being prepared.</p></section>}
     </main>
