@@ -4,7 +4,63 @@ import { uploadMedia } from '@/lib/client/upload-media';
 
 describe('uploadMedia', () => {
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
+  });
+
+  function prepareUpload() {
+    vi.useFakeTimers();
+    vi.stubGlobal('crypto', { randomUUID: () => 'retry-session-key' });
+    const media = { _id: 'media-1', status: 'ready' };
+    const success = () => Response.json({ media });
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(Response.json({ authorization: { uploadUrl: 'https://provider.test/upload', parameters: {} } }))
+      .mockResolvedValueOnce(Response.json({ asset_id: 'asset-1', public_id: 'photo', resource_type: 'image', signature: 'signature' }));
+    vi.stubGlobal('fetch', fetchMock);
+    return { fetchMock, media, success };
+  }
+
+  it.each(['503', '502', 'network', 'non-json', 'empty'])(
+    'retries only finalization after a temporary %s failure', async (failure) => {
+      const { fetchMock, media, success } = prepareUpload();
+      if (failure === 'network') fetchMock.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+      else fetchMock.mockResolvedValueOnce(
+        failure === 'non-json' ? new Response('<html>Unavailable</html>')
+          : failure === 'empty' ? new Response(null, { status: 503 })
+            : Response.json({ error: { message: 'Temporarily unavailable' } }, { status: Number(failure) }),
+      );
+      fetchMock.mockImplementation(success);
+      const phases: string[] = [];
+      const result = expect(uploadMedia(new File(['photo'], 'photo.png', { type: 'image/png' }), {
+        onPhase: (phase) => phases.push(phase),
+      })).resolves.toEqual(media);
+      await Promise.all([result, vi.runAllTimersAsync()]);
+      expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+        '/api/admin/media/upload-authorizations', 'https://provider.test/upload',
+        '/api/admin/media/finalize', '/api/admin/media/finalize',
+      ]);
+      expect(fetchMock.mock.calls[3][1]).toEqual(fetchMock.mock.calls[2][1]);
+      expect(phases).toEqual(['authorizing', 'uploading', 'finalizing']);
+    },
+  );
+
+  it.each([400, 401, 403, 404, 409, 422])('does not retry a %s rejection, even without JSON', async (status) => {
+    const { fetchMock } = prepareUpload();
+    fetchMock.mockResolvedValueOnce(new Response('Rejected', { status }));
+    await expect(uploadMedia(new File(['photo'], 'photo.png', { type: 'image/png' })))
+      .rejects.toThrow('The upload needs finalizing again');
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('stops after three attempts and explains that the file already uploaded', async () => {
+    const { fetchMock } = prepareUpload();
+    fetchMock.mockImplementation(() => Response.json({ error: { message: 'Service unavailable' } }, { status: 503 }));
+    const result = expect(uploadMedia(new File(['photo'], 'photo.png', { type: 'image/png' })))
+      .rejects.toThrow('The file uploaded but could not be finalized after 3 attempts. Service unavailable');
+    await Promise.all([result, vi.runAllTimersAsync()]);
+    expect(fetchMock).toHaveBeenCalledTimes(5);
+    expect(vi.getTimerCount()).toBe(0);
   });
 
   it('normalizes variant Cloudinary fields before finalizing an uploaded image', async () => {

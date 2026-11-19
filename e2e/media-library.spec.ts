@@ -13,13 +13,32 @@ test('the media library uploads, organizes, finds, and reuses one original', asy
   const collectionName = `Coast ${suffix}`;
   let mediaId: string | undefined;
   let collectionId: string | undefined;
+  const finalizationBodies: string[] = [];
+  const errors: string[] = [];
+  let providerRequests = 0;
+  page.on('pageerror', (error) => errors.push(error.message));
+  page.on('console', (message) => {
+    if (message.type() === 'error' && !message.text().includes('503')) errors.push(message.text());
+  });
+  page.on('request', (request) => {
+    if (request.url().includes('/api/e2e/media-upload')) providerRequests++;
+  });
+  await page.route('**/api/admin/media/finalize', async (route) => {
+    finalizationBodies.push(route.request().postData() ?? '');
+    const response = await route.fetch();
+    if (finalizationBodies.length === 1) {
+      expect(response.ok()).toBe(true);
+      mediaId = (await response.json()).media._id;
+      await route.fulfill({ status: 503, json: { error: { message: 'Lost finalization response' } } });
+    } else await route.fulfill({ response });
+  });
 
   try {
     await page.goto('/admin/media');
     await expect(page.getByRole('heading', { name: 'Media' })).toBeVisible();
 
     const finalizeResponse = page.waitForResponse((response) =>
-      response.url().endsWith('/api/admin/media/finalize') && response.request().method() === 'POST',
+      response.url().endsWith('/api/admin/media/finalize') && response.request().method() === 'POST' && response.ok(),
     );
     await page.locator('input[type=file]').first().setInputFiles({
       name: filename,
@@ -28,10 +47,17 @@ test('the media library uploads, organizes, finds, and reuses one original', asy
     });
     const finalized = await finalizeResponse;
     expect(finalized.ok()).toBe(true);
-    mediaId = (await finalized.json() as { media: { _id: string } }).media._id;
+    expect((await finalized.json()).media._id).toBe(mediaId);
+    expect(finalizationBodies).toHaveLength(2);
+    expect(finalizationBodies[1]).toBe(finalizationBodies[0]);
+    expect(providerRequests).toBe(1);
 
     const item = page.locator('article').filter({ has: page.locator(`#media-date-${mediaId}`) });
     await expect(item).toBeVisible();
+    await test.info().attach('e2e-fixture-finalization-retry.png', { body: await page.screenshot(), contentType: 'image/png' });
+    await test.info().attach('e2e-fixture-finalization-retry.json', {
+      body: JSON.stringify({ mediaId, providerRequests, finalizationAttempts: finalizationBodies.length }), contentType: 'application/json',
+    });
     await item.locator('summary').click();
     await item.getByLabel('Display title').fill(title);
     await item.getByLabel('Date taken').fill('2024-04-18');
@@ -68,6 +94,7 @@ test('the media library uploads, organizes, finds, and reuses one original', asy
     await expect(item.getByLabel('Date taken')).toHaveValue('2024-04-18');
     await item.getByRole('button', { name: `Remove from ${collectionName}` }).click();
     await expect(page.getByText('No matching media. Upload media or change your filters.')).toBeVisible();
+    expect(errors).toEqual([]);
   } finally {
     if (collectionId) await page.request.delete(`/api/admin/collections/${collectionId}`);
     if (mediaId) await page.request.delete(`/api/admin/media/${mediaId}`);
