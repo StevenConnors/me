@@ -50,7 +50,6 @@ test('delayed autosave preserves newer typing and saves with the acknowledged ve
     await page.reload();
     await expect(page.getByLabel('Title', { exact: true })).toHaveValue('Autosave B');
     await expect(page.locator('.ProseMirror')).toHaveText('Body B');
-    await page.getByLabel('Summary').fill('');
     await page.getByRole('button', { name: 'Save now' }).click();
     await expect(page.getByText('Saved', { exact: true })).toBeVisible();
     expect(errors).toEqual([]);
