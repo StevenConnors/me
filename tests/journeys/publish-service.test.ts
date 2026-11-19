@@ -1,8 +1,8 @@
 // @vitest-environment node
-import { MongoClient, ObjectId } from 'mongodb';
+import { MongoClient, MongoServerError, ObjectId } from 'mongodb';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { publishJourney } from '@/lib/journeys/publish-service';
+import { createJourneyRevision } from '@/lib/journeys/revisions';
 import { JourneyRepository } from '@/lib/journeys/repository';
 import type { Journey, JourneyRevision } from '@/lib/journeys/schemas';
 import { MediaRepository } from '@/lib/media/repository';
@@ -15,16 +15,21 @@ describe('ordered journal publication on disposable Mongo', () => {
   const repository = new JourneyRepository(db.collection<Journey>('journeys'), db.collection<JourneyRevision>('revisions'));
   const media = new MediaRepository(db.collection<MediaAsset>('media'), db.collection<UploadSession>('uploads'));
   const input = { journeyId: makeJourney()._id.toHexString(), expectedEditVersion: 0 };
-  const publish = () => publishJourney(repository, media, input);
+  let publish: () => ReturnType<typeof import('@/lib/journeys/publish-service').publishJourney>;
 
-  beforeAll(async () => { await client.connect(); });
+  beforeAll(async () => { await client.connect(); await db.createCollection('revisions'); });
   afterAll(async () => { await db.dropDatabase(); await client.close(); });
   beforeEach(async () => {
     vi.restoreAllMocks();
     await repository.journeys.deleteMany({});
     await repository.revisions?.deleteMany({});
+    await repository.revisions?.dropIndexes();
+    await repository.revisions?.createIndex({ journeyId: 1, sequence: 1 }, { unique: true });
     await repository.journeys.insertOne(makeJourney({ draftDocument: makeHeldPlacesDocument() }));
     vi.spyOn(media, 'findById').mockResolvedValue({ _id: READY_MEDIA_ID, status: 'ready', altText: 'Fixture coast' } as MediaAsset);
+    vi.resetModules();
+    const { publishJourney } = await import('@/lib/journeys/publish-service');
+    publish = () => publishJourney(repository, media, input);
   });
 
   it('replays a version without another revision or publication timestamp', async () => {
@@ -39,17 +44,70 @@ describe('ordered journal publication on disposable Mongo', () => {
   });
 
   it('shares index initialization and retries it after rejection', async () => {
-    vi.resetModules();
-    const { publishJourney: freshPublish } = await import('@/lib/journeys/publish-service');
     const revisions = repository.revisions;
     if (!revisions) throw new Error('Missing fixture revisions');
-    const createIndex = vi.spyOn(revisions, 'createIndex').mockRejectedValueOnce(new Error('injected index failure'));
-    const publishFresh = () => freshPublish(repository, media, input);
-    await expect(publishFresh()).rejects.toThrow('injected index failure');
-    expect(await revisions.countDocuments({})).toBe(0);
-    await Promise.all([publishFresh(), publishFresh()]);
-    await publishFresh();
+    const createIndex = vi.spyOn(revisions, 'createIndex').mockRejectedValueOnce(new MongoServerError({
+      message: 'injected index failure', code: 13, codeName: 'Unauthorized',
+    }));
+    const logError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const first = await publish();
+    await Promise.all([publish(), publish()]);
+    const replay = await publish();
+    expect(replay.revision._id).toEqual(first.revision._id);
+    expect(logError).toHaveBeenCalledWith('Unable to ensure journey publication index', expect.objectContaining({ code: 13 }));
     expect(createIndex).toHaveBeenCalledTimes(2);
+    expect(await revisions.countDocuments({})).toBe(1);
+  });
+
+  it('builds the partial index over legacy duplicate snapshots with missing and null keys', async () => {
+    const revisions = repository.revisions;
+    if (!revisions) throw new Error('Missing fixture revisions');
+    const draft = makeJourney({ draftDocument: makeHeldPlacesDocument() });
+    const legacy = [];
+    for (let index = 0; index < 4; index += 1) {
+      legacy.push(await createJourneyRevision(revisions, draft, 'published'));
+    }
+    await db.collection<{ _id: ObjectId; publishedEditVersion?: number | null }>('revisions').updateMany({ _id: { $in: legacy.slice(2).map((revision) => revision._id) } }, {
+      $set: { publishedEditVersion: null },
+    });
+    await repository.journeys.updateOne({ _id: draft._id }, { $set: {
+      status: 'published', publishedRevisionId: legacy[3]._id, publishedAt: legacy[3].createdAt,
+    } });
+    const createIndex = vi.spyOn(revisions, 'createIndex');
+    const first = await publish();
+    const replay = await publish();
+    expect(await createIndex.mock.results[0].value).toBe('journeyId_1_publishedEditVersion_1');
+    expect(first.revision.publishedEditVersion).toBe(0);
+    expect(replay.revision._id).toEqual(first.revision._id);
+    expect(replay.journey.publishedRevisionId).toEqual(first.revision._id);
+    expect(await revisions.countDocuments({ publishedEditVersion: 0 })).toBe(1);
+    expect(await revisions.countDocuments({})).toBe(5);
+    expect(await revisions.countDocuments({ publishedEditVersion: { $exists: false } })).toBe(2);
+    expect(await revisions.countDocuments({ publishedEditVersion: { $type: 'null' } })).toBe(2);
+    expect((await revisions.indexes()).map((index) => index.name)).toEqual(expect.arrayContaining([
+      '_id_', 'journeyId_1_sequence_1', 'journeyId_1_publishedEditVersion_1',
+    ]));
+    expect((await revisions.indexes()).find((index) => index.name === 'journeyId_1_publishedEditVersion_1')).toMatchObject({
+      unique: true, partialFilterExpression: { publishedEditVersion: { $type: 'number' } },
+    });
+  });
+
+  it.each([
+    { conflict: 'IndexOptionsConflict', options: { name: 'legacy_publication_key', unique: true, partialFilterExpression: { publishedEditVersion: { $type: 'number' } } } },
+    { conflict: 'IndexKeySpecsConflict', options: { unique: true, partialFilterExpression: { publishedEditVersion: { $exists: true } } } },
+  ])('publishes and retries setup on $conflict', async ({ conflict, options }) => {
+    const revisions = repository.revisions;
+    if (!revisions) throw new Error('Missing fixture revisions');
+    await revisions.createIndex({ journeyId: 1, publishedEditVersion: 1 }, options);
+    const createIndex = vi.spyOn(revisions, 'createIndex');
+    const logError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const first = await publish();
+    const replay = await publish();
+    expect(createIndex).toHaveBeenCalledTimes(2);
+    await expect(createIndex.mock.results[0].value).rejects.toMatchObject({ codeName: conflict });
+    expect(logError).toHaveBeenCalledTimes(2);
+    expect(replay.revision._id).toEqual(first.revision._id);
+    expect(replay.journey.publishedRevisionId).toEqual(first.revision._id);
     expect(await revisions.countDocuments({})).toBe(1);
   });
 

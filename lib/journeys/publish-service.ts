@@ -51,7 +51,7 @@ export async function publishJourney(
     await publicationIndexReady;
   } catch (error) {
     publicationIndexReady = undefined;
-    throw error;
+    console.error('Unable to ensure journey publication index', error);
   }
   const revision = await createJourneyRevision(
     journeyRepository.revisions,
