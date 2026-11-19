@@ -2,7 +2,7 @@ import { writeFile } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
 import { MongoClient, ObjectId } from 'mongodb';
 
-const mongoUri = process.env.MONGODB_URI ?? 'mongodb://127.0.0.1:27018/journey_editor_e2e';
+const mongoUri = process.env.E2E_MONGODB_URI ?? 'mongodb://127.0.0.1:27018/journey_editor_e2e';
 const journeySlug = `paper-shell-${Date.now()}`;
 const journeyId = new ObjectId();
 const revisionId = new ObjectId();
