@@ -11,7 +11,7 @@ Use Node 22 (matches CI). Run from the repo root. Never describe a check you did
 ```bash
 npm ci                      # only if package-lock.json changed or node_modules is missing
 npm run typecheck
-npm run lint                # must add no new warnings vs main
+npm run lint                # must add no new warnings vs master
 npm test
 MONGODB_URI=mongodb://127.0.0.1:27018/journey_editor_e2e npm run build
 git diff --check

@@ -5,7 +5,7 @@ description: Review your own diff for quality, scope and performance risk before
 
 # Self-review the diff
 
-Read the full diff as a reviewer would: `git diff origin/main...HEAD` (plus `git status` for untracked files). Fix findings before running the verification gate.
+Read the full diff as a reviewer would: `git diff origin/master...HEAD` (plus `git status` for untracked files). Fix findings before running the verification gate.
 
 ## Scope
 - One concern per PR. If the diff mixes a feature with refactors, renames, formatting or dependency bumps, split it.
@@ -16,6 +16,8 @@ Read the full diff as a reviewer would: `git diff origin/main...HEAD` (plus `git
 - Every new branch/error path has a test or an explicit reason it does not.
 - No dead code, commented-out code, unused exports, TODOs without an owner, or debug `console.log`.
 - No `any`, non-null assertions or unchecked casts on untrusted data; validate at the boundary with the repo's Zod schemas.
+- TypeScript follows the `typescript-best-practices` skill.
+- API input is validated with the Zod schemas in `lib/<domain>/schemas.ts`; admin routes and pages check `lib/auth/admin.ts`.
 - Reuse existing helpers (search `lib/` first). Do not add a dependency for something under ~30 lines.
 - Names describe domain intent; comments explain *why*, not *what*.
 
@@ -29,3 +31,13 @@ Read the full diff as a reviewer would: `git diff origin/main...HEAD` (plus `git
 - Fonts, third-party scripts or analytics added without `next/font` / `next/script` strategy.
 
 If any red flag is present, run the `measure-ux-performance` skill and include its table in the PR.
+
+## Blast radius
+If the diff touches shared code (`lib/`, schemas, auth, `middleware`, `next.config.js`, shared layouts/components) or changes a stored document shape, run the `blast-radius` skill and put its one safety fact and risks in the PR's Risk section.
+
+## PR text (it becomes the squash commit)
+PRs are squash-merged: the title is the commit subject on `master` and the description is its body. Branch commit messages are discarded.
+- Title: imperative, sentence case, at most 72 characters, no trailing period, no prefix tags. Name the outcome, not the activity ("Keep map controls active after touch gestures", not "Fix bug" or "Updates").
+- Description: follow `.github/pull_request_template.md`. Summary bullets say what changed and why; keep the Verification evidence and Risk sections accurate.
+- Update the title and description whenever the PR scope changes, before it is merged.
+- Write both with the `unslop` skill.
