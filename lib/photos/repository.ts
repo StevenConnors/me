@@ -3,6 +3,7 @@ import 'server-only';
 import type { Collection, Filter, UpdateFilter, WithId } from 'mongodb';
 
 import { getPhotosCollections } from '@/lib/db/collections';
+import { unwrapFindOneAndUpdate } from '@/lib/db/unwrap-find-one-and-update';
 import {
   EmptyPhotosPageDocument,
   PhotosPageDocumentSchema,
@@ -13,14 +14,6 @@ import {
   type PhotosPublishIssue,
 } from '@/lib/photos/schemas';
 import type { MediaAsset } from '@/lib/media/schemas';
-
-function unwrapFindOneAndUpdate<T>(result: unknown): T | null {
-  if (result === null) return null;
-  if (typeof result === 'object' && result && 'value' in result) {
-    return ((result as { value?: T | null }).value ?? null) as T | null;
-  }
-  return result as T;
-}
 
 export class PhotosPageNotFoundError extends Error {
   readonly code = 'PHOTOS_PAGE_NOT_FOUND';
