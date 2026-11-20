@@ -7,7 +7,7 @@
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
 import { chromium } from "@playwright/test";
-import { fixtureDatabase, fixtureJourney, fixturePhoto, fixtureThought } from "./fixtures.mjs";
+import { fixtureDatabase, fixtureJourney, fixturePhoto } from "./fixtures.mjs";
 import { withFixtureServer } from "./owned-server.mjs";
 import { assertSample } from "./sample-guard.mjs";
 
@@ -61,9 +61,6 @@ async function missingFixture(page, route) {
   if (route === "/travel" && !await page.getByRole("list", { name: "Visited places" })
     .getByRole("link", { name: fixtureJourney, exact: true }).isVisible()) {
     return "visited place with the fixture journey";
-  }
-  if (route === "/thoughts-aloud" && !await page.getByRole("article").getByText(fixtureThought, { exact: true }).isVisible()) {
-    return "published fixture thought";
   }
   return "";
 }
@@ -129,7 +126,7 @@ async function run() {
   if (!Number.isInteger(port) || port < 1 || port > 65535 || !Number.isInteger(runs) || runs < 1 || !PROFILES[profile]) {
     throw new Error("Refusing to compare: invalid port, runs, or profile");
   }
-  if (!routes.length || (appDir && routes.some((route) => !["/", "/photos", "/travel", "/thoughts-aloud"].includes(route)))) {
+  if (!routes.length || (appDir && routes.some((route) => !["/", "/photos", "/travel"].includes(route)))) {
     throw new Error("Refusing to compare: no fixture check for the requested routes");
   }
   const browser = await chromium.launch();
