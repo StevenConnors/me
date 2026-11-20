@@ -9,6 +9,17 @@ function formatCount(value: number): string {
   return new Intl.NumberFormat('en-US').format(value);
 }
 
+function TrafficCount({ value }: { value?: number }) {
+  return (
+    <strong>{value === undefined ? (
+      <>
+        <span aria-hidden="true">—</span>
+        <span className={styles.visuallyHidden}>Unavailable</span>
+      </>
+    ) : formatCount(value)}</strong>
+  );
+}
+
 function Breakdown({ items, empty, photo = false }: {
   items: AnalyticsBreakdown[] | MostOpenedPhoto[];
   empty: string;
@@ -38,6 +49,7 @@ export default async function AnalyticsPage() {
     loadMostOpenedPhotos(),
   ]);
   const traffic = trafficResult.status === 'fulfilled' ? trafficResult.value : null;
+  const trafficCounts = traffic?.status === 'not-configured' ? null : traffic;
   const photos = photoResult.status === 'fulfilled' ? photoResult.value : [];
 
   return (
@@ -52,12 +64,12 @@ export default async function AnalyticsPage() {
       <section aria-label="Traffic summary" className={styles.metrics}>
         <article className={styles.metric}>
           <span className={styles.metricLabel}>Page views</span>
-          <strong>{traffic ? formatCount(traffic.pageviews) : '—'}</strong>
+          <TrafficCount value={trafficCounts?.pageviews} />
           <span>Production pages</span>
         </article>
         <article className={styles.metric}>
           <span className={styles.metricLabel}>Visitors</span>
-          <strong>{traffic ? formatCount(traffic.visitors) : '—'}</strong>
+          <TrafficCount value={trafficCounts?.visitors} />
           <span>Unique in the selected period</span>
         </article>
         <article className={styles.metric}>

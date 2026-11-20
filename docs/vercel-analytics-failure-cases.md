@@ -7,3 +7,5 @@
 - Public paths that only start with the text `admin` (e.g. `/administrator`) are dropped.
 - An unparsable event URL throws inside `beforeSend` and breaks tracking.
 - The tracker adds measurable JS, LCP or TBT cost to public pages beyond the analytics script itself.
+- The admin traffic summary shows zero page views or visitors alongside the analytics setup warning.
+- A configured analytics report with no traffic shows unavailable metrics instead of zero.
