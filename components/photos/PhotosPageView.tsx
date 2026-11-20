@@ -56,13 +56,15 @@ export function groupPhotos(photos: PublicPhoto[]): PhotoSection[] {
 export function GalleryImageTile({
   photo,
   onOpen,
+  priority = false,
 }: {
   photo: PublicPhoto & { index: number };
   onOpen: (index: number) => void;
+  priority?: boolean;
 }) {
   return (
     <button aria-label={`Open ${photo.kind === 'video' ? 'video' : 'photo'} ${photo.index + 1}`} className={styles.tile} onClick={() => onOpen(photo.index)} type="button">
-      <Image alt={photo.alt} height={photo.height} sizes="(max-width: 700px) 50vw, (max-width: 1100px) 33vw, 25vw" src={photo.kind === 'video' ? photo.posterUrl ?? photo.source : photo.thumbnailUrl ?? photo.source} width={photo.width} />
+      <Image alt={photo.alt} height={photo.height} priority={priority} sizes="(max-width: 700px) 50vw, (max-width: 1100px) 33vw, 25vw" src={photo.kind === 'video' ? photo.posterUrl ?? photo.source : photo.thumbnailUrl ?? photo.source} width={photo.width} />
       {photo.kind === 'video' ? <span aria-hidden="true" className={styles.videoPlay}>▶</span> : null}
     </button>
   );
@@ -99,6 +101,7 @@ export function PhotosPageView({
   intro?: string;
 }) {
   const sections = sectionGroups ?? groupPhotos(photos);
+  const priorityPhotoIds = new Set(sections[0]?.photos.slice(0, 2).map((photo) => photo.id));
   return (
     <section aria-labelledby="photos-title" className={styles.gallery}>
       <h1 id="photos-title">{title}</h1>
@@ -120,7 +123,7 @@ export function PhotosPageView({
             items={section.photos.map((photo) => ({ id: photo.id, width: photo.width, height: photo.height }))}
             renderItem={(item) => {
               const photo = section.photos.find((candidate) => candidate.id === item.id)!;
-              return renderTile ? renderTile(photo) : <GalleryImageTile onOpen={onOpen} photo={photo} />;
+              return renderTile ? renderTile(photo) : <GalleryImageTile onOpen={onOpen} photo={photo} priority={priorityPhotoIds.has(photo.id)} />;
             }}
           /> : null}
         </section>;

@@ -32,6 +32,7 @@ Start the disposable DB once: `npm run e2e:db:up`. Run the narrowest specs first
 | `app/admin/(protected)/journeys/**`, `components/editor/**`, `lib/journeys/**` | `e2e/authoring-flow.spec.ts`, `e2e/journey-autosave.spec.ts`, `e2e/journey-public-url.spec.ts` |
 | `app/admin/(protected)/media/**`, `lib/media/**`, `components/media/**` | `e2e/media-*.spec.ts`, `e2e/mobile-admin-media.spec.ts` |
 | `app/photos/**`, `components/photos/**`, `lib/photos/**` | `e2e/photo-viewer.spec.ts`, `e2e/home-photos-media.spec.ts` |
+| Photos responsive masonry / first paint | `e2e/photos-masonry.spec.ts`, `e2e/photos-wayfinding.spec.ts` |
 | Photos media deletion guards | `e2e/media-photos-delete.spec.ts` |
 | `app/travel/**`, `components/travel/**`, `lib/travel/**` | `e2e/travel*.spec.ts` |
 | `app/glass/**`, `lib/glass/**` | `e2e/glass-collection.spec.ts` |

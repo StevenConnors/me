@@ -1,25 +1,23 @@
 import { describe, expect, it } from 'vitest';
 
-import { calculateMasonryLayout } from '@/components/photos/masonry';
+import { layoutColumns } from '@/components/photos/masonry';
 
-const options = { columns: 3, containerWidth: 900, gap: 8, rowUnit: 8 };
-
-describe('calculateMasonryLayout', () => {
+describe('layoutColumns', () => {
   it('uses source aspect ratios and assigns each next item to the shortest column', () => {
-    const positions = calculateMasonryLayout([
+    const { positions } = layoutColumns([
       { id: 'wide', width: 1200, height: 600 },
       { id: 'tall', width: 600, height: 1200 },
       { id: 'square', width: 800, height: 800 },
       { id: 'next', width: 1000, height: 500 },
-    ], options);
+    ], 3);
 
     expect(positions.map(({ id, column }) => ({ id, column }))).toEqual([
-      { id: 'wide', column: 1 },
-      { id: 'tall', column: 2 },
-      { id: 'square', column: 3 },
-      { id: 'next', column: 1 },
+      { id: 'wide', column: 0 },
+      { id: 'tall', column: 1 },
+      { id: 'square', column: 2 },
+      { id: 'next', column: 0 },
     ]);
-    expect(positions[1].rowSpan).toBeGreaterThan(positions[0].rowSpan);
+    expect(positions[3].top).toBe('calc(((100cqw - 16px) / 3) * 0.5 + 8px)');
   });
 
   it('is deterministic and leaves existing positions intact when media append', () => {
@@ -28,16 +26,17 @@ describe('calculateMasonryLayout', () => {
       { id: 'two', width: 800, height: 1200 },
       { id: 'three', width: 1000, height: 1000 },
     ];
-    const first = calculateMasonryLayout(initial, options);
-    const appended = calculateMasonryLayout([...initial, { id: 'four', width: 1600, height: 900 }], options);
+    const first = layoutColumns(initial, 3).positions;
+    const appended = layoutColumns([...initial, { id: 'four', width: 1600, height: 900 }], 3).positions;
 
     expect(appended.slice(0, initial.length)).toEqual(first);
-    expect(calculateMasonryLayout(initial, { ...options, columns: 4 })).toHaveLength(3);
-    expect(calculateMasonryLayout(initial, { ...options, columns: 2 })).toHaveLength(3);
+    expect(first.map(({ id }) => id)).toEqual(initial.map(({ id }) => id));
   });
 
   it('handles empty and single-item section grids', () => {
-    expect(calculateMasonryLayout([], options)).toEqual([]);
-    expect(calculateMasonryLayout([{ id: 'only', width: 1, height: 3 }], options)[0]).toMatchObject({ column: 1, rowStart: 1 });
+    expect(layoutColumns([], 2)).toEqual({
+      positions: [], height: 'max(calc(((100cqw - 8px) / 2) * 0 + 0px), calc(((100cqw - 8px) / 2) * 0 + 0px))',
+    });
+    expect(layoutColumns([{ id: 'only', width: 1, height: 3 }], 3).positions[0]).toMatchObject({ id: 'only', column: 0 });
   });
 });

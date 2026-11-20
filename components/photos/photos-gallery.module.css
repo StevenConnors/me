@@ -14,8 +14,15 @@ p.sectionCount { margin: 10px 0 0; color: #615f58; font: 13px/1.4 Arial, sans-se
 .sectionToggle { display: flex; align-items: center; justify-content: space-between; gap: 24px; width: 100%; padding: 0; border: 0; background: none; color: inherit; cursor: pointer; font: inherit; letter-spacing: inherit; text-align: left; }
 .sectionToggle span { font: 300 36px/1 Arial, sans-serif; }
 .sectionNote { max-width: 600px; margin: 14px 0 28px; color: #615f58; font: 18px/1.45 Georgia, 'Times New Roman', serif; }
-.masonryGrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; grid-auto-flow: row dense; }
-.masonryItem { min-width: 0; overflow: hidden; }
+.masonryContainer { container-type: inline-size; }
+.masonryGrid { --columns: 4; position: relative; height: var(--height-4); }
+.masonryItem { position: absolute; top: var(--top-4); left: var(--left-4); width: calc((100% - (var(--columns) - 1) * 8px) / var(--columns)); min-width: 0; overflow: hidden; }
+@container (max-width: 1100px) { .masonryGrid { --columns: 3; height: var(--height-3); } .masonryItem { top: var(--top-3); left: var(--left-3); } }
+@container (max-width: 700px) { .masonryGrid { --columns: 2; height: var(--height-2); } .masonryItem { top: var(--top-2); left: var(--left-2); } }
+@supports not (container-type: inline-size) {
+  .masonryGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 8px; height: auto; }
+  .masonryItem { position: static; width: auto; }
+}
 .masonryItem > * { width: 100%; height: 100%; }
 .masonryItem .tile, .masonryItem :global(button) { height: 100%; }
 .masonryItem .tile :global(img), .masonryItem :global(button > img) { width: 100%; height: 100%; object-fit: contain; }

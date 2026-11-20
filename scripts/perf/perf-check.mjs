@@ -4,12 +4,13 @@
 // Usage:
 //   node scripts/perf/perf-check.mjs --base-url http://127.0.0.1:3200 --routes /,/photos --runs 5 --out perf/current.json
 //   node scripts/perf/perf-check.mjs ... --baseline perf/baseline.json   # exits 1 on regression
+//   node scripts/perf/perf-check.mjs ... --image-timing 'main img' --width 390 --screenshot perf/photos.png
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
 import { chromium } from "@playwright/test";
 import { fixtureDatabase, fixtureJourney, fixturePhoto } from "./fixtures.mjs";
 import { withFixtureServer } from "./owned-server.mjs";
-import { assertSample } from "./sample-guard.mjs";
+import { assertMeasurementIdentity, assertSample } from "./sample-guard.mjs";
 
 const args = Object.fromEntries(
   process.argv.slice(2).reduce((pairs, token, index, all) => {
@@ -24,6 +25,7 @@ const routes = (args.routes ?? "/").split(",").map((route) => route.trim()).filt
 const runs = Number(args.runs ?? 5);
 const profile = args.profile ?? "mobile";
 const storageState = args["storage-state"];
+const width = args.width === undefined ? undefined : Number(args.width);
 
 // Lighthouse-like "Slow 4G" mobile profile; desktop is unthrottled.
 const PROFILES = {
@@ -48,6 +50,31 @@ const OBSERVER = () => {
     .observe({ type: "longtask", buffered: true });
 };
 
+const IMAGE_OBSERVER = (selector) => {
+  window.__imageTiming = { supported: PerformanceObserver.supportedEntryTypes.includes('element'), registrations: [], paints: [] };
+  if (!window.__imageTiming.supported) return;
+  new PerformanceObserver((list) => {
+    for (const entry of list.getEntries()) {
+      window.__imageTiming.paints.push({ identifier: entry.identifier, alt: entry.element?.alt,
+        url: entry.url, renderTime: entry.renderTime, loadTime: entry.loadTime,
+        visibleWidth: entry.intersectionRect.width, visibleHeight: entry.intersectionRect.height });
+    }
+  }).observe({ type: 'element', buffered: true });
+  const registered = new WeakSet();
+  const register = () => {
+    for (const node of document.querySelectorAll(selector)) {
+      if (!(node instanceof HTMLImageElement) || registered.has(node)) continue;
+      registered.add(node);
+      const identifier = `ux-image-${window.__imageTiming.registrations.length}`;
+      window.__imageTiming.registrations.push({ identifier, alt: node.alt, registeredAt: performance.now(),
+        loadedAtRegistration: node.complete && node.naturalWidth > 0 });
+      node.setAttribute('elementtiming', identifier);
+    }
+  };
+  new MutationObserver(register).observe(document, { childList: true, subtree: true });
+  register();
+};
+
 async function missingFixture(page, route) {
   if (route === "/" || route === "/photos") {
     const photo = page.getByAltText(fixturePhoto, { exact: true });
@@ -67,7 +94,8 @@ async function missingFixture(page, route) {
 
 async function measure(browser, origin, route) {
   const settings = PROFILES[profile];
-  const context = await browser.newContext({ ...settings, cpu: undefined, network: undefined, storageState });
+  const viewport = { ...settings.viewport, ...(width === undefined ? {} : { width }) };
+  const context = await browser.newContext({ ...settings, viewport, cpu: undefined, network: undefined, storageState });
   const page = await context.newPage();
   const cdp = await context.newCDPSession(page);
   await cdp.send("Network.enable");
@@ -84,6 +112,7 @@ async function measure(browser, origin, route) {
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.addInitScript(OBSERVER);
+  if (args["image-timing"]) await page.addInitScript(IMAGE_OBSERVER, args["image-timing"]);
   const response = await page.goto(new URL(route, origin).toString(), { waitUntil: "load", timeout: 120_000 });
   const status = response?.status() ?? 0;
   assertSample({ route, status, errors });
@@ -99,21 +128,33 @@ async function measure(browser, origin, route) {
       .reduce((sum, [, duration]) => sum + Math.max(0, duration - 50), 0);
     return { ttfb: nav.responseStart, fcp, lcp: window.__ux.lcp, cls: window.__ux.cls, tbt };
   });
+  const images = await page.locator('main img').evaluateAll((nodes) => nodes.map((node) => {
+    const resources = performance.getEntriesByName(node.currentSrc, 'resource');
+    const resource = resources.at(-1);
+    return { src: node.getAttribute('src'), currentSrc: node.currentSrc, alt: node.alt,
+      loaded: node.complete && node.naturalWidth > 0,
+      ...(resource ? { startTime: resource.startTime, responseEnd: resource.responseEnd } : {}),
+    };
+  }));
+  const imageTiming = args['image-timing'] ? await page.evaluate(() => window.__imageTiming) : undefined;
+  if (args.screenshot) await page.screenshot({ path: args.screenshot, fullPage: true });
   await context.close();
-  return { ...metrics, jsBytes: bytes.js, totalBytes: bytes.total };
+  return { status, ...metrics, jsBytes: bytes.js, totalBytes: bytes.total, errors, images,
+    ...(imageTiming ? { imageTiming } : {}) };
 }
 
 const median = (values) => { const sorted = [...values].sort((a, b) => a - b); const mid = sorted.length >> 1; return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2; };
 const KEYS = ["ttfb", "fcp", "lcp", "cls", "tbt", "jsBytes", "totalBytes"];
 
 async function collect(browser, origin) {
-  const result = { baseUrl: origin, profile, runs, measuredAt: new Date().toISOString(), routes: {} };
+  const viewport = { ...PROFILES[profile].viewport, ...(width === undefined ? {} : { width }) };
+  const result = { baseUrl: origin, profile, viewport, runs, measuredAt: new Date().toISOString(), routes: {} };
   for (const route of routes) {
     await measure(browser, origin, route); // warm the server (JIT, connection pools); not recorded
     const samples = [];
     for (let run = 0; run < runs; run += 1) samples.push(await measure(browser, origin, route));
     const summary = Object.fromEntries(KEYS.map((key) => [key, Number(median(samples.map((sample) => sample[key])).toFixed(key === "cls" ? 4 : 0))]));
-    result.routes[route] = { ...summary, statuses: [200], errors: [] };
+    result.routes[route] = { ...summary, samples, statuses: [200], errors: [] };
     if (appDir) console.log(`Verified ${route} returned HTTP 200 with seeded content on all ${runs + 1} loads.`);
   }
   return result;
@@ -123,8 +164,8 @@ async function run() {
   if (appDir && (process.env.MONGODB_URI !== fixtureDatabase || args["base-url"])) {
     throw new Error(`Refusing to compare: --app-dir requires the disposable database ${fixtureDatabase} and an owned URL`);
   }
-  if (!Number.isInteger(port) || port < 1 || port > 65535 || !Number.isInteger(runs) || runs < 1 || !PROFILES[profile]) {
-    throw new Error("Refusing to compare: invalid port, runs, or profile");
+  if (!Number.isInteger(port) || port < 1 || port > 65535 || !Number.isInteger(runs) || runs < 1 || !PROFILES[profile] || (width !== undefined && (!Number.isInteger(width) || width < 1))) {
+    throw new Error("Refusing to compare: invalid port, runs, profile, or width");
   }
   if (!routes.length || (appDir && routes.some((route) => !["/", "/photos", "/travel"].includes(route)))) {
     throw new Error("Refusing to compare: no fixture check for the requested routes");
@@ -141,6 +182,7 @@ async function run() {
 async function report(result) {
   if (args.out) { await mkdir(dirname(args.out), { recursive: true }); await writeFile(args.out, `${JSON.stringify(result, null, 2)}\n`); }
   const baseline = args.baseline ? JSON.parse(await readFile(args.baseline, "utf8")) : null;
+  if (baseline) assertMeasurementIdentity(result, baseline);
   const regressions = [];
   const fmt = (key, value) => value === undefined ? "–" : key === "cls" ? value.toFixed(3) : key.endsWith("Bytes") ? `${(value / 1024).toFixed(1)} KB` : `${Math.round(value)} ms`;
   console.log(`\n### UX performance (${profile}, median of ${runs} cold loads)\n`);

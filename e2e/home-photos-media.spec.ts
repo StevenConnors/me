@@ -69,7 +69,8 @@ test('home previews published photos, section navigation reaches later pages, an
     artifact.adminAutoLoaded = true;
 
     await page.goto('/admin/photos');
-    await page.getByRole('button', { name: 'Load more photos' }).click();
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    await expect(page.getByRole('button', { name: `Edit photo homepage-e2e-${runId}-25.jpg` })).toBeVisible();
     const draftRequests: string[] = [];
     page.on('request', (request) => {
       if (request.url().endsWith('/api/admin/photos-page/draft') && request.method() === 'PATCH') draftRequests.push(request.postData() ?? '');
