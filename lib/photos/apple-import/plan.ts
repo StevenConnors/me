@@ -93,7 +93,8 @@ export function planApplePhotosSync(input: {
           summary.photosUpdated += 1;
         }
         const inOwnSection = runMedia(blocks, sectionBlockId).some((block) => block.id === existing.id);
-        if (photo.cover && !coverTaken && !existing.albumRole && inOwnSection) updated = { ...updated, albumRole: 'cover' };
+        const coverTagAdded = photo.cover && !previousPhotos.get(photo.sourcePhotoId)?.cover;
+        if (coverTagAdded && !coverTaken && !existing.albumRole && inOwnSection) updated = { ...updated, albumRole: 'cover' };
         blocks[existingIndex] = updated;
         nextPhotos.set(photo.sourcePhotoId, { ...photo, blockId: existing.id });
         continue;
@@ -149,6 +150,7 @@ export function planApplePhotosSync(input: {
       sourceVersion: photo.sourceVersion,
       mediaAssetId: photo.mediaAssetId,
       ...(photo.blockId ? { blockId: photo.blockId } : {}),
+      ...(photo.cover ? { cover: true } : {}),
     })),
     summary,
   };

@@ -153,6 +153,11 @@ describe('planApplePhotosSync', () => {
     const bothTagged = planApplePhotosSync({ ...tagged, createId,
       request: request([{ id: 'kumano', title: 'Kumano', photos: [['p1', 'v1', 'm1', true], ['p2', 'v1', 'm2', true]] }]) });
     expect(summarize(bothTagged.document)).toEqual(['section:Kumano', 'm1', 'm2:cover']);
+
+    const cleared = { ...bothTagged.document, blocks: bothTagged.document.blocks.map((block) => block.type === 'media' ? { ...block, albumRole: undefined } : block) };
+    const unchanged = planApplePhotosSync({ ...bothTagged, document: cleared, createId,
+      request: request([{ id: 'kumano', title: 'Kumano', photos: [['p1', 'v1', 'm1', true], ['p2', 'v1', 'm2', true]] }]) });
+    expect(summarize(unchanged.document)).toEqual(['section:Kumano', 'm1', 'm2']);
   });
 
   it('gives the cover to a new cover photo when the old cover leaves the album', () => {
