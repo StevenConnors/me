@@ -35,9 +35,10 @@ function remarkYouTubeEmbeds() {
         const start = node.position?.start.offset;
         const end = node.position?.end.offset;
         if (start === undefined || end === undefined) return [node];
+        const paragraphChildren = node.children;
         function append(from: number, to: number) {
           const children: PhrasingContent[] = [];
-          for (const child of node.children) {
+          for (const child of paragraphChildren) {
             const a = child.position?.start.offset;
             const b = child.position?.end.offset;
             if (a === undefined || b === undefined || a >= to || b <= from) continue;
