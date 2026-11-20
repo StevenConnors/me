@@ -9,3 +9,5 @@ Before changing how `/thoughts-aloud` renders posts:
 - Bare YouTube URLs render an embed that must not be wider than the viewport; at 390 px the page must not scroll horizontally.
 - No `pageerror` or console errors may be logged while the page loads.
 - Performance: the fix must not add a new dependency or noticeably increase the page's client JavaScript.
+- YouTube Markdown links (inline, reference and angle autolinks) must stay inline links with their labels, open in a new tab safely, and never create an iframe inside a paragraph.
+- Bare YouTube URLs must still embed, including beside Markdown links. Code spans and fenced code must remain literal text.

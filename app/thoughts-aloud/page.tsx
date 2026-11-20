@@ -1,6 +1,7 @@
 'use client';
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
+import type { Root, RootContent, Paragraph, PhrasingContent } from 'mdast';
 import Header from '../../components/header';
 import { TweetEmbed } from '../../components/TweetEmbed';
 import styles from '../../styles/ThoughtsAloud.module.css';
@@ -20,17 +21,44 @@ function formatDate(dateString: string): string {
   return `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
-// Helper: Detect YouTube links
-function isYouTube(url: string): boolean {
-  return /^https?:\/\/(www\.)?(youtube\.com|youtu\.be)\//.test(url);
-}
-
-function getYouTubeEmbedUrl(url: string): string | null {
-  // Extract video ID and return embed URL
-  const match = url.match(
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/)([A-Za-z0-9_-]{11})/
-  );
-  return match ? `https://www.youtube.com/embed/${match[1]}` : null;
+function remarkYouTubeEmbeds() {
+  return (tree: Root) => {
+    function transform<T extends RootContent>(nodes: T[]): (T | Paragraph)[] {
+      return nodes.flatMap((node): (T | Paragraph)[] => {
+        if (node.type !== 'paragraph') {
+          if (node.type === 'blockquote' || node.type === 'listItem') node.children = transform(node.children);
+          if (node.type === 'list') node.children.forEach(item => { item.children = transform(item.children); });
+          return [node];
+        }
+        const blocks: Paragraph[] = [];
+        let children: PhrasingContent[] = [];
+        for (const child of node.children) {
+          if (child.type !== 'text') {
+            children.push(child);
+            continue;
+          }
+          const pattern = /https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([A-Za-z0-9_-]{11})/g;
+          let lastIndex = 0;
+          for (const match of Array.from(child.value.matchAll(pattern))) {
+            const prefix = child.value.slice(lastIndex, match.index);
+            if (prefix) children.push({ type: 'text', value: prefix });
+            if (children.length) blocks.push({ type: 'paragraph', children });
+            children = [];
+            blocks.push({
+              type: 'paragraph', children: [],
+              data: { hName: 'div', hProperties: { 'data-youtube-id': match[1] } },
+            });
+            lastIndex = match.index + match[0].length;
+          }
+          const suffix = child.value.slice(lastIndex);
+          if (suffix) children.push({ type: 'text', value: suffix });
+        }
+        if (children.length) blocks.push({ type: 'paragraph', children });
+        return blocks;
+      });
+    }
+    tree.children = transform(tree.children);
+  };
 }
 
 export default function ThoughtsAloud() {
@@ -153,66 +181,35 @@ export default function ThoughtsAloud() {
               // Now, for each part, handle YouTube embeds and markdown
               return parts.map((part: string | React.JSX.Element, i: number) => {
                 if (typeof part !== 'string') return part;
-                // YouTube logic (as before)
-                const YT_REGEX = /https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([A-Za-z0-9_-]{11})/g;
-                const ytParts: (string | React.JSX.Element)[] = [];
-                let lastIndex = 0;
-                let match;
-                while ((match = YT_REGEX.exec(part)) !== null) {
-                  if (match.index > lastIndex) {
-                    ytParts.push(part.slice(lastIndex, match.index));
-                  }
-                  const videoId = match[1];
-                  ytParts.push(
-                    <div key={`yt-${videoId}-${i}-${match.index}`} className={styles['ta-iframe-wrap']}>
-                      <iframe
-                        src={`https://www.youtube.com/embed/${videoId}`}
-                        title="YouTube video player"
-                        frameBorder="0"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        allowFullScreen
-                      />
-                    </div>
-                  );
-                  lastIndex = match.index + match[0].length;
-                }
-                if (lastIndex < part.length) {
-                  ytParts.push(part.slice(lastIndex));
-                }
-                return ytParts.map((ytPart: string | React.JSX.Element, j: number) =>
-                  typeof ytPart === 'string' ? (
-                    <ReactMarkdown
-                      key={j}
-                      components={{
-                        blockquote: ({ children }) => (
-                          <blockquote className={styles['ta-blockquote']}>
-                            {children}
-                          </blockquote>
-                        ),
-                        a: ({ href, children }: { href?: string; children?: React.ReactNode }) => {
-                          if (href && isYouTube(href)) {
-                            const embedUrl = getYouTubeEmbedUrl(href);
-                            if (embedUrl) {
-                              return (
-                                <div className={styles['ta-iframe-wrap']}>
-                                  <iframe
-                                    src={embedUrl}
-                                    title="YouTube video player"
-                                    frameBorder="0"
-                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                    allowFullScreen
-                                  />
-                                </div>
-                              );
-                            }
-                          }
-                          return <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>;
-                        }
-                      }}
-                    >
-                      {ytPart}
-                    </ReactMarkdown>
-                  ) : ytPart
+                return (
+                  <ReactMarkdown
+                    key={i}
+                    remarkPlugins={[remarkYouTubeEmbeds]}
+                    components={{
+                      blockquote: ({ children }) => (
+                        <blockquote className={styles['ta-blockquote']}>
+                          {children}
+                        </blockquote>
+                      ),
+                      div: ({ node, children }) => {
+                        const videoId = node?.properties['data-youtube-id'];
+                        return typeof videoId === 'string' ? (
+                          <div className={styles['ta-iframe-wrap']}>
+                            <iframe
+                              src={`https://www.youtube.com/embed/${videoId}`}
+                              title="YouTube video player"
+                              frameBorder="0"
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                              allowFullScreen
+                            />
+                          </div>
+                        ) : <div>{children}</div>;
+                      },
+                      a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>
+                    }}
+                  >
+                    {part}
+                  </ReactMarkdown>
                 );
               });
             })()}
