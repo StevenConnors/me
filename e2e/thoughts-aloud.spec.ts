@@ -95,6 +95,15 @@ test('YouTube Markdown links stay inline while bare URLs embed', async ({ page }
     expect(errors).toEqual([]);
     await test.info().attach('e2e-fixture-youtube-links-mobile.png', { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
     await test.info().attach('e2e-fixture-youtube-links.json', { body: JSON.stringify({ links: 3, embeds: 2, errors }), contentType: 'application/json' });
+    await mongo.db().collection('thoughts').updateOne({ _id: id }, { $set: {
+      text: 'Underscore videos: https://youtu.be/_abcdefghi_\n\nhttps://www.youtube.com/watch?v=_abc_-defgh',
+    } });
+    await page.reload();
+    const underscoreArticle = page.locator('article').filter({ hasText: 'Underscore videos:' });
+    for (const videoId of ['_abcdefghi_', '_abc_-defgh']) {
+      await expect(underscoreArticle.locator(`iframe[src="https://www.youtube.com/embed/${videoId}"]`)).toHaveCount(1);
+    }
+    expect(errors).toEqual([]);
   } finally {
     await mongo.db().collection('thoughts').deleteOne({ _id: id });
     await mongo.close();

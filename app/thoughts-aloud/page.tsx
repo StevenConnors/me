@@ -22,7 +22,8 @@ function formatDate(dateString: string): string {
 }
 
 function remarkYouTubeEmbeds() {
-  return (tree: Root) => {
+  return (tree: Root, file: { value: unknown }) => {
+    const source = String(file.value);
     function transform<T extends RootContent>(nodes: T[]): (T | Paragraph)[] {
       return nodes.flatMap((node): (T | Paragraph)[] => {
         if (node.type !== 'paragraph') {
@@ -31,29 +32,45 @@ function remarkYouTubeEmbeds() {
           return [node];
         }
         const blocks: Paragraph[] = [];
-        let children: PhrasingContent[] = [];
-        for (const child of node.children) {
-          if (child.type !== 'text') {
-            children.push(child);
-            continue;
+        const start = node.position?.start.offset;
+        const end = node.position?.end.offset;
+        if (start === undefined || end === undefined) return [node];
+        function append(from: number, to: number) {
+          const children: PhrasingContent[] = [];
+          for (const child of node.children) {
+            const a = child.position?.start.offset;
+            const b = child.position?.end.offset;
+            if (a === undefined || b === undefined || a >= to || b <= from) continue;
+            if (a >= from && b <= to) children.push(child);
+            else if (child.type === 'text') {
+              const left = from > a ? from - a : 0;
+              const right = to < b ? child.value.length - (b - to) : child.value.length;
+              children.push({ type: 'text', value: child.value.slice(left, right) });
+            }
           }
-          const pattern = /https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([A-Za-z0-9_-]{11})/g;
-          let lastIndex = 0;
-          for (const match of Array.from(child.value.matchAll(pattern))) {
-            const prefix = child.value.slice(lastIndex, match.index);
-            if (prefix) children.push({ type: 'text', value: prefix });
-            if (children.length) blocks.push({ type: 'paragraph', children });
-            children = [];
-            blocks.push({
-              type: 'paragraph', children: [],
-              data: { hName: 'div', hProperties: { 'data-youtube-id': match[1] } },
-            });
-            lastIndex = match.index + match[0].length;
-          }
-          const suffix = child.value.slice(lastIndex);
-          if (suffix) children.push({ type: 'text', value: suffix });
+          if (children.length) blocks.push({ type: 'paragraph', children });
         }
-        if (children.length) blocks.push({ type: 'paragraph', children });
+        const pattern = /https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([A-Za-z0-9_-]{11})/g;
+        let cursor = start;
+        for (const match of Array.from(source.slice(start, end).matchAll(pattern))) {
+          const from = start + match.index;
+          const to = from + match[0].length;
+          const overlaps = node.children.filter(child =>
+            (child.position?.start.offset ?? end) < to && (child.position?.end.offset ?? start) > from);
+          if (!overlaps.length || !overlaps.every(child => {
+            if (child.type === 'text') return true;
+            return (child.type === 'emphasis' || child.type === 'strong') &&
+              (child.position?.start.offset ?? -1) >= from && (child.position?.end.offset ?? Infinity) <= to;
+          })) continue;
+          append(cursor, from);
+          blocks.push({
+            type: 'paragraph', children: [],
+            data: { hName: 'div', hProperties: { 'data-youtube-id': match[1] } },
+          });
+          cursor = to;
+        }
+        if (cursor === start) return [node];
+        append(cursor, end);
         return blocks;
       });
     }
