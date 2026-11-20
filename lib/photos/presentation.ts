@@ -42,6 +42,11 @@ export type UnavailablePhotosBlock = {
   reason: string;
 };
 
+/** Tags written by upload sessions and the MDX journey migration, not by the author. */
+function isBookkeepingTag(tag: string): boolean {
+  return tag.startsWith('upload-session-') || tag === 'legacy-story';
+}
+
 function publicPhotoFromAsset(
   asset: MediaAsset,
   options: {
@@ -103,7 +108,7 @@ function publicPhotoFromAsset(
     width: asset.width,
     height: asset.height,
     ...(asset.title ? { title: asset.title } : {}),
-    tags: asset.tags,
+    tags: asset.tags.filter((tag) => !isBookkeepingTag(tag)),
     ...(options.caption ?? asset.caption ? { caption: options.caption ?? asset.caption } : {}),
     ...(options.displayDate ?? asset.captureDate ? { captureDate: options.displayDate ?? asset.captureDate } : {}),
     ...(options.sectionBreak ? { sectionBreak: options.sectionBreak } : {}),

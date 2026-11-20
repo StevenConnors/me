@@ -21,7 +21,7 @@ test('photo viewer navigates, opens shared URLs, and keeps keyboard focus inside
       _id: id, schemaVersion: 1, provider: 'cloudinary', providerAssetId: `e2e-${id}`,
       providerPublicId: `e2e/${id}`, resourceType: 'image', deliveryType: 'upload', version: 1,
       originalFilename: `viewer-${index + 1}.jpg`, format: 'jpg', width: 400, height: 300,
-      bytes: 100, tags: index === 1 ? ['night', 'Tokyo'] : [],
+      bytes: 100, tags: index === 1 ? ['upload-session-e2e-viewer', 'night', 'legacy-story', 'Tokyo', 'legacy'] : index === 2 ? ['upload-session-e2e-only', 'legacy-story'] : [],
       ...(index === 1 ? { title: 'City lights', caption: 'After the rain' } : {}),
       altText: `Viewer photo ${index + 1}`, showInPhotos: true, status: 'ready',
       createdAt: new Date(now.getTime() + index), updatedAt: now,
@@ -47,10 +47,19 @@ test('photo viewer navigates, opens shared URLs, and keeps keyboard focus inside
     await expect(page.getByText('After the rain')).toBeVisible();
     await expect(page.getByText('night', { exact: true })).toBeVisible();
     await expect(page.getByText('Tokyo', { exact: true })).toBeVisible();
+    const tagList = page.getByRole('list', { name: 'Photo tags' });
+    await expect(tagList.getByRole('listitem')).toHaveText(['night', 'Tokyo', 'legacy']);
+    const publicPhotos = await (await page.request.get('/api/photos?limit=3')).json() as { items: Array<{ id: string; tags: string[] }> };
+    expect(publicPhotos.items.find((item) => item.id === ids[1])?.tags).toEqual(['night', 'Tokyo', 'legacy']);
+    expect(publicPhotos.items.find((item) => item.id === ids[2])?.tags).toEqual([]);
     const detailsScreenshot = test.info().outputPath('photo-viewer-details.png');
     await page.screenshot({ path: detailsScreenshot });
     await test.info().attach('photo-viewer-details.png', { path: detailsScreenshot, contentType: 'image/png' });
     artifact.navigation.push('next with details');
+    await page.getByRole('button', { name: 'Next photo' }).click();
+    await expect(page.getByRole('dialog').getByRole('img', { name: 'Viewer photo 3' })).toBeVisible();
+    await expect(page.getByRole('list', { name: 'Photo tags' })).toHaveCount(0);
+    await page.goBack();
 
     await page.goBack();
     await expect(page.getByRole('dialog').getByRole('img', { name: 'Viewer photo 1' })).toBeVisible();
