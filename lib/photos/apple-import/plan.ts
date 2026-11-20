@@ -80,15 +80,21 @@ export function planApplePhotosSync(input: {
       const existingIndex = previousBlockId ? blocks.findIndex((block) => block.id === previousBlockId) : -1;
       const existing = blocks[existingIndex];
 
+      const coverTaken = runMedia(blocks, sectionBlockId)
+        .some((block) => block.albumRole === 'cover' && !departingBlockIds.has(block.id));
       const placedElsewhere = blocks.some((block, index) => index !== existingIndex
         && block.type === 'media' && block.mediaAssetId === photo.mediaAssetId);
 
       if (existing?.type === 'media') {
         // A media asset may appear once; keep the old upload if the author already placed the new one.
+        let updated: PhotosMediaBlock = existing;
         if (existing.mediaAssetId !== photo.mediaAssetId && !placedElsewhere) {
-          blocks[existingIndex] = { ...existing, mediaAssetId: photo.mediaAssetId };
+          updated = { ...updated, mediaAssetId: photo.mediaAssetId };
           summary.photosUpdated += 1;
         }
+        const inOwnSection = runMedia(blocks, sectionBlockId).some((block) => block.id === existing.id);
+        if (photo.cover && !coverTaken && !existing.albumRole && inOwnSection) updated = { ...updated, albumRole: 'cover' };
+        blocks[existingIndex] = updated;
         nextPhotos.set(photo.sourcePhotoId, { ...photo, blockId: existing.id });
         continue;
       }
@@ -98,8 +104,6 @@ export function planApplePhotosSync(input: {
         continue;
       }
 
-      const coverTaken = runMedia(blocks, sectionBlockId)
-        .some((block) => block.albumRole === 'cover' && !departingBlockIds.has(block.id));
       const block: PhotosMediaBlock = {
         id: input.createId(),
         type: 'media',
