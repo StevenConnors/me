@@ -66,6 +66,17 @@ test('admin analytics shows its setup state and ranks actual grid photo opens', 
     await expect(page.getByRole('heading', { name: 'Analytics' })).toBeVisible();
     await expect(page.getByText(/Vercel Web Analytics is not configured/i)).toBeVisible();
     await expect(page.getByRole('link', { name: 'Analytics' })).toHaveAttribute('href', '/admin/analytics');
+    const trafficSummary = page.getByRole('region', { name: 'Traffic summary' });
+    for (const label of ['Page views', 'Visitors']) {
+      const metric = trafficSummary.getByRole('article').filter({ hasText: label });
+      await expect(metric.getByText('—', { exact: true })).toBeVisible();
+      await expect(metric).toMatchAriaSnapshot('- strong: Unavailable');
+      await expect(metric.getByText('0', { exact: true })).toHaveCount(0);
+    }
+    await test.info().attach('e2e-fixture-analytics-unconfigured.png', {
+      body: await page.screenshot(),
+      contentType: 'image/png',
+    });
 
     await page.goto('/photos');
     await expect(page.getByRole('button', { name: 'Open photo 1' })).toBeVisible();

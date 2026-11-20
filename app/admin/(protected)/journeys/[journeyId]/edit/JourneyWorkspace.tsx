@@ -8,6 +8,7 @@ import { HeldPlacesEditor } from '@/components/editor/HeldPlacesEditor';
 import { JourneyVisualEditor, type EditorMedia } from '@/components/editor/JourneyVisualEditor';
 import styles from '@/app/admin/admin.module.css';
 import { useDraftSave } from '@/lib/client/use-draft-save';
+import { useUnsavedChangesGuard } from '@/lib/client/use-unsaved-changes-guard';
 import type {
   JourneyDocument,
   JourneyLocation,
@@ -61,7 +62,7 @@ async function persistJourney({ draft, version }: { draft: EditableJourney; vers
 
 export function JourneyWorkspace({ initialJourney, initialPublishedSnapshot, media }: { initialJourney: EditableJourney; initialPublishedSnapshot: string | null; media: EditorMedia[] }) {
   const router = useRouter();
-  const { draft: journey, saved: { draft: savedJourney }, phase: saveState, edit, readDraft, flush, runAction } = useDraftSave({
+  const { draft: journey, saved: { draft: savedJourney }, phase: saveState, edit, readDraft, isDirty, flush, runAction } = useDraftSave({
     initial: { draft: initialJourney, version: initialJourney.editVersion },
     debounceMs: 1_000,
     persist: persistJourney,
@@ -75,6 +76,8 @@ export function JourneyWorkspace({ initialJourney, initialPublishedSnapshot, med
   const [deleteError, setDeleteError] = useState('');
   const [migrationState, setMigrationState] = useState<'idle' | 'migrating' | 'error'>('idle');
   const releaseBusy = publishState.state === 'publishing' || migrationState === 'migrating';
+
+  useUnsavedChangesGuard(isDirty, 'This journey has unsaved changes. Leave and discard them? Choose Cancel to stay and use Save now to retry.');
 
   function change<K extends keyof Pick<EditableJourney, 'title' | 'slug' | 'summary' | 'cover' | 'experiencedAt' | 'locations' | 'draftDocument'>>(key: K, value: EditableJourney[K]) {
     edit({ ...readDraft(), [key]: value });
