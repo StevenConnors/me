@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ZodError } from 'zod';
 
-import { apiError, requireAuthorApi } from '@/lib/http/admin-api';
+import { apiError, requireAuthorOrImportApi } from '@/lib/http/admin-api';
 import { getCloudinaryMediaProvider } from '@/lib/media/provider';
 import { MediaRepository } from '@/lib/media/repository';
 import { UploadIntentSchema } from '@/lib/media/providers/MediaProvider';
@@ -10,7 +10,7 @@ import { MediaProviderError } from '@/lib/media/providers/CloudinaryProvider';
 export const runtime = 'nodejs';
 
 export async function POST(request: NextRequest) {
-  const authorization = await requireAuthorApi();
+  const authorization = await requireAuthorOrImportApi(request);
   if (authorization.response) return authorization.response;
 
   try {

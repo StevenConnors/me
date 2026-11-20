@@ -1,7 +1,7 @@
 import { after, NextRequest, NextResponse } from 'next/server';
 import { z, ZodError } from 'zod';
 
-import { apiError, requireAuthorApi } from '@/lib/http/admin-api';
+import { apiError, requireAuthorOrImportApi } from '@/lib/http/admin-api';
 import { getCloudinaryMediaProvider } from '@/lib/media/provider';
 import {
   MediaRepository,
@@ -21,7 +21,7 @@ const FinalizeRequestSchema = z.object({
 }).strict();
 
 export async function POST(request: NextRequest) {
-  const authorization = await requireAuthorApi();
+  const authorization = await requireAuthorOrImportApi(request);
   if (authorization.response) return authorization.response;
 
   try {

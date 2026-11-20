@@ -32,6 +32,7 @@ export default defineConfig({
           AUTH_SECRET: 'e2e-local-secret',
           E2E_TEST_MODE: '1',
           MONGODB_URI: e2eMongoUri,
+          PHOTOS_IMPORT_TOKEN: 'e2e-photos-import-token-0123456789abcdef',
           VERCEL_ANALYTICS_TOKEN: '',
           VERCEL_ANALYTICS_PROJECT_ID: '',
           VERCEL_ANALYTICS_TEAM_ID: '',
