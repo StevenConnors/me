@@ -55,6 +55,7 @@ test('theme wall filters published photos by shared tags and opens the viewer', 
     await test.info().attach('e2e-fixture-photos-themes-desktop.png', { body: await page.screenshot(), contentType: 'image/png' });
 
     await wall.getByRole('link', { name: 'Theme photo 4' }).click();
+    await expect.poll(async () => (await db.collection('photo_open_daily').findOne({ photoId: ids[3] }))?.opens ?? 0).toBe(1);
     await expect(page).toHaveURL(new RegExp(`/photos\\?photo=${ids[3]}$`));
     await expect(page.getByRole('dialog').getByRole('img', { name: 'Theme photo 4' })).toBeVisible();
     await page.getByRole('button', { name: 'Next photo' }).click();
@@ -82,6 +83,7 @@ test('theme wall filters published photos by shared tags and opens the viewer', 
     expect(errors.filter((error) => !error.includes('Photos page skipped unavailable published media'))).toEqual([]);
   } finally {
     await db.collection('media_assets').deleteMany({ _id: { $in: ids as never[] } });
+    await db.collection('photo_open_daily').deleteMany({ photoId: { $in: ids } });
     if (original) await pages.replaceOne({ _id: 'photos' }, original);
     else await pages.deleteOne({ _id: 'photos' });
     await mongo.close();

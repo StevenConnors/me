@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { HeldPlacesFooter, HeldPlacesHeader } from '@/components/held-places/HeldPlaces';
 import paper from '@/components/held-places/held-places.module.css';
 import styles from '@/components/photos/photo-themes.module.css';
+import { ThemeTileLink } from '@/components/photos/ThemeTileLink';
 import { getCloudinaryMediaProvider } from '@/lib/media/provider';
 import { MediaRepository } from '@/lib/media/repository';
 import { loadAllPublicPhotos } from '@/lib/photos/gallery';
@@ -46,9 +47,9 @@ export default async function PhotoThemesPage({ searchParams }: { searchParams: 
           </nav>
           {shown.length ? <ul aria-label="Photos" className={styles.wall}>
             {shown.map((photo, index) => <li key={photo.id}>
-              <a aria-label={photo.alt ? undefined : `Photo ${index + 1}`} href={`/photos?photo=${encodeURIComponent(photo.id)}`}>
+              <ThemeTileLink label={photo.alt ? undefined : `Photo ${index + 1}`} photoId={photo.id}>
                 <Image alt={photo.alt} fill sizes="(max-width: 700px) 33vw, 160px" src={photo.kind === 'video' ? photo.posterUrl : photo.thumbnailUrl} />
-              </a>
+              </ThemeTileLink>
             </li>)}
           </ul> : <p className={styles.empty}>{theme ? <>No photos have the theme “{theme}”. <Link href="/photos/themes">See all themes</Link></> : 'Photos, soon.'}</p>}
         </>}
