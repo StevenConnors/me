@@ -54,6 +54,10 @@ export function planApplePhotosSync(input: {
   const nextPhotos = new Map(previousPhotos);
   const nextAlbums: ApplePhotosImportedAlbum[] = [];
   const syncedPhotoIds = new Set<string>();
+  const requestedPhotoIds = new Set(input.request.albums.flatMap((album) => album.photos.map((photo) => photo.sourcePhotoId)));
+  const departingBlockIds = new Set(input.photos
+    .filter((photo) => !requestedPhotoIds.has(photo.sourcePhotoId) && photo.blockId)
+    .map((photo) => photo.blockId));
   const summary: ApplePhotosSyncSummary = {
     albumsAdded: 0, photosAdded: 0, photosUpdated: 0, photosRemoved: 0, sectionsRemoved: 0, duplicatePhotoIds: [],
   };
@@ -73,8 +77,7 @@ export function planApplePhotosSync(input: {
       }
       syncedPhotoIds.add(photo.sourcePhotoId);
       const previousBlockId = previousPhotos.get(photo.sourcePhotoId)?.blockId;
-      const existingIndex = blocks.findIndex((block) => block.type === 'media'
-        && (block.id === previousBlockId || block.mediaAssetId === photo.mediaAssetId));
+      const existingIndex = previousBlockId ? blocks.findIndex((block) => block.id === previousBlockId) : -1;
       const existing = blocks[existingIndex];
 
       if (existing?.type === 'media') {
@@ -85,8 +88,14 @@ export function planApplePhotosSync(input: {
         nextPhotos.set(photo.sourcePhotoId, { ...photo, blockId: existing.id });
         continue;
       }
+      // The author already placed this upload; leave their block alone and do not add a copy.
+      if (blocks.some((block) => block.type === 'media' && block.mediaAssetId === photo.mediaAssetId)) {
+        nextPhotos.set(photo.sourcePhotoId, { ...photo });
+        continue;
+      }
 
-      const coverTaken = runMedia(blocks, sectionBlockId).some((block) => block.albumRole === 'cover');
+      const coverTaken = runMedia(blocks, sectionBlockId)
+        .some((block) => block.albumRole === 'cover' && !departingBlockIds.has(block.id));
       const block: PhotosMediaBlock = {
         id: input.createId(),
         type: 'media',
@@ -109,11 +118,13 @@ export function planApplePhotosSync(input: {
       blocks.splice(index, 1);
       summary.photosRemoved += 1;
     }
-    const { blockId: _removed, ...unplaced } = previous;
-    nextPhotos.set(previous.sourcePhotoId, unplaced);
   }
 
-  const importedSectionIds = Array.from(new Set([...input.albums, ...nextAlbums].map((album) => album.sectionBlockId)));
+  // Departed albums and photos keep their block IDs so a sync whose draft write
+  // was lost (author save, crash) can still remove them on the next run.
+  const requestedAlbumIds = new Set(nextAlbums.map((album) => album.sourceAlbumId));
+  nextAlbums.push(...input.albums.filter((album) => !requestedAlbumIds.has(album.sourceAlbumId)));
+  const importedSectionIds = Array.from(new Set(nextAlbums.map((album) => album.sectionBlockId)));
   for (const sectionId of importedSectionIds) {
     const index = blocks.findIndex((block) => block.id === sectionId);
     if (index !== -1 && runMedia(blocks, sectionId).length === 0) {
