@@ -222,7 +222,7 @@ export function PhotosGallery({
 
   return (
     <>
-      <PhotosPageView collapsedSections={collapsedSections} onOpen={open} onOpenPhoto={openPhoto} onSectionLinkClick={jumpToSection} onToggleSection={(id) => setCollapsedSections((current) => { const next = new Set(current); if (next.has(id)) next.delete(id); else next.add(id); return next; })} photos={photos} sectionLinks={sections} />
+      <PhotosPageView browseHref="/photos/themes" collapsedSections={collapsedSections} onOpen={open} onOpenPhoto={openPhoto} onSectionLinkClick={jumpToSection} onToggleSection={(id) => setCollapsedSections((current) => { const next = new Set(current); if (next.has(id)) next.delete(id); else next.add(id); return next; })} photos={photos} sectionLinks={sections} />
       {nextCursor ? <div className={styles.loader} ref={sentinelRef}>
         {loadState === 'error' ? <p>{loadFailure?.message ?? 'More photos could not be loaded.'}</p> : null}
         {loadFailure?.reloadRequired

@@ -1,0 +1,18 @@
+.themes { padding: 0 44px 88px; }
+.themes h1 { margin: 0; font: 400 clamp(48px, 7vw, 104px)/.9 Georgia, 'Times New Roman', serif; letter-spacing: -.045em; }
+.back { margin: 18px 0 0; font: 14px/1.4 Arial, sans-serif; }
+.back a, .empty a { color: #25231e; text-underline-offset: 4px; }
+.themeLinks { display: flex; flex-wrap: wrap; gap: 8px; margin: 32px 0; }
+.themeLinks a { padding: 7px 12px; border: 1px solid #aaa69c; border-radius: 999px; color: #25231e; font: 14px/1 Arial, sans-serif; text-decoration: none; }
+.themeLinks a:hover { border-color: #25231e; }
+.themeLinks a[aria-current='page'] { border-color: #25231e; background: #25231e; color: #fffdf8; }
+.themeLinks span { margin-left: 6px; opacity: .7; font-size: 12px; }
+.themeLinks a:focus-visible, .wall a:focus-visible { outline: 2px solid #161510; outline-offset: 3px; }
+.wall { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 4px; margin: 0; padding: 0; list-style: none; }
+.wall li { position: relative; aspect-ratio: 1; }
+.wall a { position: absolute; inset: 0; display: block; overflow: hidden; background: #dad8d0; }
+.wall img { object-fit: cover; transition: transform 180ms ease; }
+.wall a:hover img { transform: scale(1.04); }
+.empty { color: #615f58; font: 18px/1.45 Georgia, 'Times New Roman', serif; }
+@media (max-width: 700px) { .themes { padding: 0 16px 48px; } .wall { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px; } }
+@media (prefers-reduced-motion: reduce) { .wall img { transition: none; } }
