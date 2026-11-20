@@ -45,6 +45,13 @@ test('the Glass viewer keeps keyboard focus inside and returns it to the opening
       observations.push({ viewport: '1280', key, focused });
       expect.soft(focused, `1280 px: focus after ${key}`).toBe(expected);
     }
+    for (const [key, expected] of [['Tab', 'Close gallery'], ['Shift+Tab', 'Next item']]) {
+      await dialog.getByText('2 / 3').click();
+      await page.keyboard.press(key);
+      const focused = await focusedLabel(page);
+      observations.push({ viewport: '1280', key: `click counter, ${key}`, focused });
+      expect.soft(focused, `1280 px: focus after clicking the counter and pressing ${key}`).toBe(expected);
+    }
     await page.keyboard.press('Escape');
     await expect(dialog).toBeHidden();
     await expect(trigger).toBeFocused();
