@@ -50,8 +50,10 @@ export const ApplePhotosImportedPhotoSchema = z
     sourcePhotoId: SourceIdSchema,
     sourceVersion: SourceIdSchema,
     mediaAssetId: MediaIdSchema,
-    /** Absent while the photo is uploaded but not in the synced folder. */
+    /** The block this import placed; kept after the photo leaves the folder so a lost removal can be retried. */
     blockId: PhotosBlockIdSchema.optional(),
+    /** Whether Photos.app had the cover tag at the last sync, so a cover is only applied when the tag is added. */
+    cover: z.boolean().optional(),
   })
   .strict();
 
