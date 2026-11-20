@@ -7,9 +7,9 @@ const mongoUri = process.env.E2E_MONGODB_URI ?? 'mongodb://127.0.0.1:27018/journ
 const runId = new ObjectId().toHexString();
 const mediaId = new ObjectId().toHexString();
 const journeys = [
-  { id: new ObjectId(), revisionId: new ObjectId(), slug: `home-index-meta-${runId}`, title: `Autumn index ${runId.slice(-6)}`,
+  { id: new ObjectId(), revisionId: new ObjectId(), slug: `home-index-meta-${runId}`, title: 'Autumn index',
     experiencedAt: { start: '2024-10-02', end: '2024-11-12' }, locations: [{ id: 'jp', label: 'Japan', countryCode: 'JP' }] },
-  { id: new ObjectId(), revisionId: new ObjectId(), slug: `home-index-plain-${runId}`, title: `Plain index ${runId.slice(-6)}`, locations: [] },
+  { id: new ObjectId(), revisionId: new ObjectId(), slug: `home-index-plain-${runId}`, title: 'Plain index', locations: [] },
 ];
 
 test.beforeAll(async () => {
@@ -126,6 +126,42 @@ test('home keeps legacy journeys after published journeys on desktop and mobile'
   expect(errors).toEqual([]);
   await test.info().attach('e2e-fixture-home-archive.json', {
     body: Buffer.from(JSON.stringify({ expectedSlugs, errors })), contentType: 'application/json',
+  });
+});
+
+test('archive rows align published and legacy titles, summaries and heights', async ({ page }) => {
+  const observations = [];
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 1100 });
+    await page.goto('/');
+    const archive = page.locator('#journeys');
+    const published = archive.locator(`a[href="/stories/${journeys[0].slug}"]`);
+    const publishedBox = await published.boundingBox();
+    const titleBox = await published.locator('[class*="archiveTitle"]').boundingBox();
+    const summaryBox = await published.locator('[class*="archiveSummary"]').boundingBox();
+    if (!publishedBox || !titleBox) throw new Error('Published archive row is missing');
+    for (const slug of ['poc', 'dfw-okc', 'newpoc']) {
+      const legacy = archive.locator(`a[href="/stories/${slug}"]`);
+      const row = await legacy.boundingBox();
+      const title = await legacy.locator('[class*="archiveTitle"]').boundingBox();
+      const summary = await legacy.locator('[class*="archiveSummary"]').boundingBox();
+      if (!row || !title) throw new Error(`Legacy archive row ${slug} is missing`);
+      expect(Math.abs(title.x - titleBox.x)).toBeLessThanOrEqual(1);
+      expect(Math.abs(row.height - publishedBox.height)).toBeLessThanOrEqual(1);
+      if (width === 1440) {
+        if (!summary || !summaryBox) throw new Error('Desktop summary column is missing');
+        expect(Math.abs(summary.x - summaryBox.x)).toBeLessThanOrEqual(1);
+      } else {
+        expect(summary).toBeNull();
+        expect(summaryBox).toBeNull();
+      }
+      observations.push({ width, slug, row, title, summary });
+    }
+    await expect(archive).not.toContainText('Read the original journey.');
+    await expect(archive.locator('a[href="/stories/dfw-okc"]')).toContainText('August 1–5, 2024');
+  }
+  await test.info().attach('e2e-fixture-home-archive-alignment.json', {
+    body: Buffer.from(JSON.stringify(observations)), contentType: 'application/json',
   });
 });
 

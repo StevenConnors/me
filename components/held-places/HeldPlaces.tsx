@@ -193,7 +193,7 @@ export function HeldPlacesIndex({
   journeys: PublishedJourneySummary[];
   photos: PublicPhoto[];
   failed?: boolean;
-  legacyJourneys?: { slug: string; title: string }[];
+  legacyJourneys?: { slug: string; title: string; summary?: string }[];
 }) {
   const publishedSlugs = new Set(journeys.map(({ slug }) => slug));
   const archiveRows = [
@@ -201,7 +201,6 @@ export function HeldPlacesIndex({
     ...legacyJourneys.filter(({ slug }) => !publishedSlugs.has(slug)).map((journey) => ({
       ...journey,
       id: `legacy-${journey.slug}`,
-      summary: 'Read the original journey.',
       legacy: true as const,
     })),
   ];
@@ -234,12 +233,16 @@ export function HeldPlacesIndex({
               const meta = journey.legacy ? '' : formatJourneyMeta(journey.experiencedAt, journey.locations);
               return (
                 <Link
-                  className={journey.legacy ? styles.archiveRow : `${styles.archiveRow} ${styles.archiveRowCover}`}
+                  className={styles.archiveRow}
                   href={`/stories/${journey.slug}`}
                   key={journey.id}
                   passHref
                 >
-                  {journey.legacy ? <span className={styles.archiveMarker} data-palette={index % 4} /> : (
+                  {journey.legacy ? (
+                    <span aria-hidden="true" className={styles.archiveLegacyCover}>
+                      <span className={styles.archiveMarker} data-palette={index % 4} />
+                    </span>
+                  ) : (
                     <span className={styles.archiveCover} data-palette={index % 4}>
                       {cover && coverSrc ? <Image alt={cover.alt} fill sizes="(max-width: 768px) 72px, 132px" src={coverSrc} style={{ objectPosition: cover.desktopPosition }} /> : null}
                     </span>

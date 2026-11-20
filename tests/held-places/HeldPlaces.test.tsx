@@ -16,7 +16,7 @@ describe('HeldPlacesIndex', () => {
   afterEach(cleanup);
   const legacyJourneys = [
     { slug: 'poc', title: 'Autumn in Tōhoku' },
-    { slug: 'dfw-okc', title: 'Oklahoma! Oklahoma?' },
+    { slug: 'dfw-okc', title: 'Oklahoma! Oklahoma?', summary: 'Experienced August 1–5, 2024' },
     { slug: 'newpoc', title: 'Whisky with an e' },
   ];
   const published: PublishedJourneySummary = {
@@ -35,6 +35,8 @@ describe('HeldPlacesIndex', () => {
     expect(Array.from(archive?.querySelectorAll('a') ?? [], (link) => link.getAttribute('href')))
       .toEqual(expected.map((slug) => `/stories/${slug}`));
     expect(archive?.querySelector('h2 + span')).toHaveTextContent(String(expected.length).padStart(2, '0'));
+    expect(screen.queryByText('Read the original journey.')).not.toBeInTheDocument();
+    expect(screen.getByText('Experienced August 1–5, 2024')).toBeInTheDocument();
     if (journeys.length) expect(screen.getByText('Published title')).toBeInTheDocument();
   });
   it('shows the empty and unavailable messages without entries', () => {
