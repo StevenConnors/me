@@ -4,6 +4,7 @@
 // Usage:
 //   node scripts/perf/perf-check.mjs --base-url http://127.0.0.1:3200 --routes /,/photos --runs 5 --out perf/current.json
 //   node scripts/perf/perf-check.mjs ... --baseline perf/baseline.json   # exits 1 on regression
+//   node scripts/perf/perf-check.mjs ... --image-timing 'main img'   # opt-in Element Timing, no product changes
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
 import { chromium } from "@playwright/test";
@@ -43,6 +44,31 @@ const OBSERVER = () => {
     .observe({ type: "longtask", buffered: true });
 };
 
+const IMAGE_OBSERVER = (selector) => {
+  window.__imageTiming = { supported: PerformanceObserver.supportedEntryTypes.includes('element'), registrations: [], paints: [] };
+  if (!window.__imageTiming.supported) return;
+  new PerformanceObserver((list) => {
+    for (const entry of list.getEntries()) {
+      window.__imageTiming.paints.push({ identifier: entry.identifier, alt: entry.element?.alt,
+        url: entry.url, renderTime: entry.renderTime, loadTime: entry.loadTime,
+        visibleWidth: entry.intersectionRect.width, visibleHeight: entry.intersectionRect.height });
+    }
+  }).observe({ type: 'element', buffered: true });
+  const registered = new WeakSet();
+  const register = () => {
+    for (const node of document.querySelectorAll(selector)) {
+      if (!(node instanceof HTMLImageElement) || registered.has(node)) continue;
+      registered.add(node);
+      const identifier = `ux-image-${window.__imageTiming.registrations.length}`;
+      window.__imageTiming.registrations.push({ identifier, alt: node.alt, registeredAt: performance.now(),
+        loadedAtRegistration: node.complete && node.naturalWidth > 0 });
+      node.setAttribute('elementtiming', identifier);
+    }
+  };
+  new MutationObserver(register).observe(document, { childList: true, subtree: true });
+  register();
+};
+
 async function measure(browser, route) {
   const settings = PROFILES[profile];
   const viewport = { ...settings.viewport, ...(args.width ? { width: Number(args.width) } : {}) };
@@ -63,6 +89,7 @@ async function measure(browser, route) {
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.addInitScript(OBSERVER);
+  if (args['image-timing']) await page.addInitScript(IMAGE_OBSERVER, args['image-timing']);
   const response = await page.goto(new URL(route, baseUrl).toString(), { waitUntil: "load", timeout: 120_000 });
   await page.waitForLoadState("networkidle", { timeout: 30_000 }).catch(() => {});
   await page.waitForTimeout(1_000);
@@ -82,9 +109,11 @@ async function measure(browser, route) {
       ...(resource ? { startTime: resource.startTime, responseEnd: resource.responseEnd } : {}),
     };
   }));
+  const imageTiming = args['image-timing'] ? await page.evaluate(() => window.__imageTiming) : undefined;
   if (args.screenshot) await page.screenshot({ path: args.screenshot, fullPage: true });
   await context.close();
-  return { status: response?.status() ?? 0, ...metrics, jsBytes: bytes.js, totalBytes: bytes.total, errors, images };
+  return { status: response?.status() ?? 0, ...metrics, jsBytes: bytes.js, totalBytes: bytes.total, errors, images,
+    ...(imageTiming ? { imageTiming } : {}) };
 }
 
 const median = (values) => { const sorted = [...values].sort((a, b) => a - b); const mid = sorted.length >> 1; return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2; };
