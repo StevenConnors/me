@@ -84,26 +84,34 @@ export class ApplePhotosImportService {
 
       // Record block IDs before the draft write so a crash between the two
       // writes is repaired by the next sync instead of duplicating sections.
+      // Cover tags are only marked as seen once the draft has them.
       const now = options.now ?? new Date();
-      await this.imports.updateOne(
-        { _id: STATE_ID },
-        {
-          $set: { schemaVersion: 1, albums: plan.albums, photos: plan.photos, updatedAt: now },
-          $setOnInsert: { createdAt: now },
-        },
-        { upsert: true },
-      );
+      const seenCovers = new Set((state?.photos ?? []).filter((photo) => photo.cover).map((photo) => photo.sourcePhotoId));
+      const pendingPhotos = plan.photos.map(({ cover: _cover, ...photo }) => (
+        seenCovers.has(photo.sourcePhotoId) ? { ...photo, cover: true } : photo
+      ));
+      await this.saveState(plan.albums, pendingPhotos, now);
 
       if (JSON.stringify(parsed.data) === JSON.stringify(page.draftDocument)) {
+        await this.saveState(plan.albums, plan.photos, now);
         return { ...plan.summary, draftVersion: page.draftVersion, draftChanged: false };
       }
       try {
         const updated = await this.photosPages.updateDraft(page.draftVersion, parsed.data, { now });
+        await this.saveState(plan.albums, plan.photos, now);
         return { ...plan.summary, draftVersion: updated.draftVersion, draftChanged: true };
       } catch (error) {
         if (!(error instanceof PhotosPageConflictError) || attempt >= MAX_CONFLICT_ATTEMPTS) throw error;
       }
     }
+  }
+
+  private async saveState(albums: ApplePhotosImportState['albums'], photos: ApplePhotosImportState['photos'], now: Date) {
+    await this.imports.updateOne(
+      { _id: STATE_ID },
+      { $set: { schemaVersion: 1, albums, photos, updatedAt: now }, $setOnInsert: { createdAt: now } },
+      { upsert: true },
+    );
   }
 
   private async loadState(): Promise<ApplePhotosImportState | null> {
