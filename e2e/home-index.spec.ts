@@ -26,7 +26,7 @@ test.beforeAll(async () => {
     schemaVersion: 2, template: 'held-places-v1',
     chapters: [{ id: 'one', body: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Fixture.' }] }] }, media: [] }],
   };
-  for (let index = 0; index < journeys.length; index += 1) {
+  for (let index = journeys.length - 1; index >= 0; index -= 1) {
     const journey = journeys[index];
     const meta = {
       slug: journey.slug, title: journey.title, summary: `${journey.title} summary.`, locations: journey.locations,
@@ -89,4 +89,64 @@ test('home introduces the site and lists journeys with cover, places and dates',
   await writeFile(resultPath, JSON.stringify({ runId, introBox, photosBox, firstPhoto, overflow }, null, 2));
   await test.info().attach('e2e-fixture-home-index-result.json', { path: resultPath, contentType: 'application/json' });
   expect(errors).toEqual([]);
+});
+
+test('home keeps legacy journeys after published journeys on desktop and mobile', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  page.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()); });
+  const expectedSlugs = [...journeys.map(({ slug }) => slug), 'poc', 'dfw-okc', 'newpoc'];
+  if (process.env.HOME_ARCHIVE_EVIDENCE) {
+    for (const width of [1440, 390]) {
+      await page.setViewportSize({ width, height: 1100 });
+      await page.goto('/');
+      await page.locator('#journeys').screenshot({
+        path: `${process.env.HOME_ARCHIVE_EVIDENCE}-${width}.png`,
+        style: 'nextjs-portal { display: none !important; }',
+      });
+    }
+  }
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 1100 });
+    await page.goto('/');
+    const archive = page.locator('#journeys');
+    const rows = archive.getByRole('link');
+    await expect(rows).toHaveCount(expectedSlugs.length);
+    expect(await rows.evaluateAll((links) => links.map((link) => link.getAttribute('href'))))
+      .toEqual(expectedSlugs.map((slug) => `/stories/${slug}`));
+    await expect(archive.locator('h2 + span')).toHaveText('05');
+    for (const slug of ['poc', 'dfw-okc', 'newpoc']) {
+      await expect(archive.locator(`a[href="/stories/${slug}"]`)).toBeVisible();
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
+    await test.info().attach(`e2e-fixture-home-archive-${width}.png`, {
+      body: await archive.screenshot({ style: 'nextjs-portal { display: none !important; }' }), contentType: 'image/png',
+    });
+  }
+  expect(errors).toEqual([]);
+  await test.info().attach('e2e-fixture-home-archive.json', {
+    body: Buffer.from(JSON.stringify({ expectedSlugs, errors })), contentType: 'application/json',
+  });
+});
+
+test('a published legacy slug appears once with database metadata', async ({ page }) => {
+  const client = await MongoClient.connect(mongoUri);
+  const db = client.db();
+  const journey = journeys[0];
+  try {
+    await db.collection('journeys').updateOne({ _id: journey.id }, { $set: { slug: 'poc' } });
+    await db.collection('journey_revisions').updateOne({ _id: journey.revisionId }, { $set: { 'metadataSnapshot.slug': 'poc' } });
+    await page.goto('/');
+    const archive = page.locator('#journeys');
+    const row = archive.locator('a[href="/stories/poc"]');
+    await expect(row).toHaveCount(1);
+    await expect(row).toContainText(journey.title);
+    await expect(row).toContainText(`${journey.title} summary.`);
+    await expect(archive.getByRole('link')).toHaveCount(4);
+    await expect(archive.locator('h2 + span')).toHaveText('04');
+  } finally {
+    await db.collection('journeys').updateOne({ _id: journey.id }, { $set: { slug: journey.slug } });
+    await db.collection('journey_revisions').updateOne({ _id: journey.revisionId }, { $set: { 'metadataSnapshot.slug': journey.slug } });
+    await client.close();
+  }
 });

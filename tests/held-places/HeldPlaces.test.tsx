@@ -8,8 +8,42 @@ vi.mock('next/link', () => ({
   ),
 }));
 
-import { HeldPlacesJourneyPage } from '@/components/held-places/HeldPlaces';
+import { HeldPlacesIndex, HeldPlacesJourneyPage } from '@/components/held-places/HeldPlaces';
+import type { PublishedJourneySummary } from '@/lib/journeys/schemas';
 import { makeHeldPlacesDocument } from '@/tests/journeys/fixtures';
+
+describe('HeldPlacesIndex', () => {
+  afterEach(cleanup);
+  const legacyJourneys = [
+    { slug: 'poc', title: 'Autumn in Tōhoku' },
+    { slug: 'dfw-okc', title: 'Oklahoma! Oklahoma?' },
+    { slug: 'newpoc', title: 'Whisky with an e' },
+  ];
+  const published: PublishedJourneySummary = {
+    id: 'published', slug: 'current', title: 'Published title', summary: 'Published summary',
+    cover: { mediaAssetId: 'cover' }, publishedAt: '2026-01-01T00:00:00.000Z', locations: [],
+  };
+  it.each([
+    { label: 'mixed', journeys: [published], expected: ['current', 'poc', 'dfw-okc', 'newpoc'], failed: false },
+    { label: 'legacy only', journeys: [], expected: ['poc', 'dfw-okc', 'newpoc'], failed: false },
+    { label: 'database failure', journeys: [], expected: ['poc', 'dfw-okc', 'newpoc'], failed: true },
+    { label: 'matching slug', journeys: [{ ...published, slug: 'poc' }], expected: ['poc', 'dfw-okc', 'newpoc'], failed: false },
+  ])('lists $label rows with an accurate count', ({ journeys, expected, failed }) => {
+    const { container } = render(<HeldPlacesIndex journeys={journeys} legacyJourneys={legacyJourneys} photos={[]} failed={failed} />);
+    const archive = container.querySelector('#journeys');
+    expect(archive).not.toBeNull();
+    expect(Array.from(archive?.querySelectorAll('a') ?? [], (link) => link.getAttribute('href')))
+      .toEqual(expected.map((slug) => `/stories/${slug}`));
+    expect(archive?.querySelector('h2 + span')).toHaveTextContent(String(expected.length).padStart(2, '0'));
+    if (journeys.length) expect(screen.getByText('Published title')).toBeInTheDocument();
+  });
+  it('shows the empty and unavailable messages without entries', () => {
+    const { rerender } = render(<HeldPlacesIndex journeys={[]} photos={[]} />);
+    expect(screen.getByText('New journeys are being prepared.')).toBeInTheDocument();
+    rerender(<HeldPlacesIndex journeys={[]} photos={[]} failed />);
+    expect(screen.getByText('Journeys are temporarily unavailable.')).toBeInTheDocument();
+  });
+});
 
 describe('HeldPlacesJourneyPage', () => {
   afterEach(cleanup);

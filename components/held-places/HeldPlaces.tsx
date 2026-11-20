@@ -195,14 +195,16 @@ export function HeldPlacesIndex({
   failed?: boolean;
   legacyJourneys?: { slug: string; title: string }[];
 }) {
-  const archiveRows = journeys.length
-    ? journeys.map((journey) => ({ ...journey, legacy: false as const }))
-    : legacyJourneys.map((journey) => ({
-        ...journey,
-        id: `legacy-${journey.slug}`,
-        summary: 'Read the original journey.',
-        legacy: true as const,
-      }));
+  const publishedSlugs = new Set(journeys.map(({ slug }) => slug));
+  const archiveRows = [
+    ...journeys.map((journey) => ({ ...journey, legacy: false as const })),
+    ...legacyJourneys.filter(({ slug }) => !publishedSlugs.has(slug)).map((journey) => ({
+      ...journey,
+      id: `legacy-${journey.slug}`,
+      summary: 'Read the original journey.',
+      legacy: true as const,
+    })),
+  ];
   return (
     <main className={`${styles.paper} ${styles.indexPage}`}>
       <HeldPlacesHeader />
@@ -222,7 +224,7 @@ export function HeldPlacesIndex({
       <section className={styles.archive} id="journeys">
         <div className={styles.archiveHeading}>
           <h2>Journeys</h2>
-          <span>{String(journeys.length || legacyJourneys.length).padStart(2, '0')}</span>
+          <span>{String(archiveRows.length).padStart(2, '0')}</span>
         </div>
         {archiveRows.length ? (
           <div className={styles.archiveList}>
