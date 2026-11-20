@@ -51,12 +51,14 @@ export class ApplePhotosImportService {
     return new ApplePhotosImportService(imports, photosPages, media);
   }
 
+  /** Uploads the script can reuse; deleted or broken media is left out so it is uploaded again. */
   async manifest() {
-    const state = await this.loadState();
+    const photos = (await this.loadState())?.photos ?? [];
+    const ready = await this.readyMediaIds(photos.map((photo) => photo.mediaAssetId));
     return {
-      photos: (state?.photos ?? []).map(({ sourcePhotoId, sourceVersion, mediaAssetId }) => ({
-        sourcePhotoId, sourceVersion, mediaAssetId,
-      })),
+      photos: photos
+        .filter((photo) => ready.has(photo.mediaAssetId))
+        .map(({ sourcePhotoId, sourceVersion, mediaAssetId }) => ({ sourcePhotoId, sourceVersion, mediaAssetId })),
     };
   }
 
@@ -111,11 +113,15 @@ export class ApplePhotosImportService {
 
   private async assertMediaReady(request: ApplePhotosSyncRequest) {
     const ids = Array.from(new Set(request.albums.flatMap((album) => album.photos.map((photo) => photo.mediaAssetId))));
-    if (!ids.length) return;
-    const ready = new Set((await this.media.findByIds(ids))
-      .filter((asset) => asset.status === 'ready' && asset.resourceType === 'image')
-      .map((asset) => asset._id));
+    const ready = await this.readyMediaIds(ids);
     const unavailable = ids.filter((id) => !ready.has(id));
     if (unavailable.length) throw new ApplePhotosMediaUnavailableError(unavailable);
+  }
+
+  private async readyMediaIds(ids: string[]): Promise<Set<string>> {
+    if (!ids.length) return new Set();
+    return new Set((await this.media.findByIds(Array.from(new Set(ids))))
+      .filter((asset) => asset.status === 'ready' && asset.resourceType === 'image')
+      .map((asset) => asset._id));
   }
 }
