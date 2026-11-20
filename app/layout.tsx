@@ -2,13 +2,12 @@ import '../styles/globals.css'
 import type { Metadata } from 'next'
 
 import { PublicAnalytics } from '@/components/analytics/PublicAnalytics'
+import { resolveSiteUrl } from '@/lib/site-url'
 
 const isProductionDeployment = process.env.VERCEL_ENV === 'production';
 
 export const metadata: Metadata = {
-  metadataBase: new URL(
-    process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000',
-  ),
+  metadataBase: resolveSiteUrl(),
   title: {
     default: 'Yuji - Heal the person to your right',
     template: '%s | Yuji',

@@ -6,6 +6,28 @@ const health = () => Response.json({ status: 'healthy', checks: { mongodb: 'heal
 const pause: typeof import('node:timers/promises').setTimeout = async <T,>(_delay?: number, value?: T) => value as T;
 
 describe('production smoke', () => {
+  it.each([
+    ['correct', '<link href="https://public.example/stories/journal" rel="canonical">', 'PASS'],
+    ['localhost', '<link rel="canonical" href="http://localhost:3000/stories/journal">', 'FAIL'],
+    ['missing', '<html>Journal</html>', 'FAIL'],
+  ])('checks the journal canonical: %s', async (_name, html, result) => {
+    const results = await smoke('https://deployment.example', undefined, {
+      pause, publicOrigin: 'https://public.example',
+      fetcher: async (input: string | URL | Request) => {
+        const path = new URL(input instanceof Request ? input.url : input).pathname;
+        return path === '/api/health' ? health() : new Response(path === '/' ? '<a href="/stories/journal">Journal</a>' : html);
+      },
+    });
+    expect(results.at(-1)).toMatchObject({ route: '/stories/journal', result });
+  });
+
+  it('fails if the home page has no published journal', async () => {
+    const results = await smoke('https://deployment.example', undefined, {
+      pause, publicOrigin: 'https://public.example', fetcher: async () => health(),
+    });
+    expect(results.at(-1)).toMatchObject({ result: 'FAIL', detail: 'No published journal link on home page' });
+  });
+
   it('passes all public routes and retries a cold start', async () => {
     let calls = 0;
     const results = await smoke('http://localhost', 'abc', {
