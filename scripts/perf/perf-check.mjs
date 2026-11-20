@@ -45,7 +45,8 @@ const OBSERVER = () => {
 
 async function measure(browser, route) {
   const settings = PROFILES[profile];
-  const context = await browser.newContext({ ...settings, cpu: undefined, network: undefined, storageState });
+  const viewport = { ...settings.viewport, ...(args.width ? { width: Number(args.width) } : {}) };
+  const context = await browser.newContext({ ...settings, viewport, cpu: undefined, network: undefined, storageState });
   const page = await context.newPage();
   const cdp = await context.newCDPSession(page);
   await cdp.send("Network.enable");
@@ -73,8 +74,10 @@ async function measure(browser, route) {
       .reduce((sum, [, duration]) => sum + Math.max(0, duration - 50), 0);
     return { ttfb: nav.responseStart, fcp, lcp: window.__ux.lcp, cls: window.__ux.cls, tbt };
   });
+  const images = await page.locator('main img').evaluateAll((nodes) => nodes.map((node) => ({ src: node.getAttribute('src'), loaded: node.complete && node.naturalWidth > 0 })));
+  if (args.screenshot) await page.screenshot({ path: args.screenshot, fullPage: true });
   await context.close();
-  return { status: response?.status() ?? 0, ...metrics, jsBytes: bytes.js, totalBytes: bytes.total, errors };
+  return { status: response?.status() ?? 0, ...metrics, jsBytes: bytes.js, totalBytes: bytes.total, errors, images };
 }
 
 const median = (values) => { const sorted = [...values].sort((a, b) => a - b); const mid = sorted.length >> 1; return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2; };
@@ -87,7 +90,7 @@ for (const route of routes) {
   const samples = [];
   for (let run = 0; run < runs; run += 1) samples.push(await measure(browser, route));
   const summary = Object.fromEntries(KEYS.map((key) => [key, Number(median(samples.map((sample) => sample[key])).toFixed(key === "cls" ? 4 : 0))]));
-  result.routes[route] = { ...summary, statuses: [...new Set(samples.map((s) => s.status))], errors: [...new Set(samples.flatMap((s) => s.errors))] };
+  result.routes[route] = { ...summary, samples, statuses: [...new Set(samples.map((s) => s.status))], errors: [...new Set(samples.flatMap((s) => s.errors))] };
 }
 await browser.close();
 
