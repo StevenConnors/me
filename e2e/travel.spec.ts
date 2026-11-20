@@ -1,6 +1,8 @@
 import { MongoClient } from 'mongodb';
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
 
+import type { TravelRecord } from '../lib/travel/schema';
+
 const mongoUri = process.env.E2E_MONGODB_URI ?? 'mongodb://127.0.0.1:27018/journey_editor_e2e';
 const travelSelections = {
   countries: ['JP'],
@@ -33,6 +35,57 @@ async function expectUniqueMapRegions(page: Page, count: number) {
     return bounds.width > 0 && bounds.height > 0;
   })), { timeout: 15_000 }).toBe(true);
 }
+
+test('travel editor clears unsaved changes when saved selections are restored', async ({ page }, testInfo) => {
+  const runtimeErrors: string[] = [];
+  page.on('pageerror', (error) => runtimeErrors.push(error.message));
+  page.on('console', (message) => {
+    if (message.type() === 'error') runtimeErrors.push(message.text());
+  });
+  assertDisposableMongoUri(mongoUri);
+  const mongo = new MongoClient(mongoUri);
+  const collection = mongo.db().collection<TravelRecord>('travel');
+  const original = await collection.findOne({ _id: 'travel' });
+
+  try {
+    await collection.replaceOne({ _id: 'travel' }, {
+      schemaVersion: 1,
+      selections: { ...travelSelections, countries: ['AU', 'JP'] },
+      version: 1,
+      updatedAt: null,
+    }, { upsert: true });
+
+    await page.goto('/admin/travel');
+    const status = page.getByRole('status', { name: '', exact: true });
+    const save = page.getByRole('button', { name: 'Save travel' });
+    const search = page.getByRole('searchbox', { name: 'Search places' });
+    await expect(status).toHaveText(/^Select places/);
+    await expect(save).toBeDisabled();
+
+    for (const { country, wasVisited } of [{ country: 'Canada', wasVisited: false }, { country: 'Australia', wasVisited: true }]) {
+      await search.fill(country);
+      const checkbox = page.getByRole('checkbox', { name: country, exact: true });
+      await expect(checkbox).toBeChecked({ checked: wasVisited });
+      await checkbox.setChecked(!wasVisited);
+      await expect(status).toHaveText('Unsaved changes');
+      await expect(save).toBeEnabled();
+      await checkbox.setChecked(wasVisited);
+      await expect(status).toHaveText(/^Select places/);
+      await expect(save).toBeDisabled();
+    }
+
+    expect(runtimeErrors).toEqual([]);
+    await captureScreenshot(page, testInfo, 'e2e-fixture-travel-restored.png');
+    await testInfo.attach('e2e-fixture-travel-restored.json', {
+      body: JSON.stringify({ status: await status.textContent(), saveDisabled: await save.isDisabled() }),
+      contentType: 'application/json',
+    });
+  } finally {
+    if (original) await collection.replaceOne({ _id: 'travel' }, original, { upsert: true });
+    else await collection.deleteOne({ _id: 'travel' });
+    await mongo.close();
+  }
+});
 
 test('travel selections persist across maps, mobile views, and public display', async ({ page }, testInfo) => {
   test.setTimeout(90_000);

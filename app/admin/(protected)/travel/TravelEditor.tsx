@@ -6,6 +6,7 @@ import { TravelMap } from '@/components/travel/TravelMap';
 import styles from './travel.module.css';
 
 type TravelRecord = { selections: TravelSelections; version: number; updatedAt: string | null };
+type EditorStatus = { state: 'ready' } | { state: 'loading' | 'saving' | 'saved' | 'error'; message: string };
 const TABS: { region: TravelRegion; label: string }[] = [
   { region: 'countries', label: 'Countries' },
   { region: 'usStates', label: 'US states' },
@@ -20,7 +21,7 @@ export default function TravelEditor() {
   const [version, setVersion] = useState<number | null>(null);
   const [initialSelections, setInitialSelections] = useState<TravelSelections | null>(null);
   const [query, setQuery] = useState('');
-  const [status, setStatus] = useState<{ state: 'loading' | 'ready' | 'saving' | 'saved' | 'error'; message: string }>({ state: 'loading', message: 'Loading visited locations…' });
+  const [status, setStatus] = useState<EditorStatus>({ state: 'loading', message: 'Loading visited locations…' });
 
   const load = useCallback(async () => {
     setStatus({ state: 'loading', message: 'Loading visited locations…' });
@@ -31,7 +32,7 @@ export default function TravelEditor() {
       setSelections(record.selections);
       setInitialSelections(record.selections);
       setVersion(record.version);
-      setStatus({ state: 'ready', message: 'Select places you have visited, then save to update the public map.' });
+      setStatus({ state: 'ready' });
     } catch (error) {
       setStatus({ state: 'error', message: error instanceof Error ? error.message : 'Unable to load visited locations. Try again.' });
     }
@@ -40,7 +41,16 @@ export default function TravelEditor() {
   useEffect(() => { void load(); }, [load]);
 
   const selectedCount = useMemo(() => Object.values(selections).reduce((sum, places) => sum + places.length, 0), [selections]);
-  const dirty = initialSelections !== null && JSON.stringify(selections) !== JSON.stringify(initialSelections);
+  const dirty = useMemo(() => initialSelections !== null && TABS.some(({ region }) => {
+    const current = selections[region];
+    const saved = initialSelections[region];
+    if (current.length !== saved.length) return true;
+    const savedCodes = new Set(saved);
+    return current.some((code) => !savedCodes.has(code));
+  }), [initialSelections, selections]);
+  const statusMessage = status.state === 'ready'
+    ? (dirty ? 'Unsaved changes' : 'Select places you have visited, then save to update the public map.')
+    : status.message;
   const places = useMemo(() => {
     const term = searchKey(query.trim());
     return TRAVEL_PLACES[region].filter((place: TravelPlace) => !term || [place.name, place.code, ...(place.aliases ?? [])].some((value) => searchKey(value).includes(term)));
@@ -65,7 +75,7 @@ export default function TravelEditor() {
       const selected = current[region];
       return { ...current, [region]: selected.includes(code) ? selected.filter((item) => item !== code) : [...selected, code] };
     });
-    setStatus({ state: 'ready', message: 'Unsaved changes' });
+    setStatus({ state: 'ready' });
   };
 
   const save = async () => {
@@ -94,7 +104,7 @@ export default function TravelEditor() {
 
   const clearAll = () => {
     setSelections(EMPTY);
-    setStatus({ state: 'ready', message: 'Unsaved changes' });
+    setStatus({ state: 'ready' });
   };
 
   return (
@@ -122,7 +132,7 @@ export default function TravelEditor() {
         </section>
       </div>
       <footer className={styles.footer}>
-        <p className={styles.status} data-state={status.state} role="status" aria-live="polite">{status.message}{dirty && status.state === 'error' ? ' · Unsaved changes' : ''}</p>
+        <p className={styles.status} data-state={status.state} role="status" aria-live="polite">{statusMessage}{dirty && status.state === 'error' ? ' · Unsaved changes' : ''}</p>
         <div className={styles.actions}>{status.state === 'error' && version === null ? <button type="button" className={styles.secondaryButton} onClick={() => void load()}>Try again</button> : null}{status.state === 'error' && version !== null ? <button type="button" className={styles.secondaryButton} onClick={() => void load()}>Reload latest</button> : null}<button type="button" className={styles.saveButton} onClick={() => void save()} disabled={!dirty || version === null || status.state === 'saving'}>Save travel</button></div>
       </footer>
     </section>
