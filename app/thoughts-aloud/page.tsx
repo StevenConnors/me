@@ -83,6 +83,29 @@ function remarkYouTubeEmbeds() {
   };
 }
 
+interface MarkdownSpacingNode {
+  type: string;
+  value?: string;
+  properties?: Record<string, unknown>;
+  children?: MarkdownSpacingNode[];
+}
+
+function rehypeEmbedSpacing() {
+  return (tree: MarkdownSpacingNode) => {
+    function removeSeparators(node: MarkdownSpacingNode) {
+      const children = node.children;
+      if (!children) return;
+      node.children = children.filter((child, index) => {
+        if (child.type !== 'text' || child.value !== '\n') return true;
+        return !children[index - 1]?.properties?.['data-youtube-id'] &&
+          !children[index + 1]?.properties?.['data-youtube-id'];
+      });
+      node.children.forEach(removeSeparators);
+    }
+    removeSeparators(tree);
+  };
+}
+
 export default function ThoughtsAloud() {
   const [thoughts, setThoughts] = useState<Thought[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -206,6 +229,7 @@ export default function ThoughtsAloud() {
                   <ReactMarkdown
                     key={i}
                     remarkPlugins={[remarkYouTubeEmbeds]}
+                    rehypePlugins={[rehypeEmbedSpacing]}
                     components={{
                       blockquote: ({ children }) => (
                         <blockquote className={styles['ta-blockquote']}>

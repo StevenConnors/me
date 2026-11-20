@@ -13,6 +13,7 @@ Before changing how `/thoughts-aloud` renders posts:
 - Bare YouTube URLs must still embed, including beside Markdown links. Code spans and fenced code must remain literal text.
 - Underscores inside bare YouTube IDs must not turn into Markdown emphasis or prevent the player from rendering.
 - Decoded entities and escaped characters before bare URLs must not truncate text after the player.
+- Bare YouTube players must keep the existing paragraph-to-player spacing without extra rendered separator lines.
 
 When `/api/thoughts` fails:
 

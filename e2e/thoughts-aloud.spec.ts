@@ -85,6 +85,11 @@ test('YouTube Markdown links stay inline while bare URLs embed', async ({ page }
     }
     await expect(article).toContainText('Watch this video now');
     await expect(article.locator('iframe')).toHaveCount(2);
+    const embedGap = await article.getByText('Bare:', { exact: true }).evaluate(paragraph => {
+      const wrapper = paragraph.nextElementSibling;
+      return wrapper ? wrapper.getBoundingClientRect().top - paragraph.getBoundingClientRect().bottom : null;
+    });
+    expect(embedGap).toBeCloseTo(17.6, 1);
     await expect(article.locator('p iframe, p div')).toHaveCount(0);
     await expect(article.locator('code')).toHaveCount(2);
     await expect(article.locator('strong')).toHaveText('bold');
