@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 
+import { keepTabFocusWithin } from './focusTrap';
 import styles from './mediaGrid.module.css';
 
 export type GalleryMediaKind = 'photo' | 'video';
@@ -32,12 +33,17 @@ export function MediaGrid({
 }) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const lightboxRef = useRef<HTMLDivElement>(null);
+  const openerRef = useRef<HTMLButtonElement | null>(null);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const activeItem = activeIndex === null ? null : items[activeIndex];
   const gridClassName = `${styles.grid} ${portrait ? styles.portraitGrid : ''}`;
   const groups = items.some((item) => item.group) ? groupItems(items) : null;
 
-  const close = useCallback(() => setActiveIndex(null), []);
+  const close = useCallback(() => {
+    setActiveIndex(null);
+    openerRef.current?.focus();
+  }, []);
   const showPrevious = useCallback(() => {
     setActiveIndex((current) => current === null ? 0 : (current - 1 + items.length) % items.length);
   }, [items.length]);
@@ -56,6 +62,7 @@ export function MediaGrid({
       if (event.key === 'Escape') close();
       if (event.key === 'ArrowLeft') showPrevious();
       if (event.key === 'ArrowRight') showNext();
+      keepTabFocusWithin(event, lightboxRef.current);
     };
 
     window.addEventListener('keydown', onKeyDown);
@@ -94,7 +101,10 @@ export function MediaGrid({
       className={styles.tile}
       data-kind={item.kind}
       key={item.id}
-      onClick={() => setActiveIndex(index)}
+      onClick={(event) => {
+        openerRef.current = event.currentTarget;
+        setActiveIndex(index);
+      }}
       style={{ aspectRatio: `${item.width} / ${item.height}` }}
       type="button"
     >
@@ -132,6 +142,7 @@ export function MediaGrid({
           onClick={(event) => {
             if (event.target === event.currentTarget) close();
           }}
+          ref={lightboxRef}
           role="dialog"
         >
           <button
