@@ -1,6 +1,6 @@
 import { stat } from 'node:fs/promises';
 import { MongoClient, ObjectId } from 'mongodb';
-import { fixtureDatabase, fixtureImage, fixtureJourney, fixturePhoto, fixtureThought } from './fixtures.mjs';
+import { fixtureDatabase, fixtureImage, fixtureJourney, fixturePhoto } from './fixtures.mjs';
 
 if (process.env.MONGODB_URI !== fixtureDatabase) {
   throw new Error(`Refusing to seed outside the disposable database: ${fixtureDatabase}`);
@@ -12,7 +12,6 @@ const id = (n) => n.toString(16).padStart(24, '0');
 const mediaId = id(1);
 const journeyId = new ObjectId(id(2));
 const revisionId = new ObjectId(id(3));
-const thoughtId = new ObjectId(id(4));
 const photoDocument = { schemaVersion: 1, blocks: [
   { id: id(5), type: 'media', mediaAssetId: mediaId, decorative: false, altText: fixturePhoto },
 ] };
@@ -52,8 +51,7 @@ try {
     _id: 'travel', schemaVersion: 1, version: 1, updatedAt: now,
     selections: { countries: ['JP', 'FR'], usStates: [], japanPrefectures: [] },
   });
-  await put('thoughts', { _id: thoughtId, text: fixtureThought, createdAt: now });
-  console.log('Seeded benchmark fixtures for Home, Photos, Travel and Thoughts Aloud.');
+  console.log('Seeded benchmark fixtures for Home, Photos and Travel.');
 } finally {
   await client.close();
 }

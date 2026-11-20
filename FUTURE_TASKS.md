@@ -72,8 +72,6 @@ A journey may be a full essay, a primarily visual sequence, or something in betw
 
 ## 9. Site and editorial follow-ups
 
-- Fix or intentionally retire the broken `thoughts aloud` experience and standardize its name.
-- Decide whether short thoughts are their own content type or a lightweight journey format.
 - Add intentional experienced, written, and published date presentation where useful.
 - Add quiet authorship credits and a lightweight copy-editing pass that preserves the personal voice.
 - Revisit progress or chapter indicators only after the Held Places reading flow is established.

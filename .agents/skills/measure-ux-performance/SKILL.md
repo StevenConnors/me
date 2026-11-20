@@ -21,7 +21,7 @@ Lab measurements answer "did this PR make pages slower?" They must compare **mas
 The script exits 1 on regression or on any HTTP ≥ 400 / page error.
 
 ## Routes for this repo
-`/`, `/photos`, `/travel`, `/glass`, `/thoughts-aloud`, plus one published journey `/stories/<slug>` and `/photos?photo=<id>` (viewer) when the change touches them. Add the route you changed if it is not listed.
+`/`, `/photos`, `/travel`, `/glass`, plus one published journey `/stories/<slug>` and `/photos?photo=<id>` (viewer) when the change touches them. Add the route you changed if it is not listed.
 
 ## Procedure
 1. Start a disposable DB and seed deterministic fixtures (same data for both builds):

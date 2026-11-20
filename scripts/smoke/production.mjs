@@ -2,7 +2,7 @@ import { parseArgs } from 'node:util';
 import { pathToFileURL } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
 
-export const routes = ['/api/health', '/', '/photos', '/travel', '/thoughts-aloud'];
+export const routes = ['/api/health', '/', '/photos', '/travel'];
 
 export async function smoke(baseUrl, expectSha, { fetcher = fetch, pause = delay, publicOrigin = '' } = {}) {
   const results = [];

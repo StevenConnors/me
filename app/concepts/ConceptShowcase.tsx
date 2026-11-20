@@ -25,7 +25,6 @@ function MarginConcept() {
       </header>
 
       <nav className={styles.sideNav} aria-label="Primary navigation">
-        <a href="/thoughts-aloud">thoughts aloud</a>
         <a href="/gallery">photos</a>
       </nav>
 
@@ -73,8 +72,7 @@ function FieldNotesConcept() {
       <section className={styles.fieldMasthead}>
         <h1>佑治</h1>
         <nav aria-label="Primary navigation">
-          <a href="/thoughts-aloud"><span>01</span> thoughts aloud</a>
-          <a href="/gallery"><span>02</span> photos</a>
+          <a href="/gallery"><span>01</span> photos</a>
         </nav>
       </section>
 
@@ -121,7 +119,7 @@ function AfterimageConcept() {
         <div className={styles.afterShade} />
         <header>
           <a href="/">佑治</a>
-          <nav><a href="/thoughts-aloud">THOUGHTS</a><span>/</span><a href="/gallery">PHOTOS</a></nav>
+          <nav><a href="/gallery">PHOTOS</a></nav>
         </header>
         <div className={styles.afterTitle}>
           <p>佑治</p>

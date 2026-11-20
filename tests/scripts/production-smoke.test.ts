@@ -38,8 +38,9 @@ describe('production smoke', () => {
         return url.pathname === '/api/health' ? health() : new Response('<html>OK</html>');
       },
     });
-    expect(results.map((row: { result: string }) => row.result)).toEqual(Array(5).fill('PASS'));
-    expect(calls).toBe(6);
+    expect(results.map((row: { route: string }) => row.route)).toEqual(['/api/health', '/', '/photos', '/travel']);
+    expect(results.map((row: { result: string }) => row.result)).toEqual(Array(4).fill('PASS'));
+    expect(calls).toBe(5);
   });
 
   it.each([
@@ -57,7 +58,7 @@ describe('production smoke', () => {
       fetcher: async (input: string | URL | Request) => new URL(input instanceof Request ? input.url : input).pathname === '/api/health'
         ? health() : new Response('<html id="__next_error__">error</html>'),
     });
-    expect(results).toHaveLength(5);
+    expect(results).toHaveLength(4);
     expect(results[0].result).toBe('PASS');
     expect(results.slice(1).every((row: { result: string }) => row.result === 'FAIL')).toBe(true);
   });
