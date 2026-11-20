@@ -4,10 +4,13 @@
 // Usage:
 //   node scripts/perf/perf-check.mjs --base-url http://127.0.0.1:3200 --routes /,/photos --runs 5 --out perf/current.json
 //   node scripts/perf/perf-check.mjs ... --baseline perf/baseline.json   # exits 1 on regression
-//   node scripts/perf/perf-check.mjs ... --image-timing 'main img'   # opt-in Element Timing, no product changes
+//   node scripts/perf/perf-check.mjs ... --image-timing 'main img' --width 390 --screenshot perf/photos.png
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
 import { chromium } from "@playwright/test";
+import { fixtureDatabase, fixtureJourney, fixturePhoto, fixtureThought } from "./fixtures.mjs";
+import { withFixtureServer } from "./owned-server.mjs";
+import { assertSample } from "./sample-guard.mjs";
 
 const args = Object.fromEntries(
   process.argv.slice(2).reduce((pairs, token, index, all) => {
@@ -15,11 +18,14 @@ const args = Object.fromEntries(
     return pairs;
   }, []),
 );
-const baseUrl = args["base-url"] ?? "http://127.0.0.1:3200";
+const port = Number(args.port ?? 3200);
+const appDir = args["app-dir"];
+const baseUrl = args["base-url"] ?? `http://127.0.0.1:${port}`;
 const routes = (args.routes ?? "/").split(",").map((route) => route.trim()).filter(Boolean);
 const runs = Number(args.runs ?? 5);
 const profile = args.profile ?? "mobile";
 const storageState = args["storage-state"];
+const width = args.width === undefined ? undefined : Number(args.width);
 
 // Lighthouse-like "Slow 4G" mobile profile; desktop is unthrottled.
 const PROFILES = {
@@ -69,9 +75,29 @@ const IMAGE_OBSERVER = (selector) => {
   register();
 };
 
-async function measure(browser, route) {
+async function missingFixture(page, route) {
+  if (route === "/" || route === "/photos") {
+    const photo = page.getByAltText(fixturePhoto, { exact: true });
+    if (!await photo.isVisible() || !await photo.evaluate((image) => image.complete && image.naturalWidth > 0)) {
+      return "loaded fixture photo";
+    }
+  }
+  if (route === "/" && !await page.getByText(fixtureJourney, { exact: true }).isVisible()) {
+    return "published fixture journey";
+  }
+  if (route === "/travel" && !await page.getByRole("list", { name: "Visited places" })
+    .getByRole("link", { name: fixtureJourney, exact: true }).isVisible()) {
+    return "visited place with the fixture journey";
+  }
+  if (route === "/thoughts-aloud" && !await page.getByRole("article").getByText(fixtureThought, { exact: true }).isVisible()) {
+    return "published fixture thought";
+  }
+  return "";
+}
+
+async function measure(browser, origin, route) {
   const settings = PROFILES[profile];
-  const viewport = { ...settings.viewport, ...(args.width ? { width: Number(args.width) } : {}) };
+  const viewport = { ...settings.viewport, ...(width === undefined ? {} : { width }) };
   const context = await browser.newContext({ ...settings, viewport, cpu: undefined, network: undefined, storageState });
   const page = await context.newPage();
   const cdp = await context.newCDPSession(page);
@@ -89,10 +115,14 @@ async function measure(browser, route) {
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.addInitScript(OBSERVER);
-  if (args['image-timing']) await page.addInitScript(IMAGE_OBSERVER, args['image-timing']);
-  const response = await page.goto(new URL(route, baseUrl).toString(), { waitUntil: "load", timeout: 120_000 });
+  if (args["image-timing"]) await page.addInitScript(IMAGE_OBSERVER, args["image-timing"]);
+  const response = await page.goto(new URL(route, origin).toString(), { waitUntil: "load", timeout: 120_000 });
+  const status = response?.status() ?? 0;
+  assertSample({ route, status, errors });
   await page.waitForLoadState("networkidle", { timeout: 30_000 }).catch(() => {});
   await page.waitForTimeout(1_000);
+  const missing = appDir ? await missingFixture(page, route) : "";
+  assertSample({ route, status, errors, missingFixture: missing });
   const metrics = await page.evaluate(() => {
     const nav = performance.getEntriesByType("navigation")[0];
     const fcp = performance.getEntriesByName("first-contentful-paint")[0]?.startTime ?? 0;
@@ -112,40 +142,70 @@ async function measure(browser, route) {
   const imageTiming = args['image-timing'] ? await page.evaluate(() => window.__imageTiming) : undefined;
   if (args.screenshot) await page.screenshot({ path: args.screenshot, fullPage: true });
   await context.close();
-  return { status: response?.status() ?? 0, ...metrics, jsBytes: bytes.js, totalBytes: bytes.total, errors, images,
+  return { status, ...metrics, jsBytes: bytes.js, totalBytes: bytes.total, errors, images,
     ...(imageTiming ? { imageTiming } : {}) };
 }
 
 const median = (values) => { const sorted = [...values].sort((a, b) => a - b); const mid = sorted.length >> 1; return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2; };
 const KEYS = ["ttfb", "fcp", "lcp", "cls", "tbt", "jsBytes", "totalBytes"];
 
-const browser = await chromium.launch();
-const result = { baseUrl, profile, runs, measuredAt: new Date().toISOString(), routes: {} };
-for (const route of routes) {
-  await measure(browser, route); // warm the server (JIT, connection pools); not recorded
-  const samples = [];
-  for (let run = 0; run < runs; run += 1) samples.push(await measure(browser, route));
-  const summary = Object.fromEntries(KEYS.map((key) => [key, Number(median(samples.map((sample) => sample[key])).toFixed(key === "cls" ? 4 : 0))]));
-  result.routes[route] = { ...summary, samples, statuses: [...new Set(samples.map((s) => s.status))], errors: [...new Set(samples.flatMap((s) => s.errors))] };
+async function collect(browser, origin) {
+  const result = { baseUrl: origin, profile, runs, measuredAt: new Date().toISOString(), routes: {} };
+  for (const route of routes) {
+    await measure(browser, origin, route); // warm the server (JIT, connection pools); not recorded
+    const samples = [];
+    for (let run = 0; run < runs; run += 1) samples.push(await measure(browser, origin, route));
+    const summary = Object.fromEntries(KEYS.map((key) => [key, Number(median(samples.map((sample) => sample[key])).toFixed(key === "cls" ? 4 : 0))]));
+    result.routes[route] = { ...summary, samples, statuses: [200], errors: [] };
+    if (appDir) console.log(`Verified ${route} returned HTTP 200 with seeded content on all ${runs + 1} loads.`);
+  }
+  return result;
 }
-await browser.close();
 
-if (args.out) { await mkdir(dirname(args.out), { recursive: true }); await writeFile(args.out, `${JSON.stringify(result, null, 2)}\n`); }
-
-const baseline = args.baseline ? JSON.parse(await readFile(args.baseline, "utf8")) : null;
-const regressions = [];
-const fmt = (key, value) => value === undefined ? "–" : key === "cls" ? value.toFixed(3) : key.endsWith("Bytes") ? `${(value / 1024).toFixed(1)} KB` : `${Math.round(value)} ms`;
-console.log(`\n### UX performance (${profile}, median of ${runs} cold loads)\n`);
-console.log(`| Route | Metric | ${baseline ? "Baseline | " : ""}Current | Status |`);
-console.log(`| --- | --- | ${baseline ? "--- | " : ""}--- | --- |`);
-for (const [route, current] of Object.entries(result.routes)) {
-  if (current.errors.length || current.statuses.some((status) => status >= 400)) regressions.push(`${route}: HTTP ${current.statuses.join(",")} errors=${current.errors.length}`);
-  for (const key of KEYS) {
-    const before = baseline?.routes?.[route]?.[key];
-    const limit = before === undefined ? undefined : before + Math.max(before * TOLERANCE[key].rel, TOLERANCE[key].abs);
-    const regressed = limit !== undefined && current[key] > limit;
-    if (regressed) regressions.push(`${route} ${key}: ${fmt(key, before)} -> ${fmt(key, current[key])}`);
-    console.log(`| ${route} | ${key} | ${baseline ? `${fmt(key, before)} | ` : ""}${fmt(key, current[key])} | ${regressed ? "REGRESSED" : "ok"} |`);
+async function run() {
+  if (appDir && (process.env.MONGODB_URI !== fixtureDatabase || args["base-url"])) {
+    throw new Error(`Refusing to compare: --app-dir requires the disposable database ${fixtureDatabase} and an owned URL`);
+  }
+  if (!Number.isInteger(port) || port < 1 || port > 65535 || !Number.isInteger(runs) || runs < 1 || !PROFILES[profile] || (width !== undefined && (!Number.isInteger(width) || width < 1))) {
+    throw new Error("Refusing to compare: invalid port, runs, profile, or width");
+  }
+  if (!routes.length || (appDir && routes.some((route) => !["/", "/photos", "/travel", "/thoughts-aloud"].includes(route)))) {
+    throw new Error("Refusing to compare: no fixture check for the requested routes");
+  }
+  const browser = await chromium.launch();
+  try {
+    const result = appDir ? await withFixtureServer(appDir, port, (origin) => collect(browser, origin)) : await collect(browser, baseUrl);
+    await report(result);
+  } finally {
+    await browser.close();
   }
 }
-if (regressions.length) { console.error(`\nPerformance regressions:\n- ${regressions.join("\n- ")}`); process.exit(1); }
+
+async function report(result) {
+  if (args.out) { await mkdir(dirname(args.out), { recursive: true }); await writeFile(args.out, `${JSON.stringify(result, null, 2)}\n`); }
+  const baseline = args.baseline ? JSON.parse(await readFile(args.baseline, "utf8")) : null;
+  const regressions = [];
+  const fmt = (key, value) => value === undefined ? "–" : key === "cls" ? value.toFixed(3) : key.endsWith("Bytes") ? `${(value / 1024).toFixed(1)} KB` : `${Math.round(value)} ms`;
+  console.log(`\n### UX performance (${profile}, median of ${runs} cold loads)\n`);
+  console.log(`| Route | Metric | ${baseline ? "Baseline | " : ""}Current | Status |`);
+  console.log(`| --- | --- | ${baseline ? "--- | " : ""}--- | --- |`);
+  for (const [route, current] of Object.entries(result.routes)) {
+    for (const key of KEYS) {
+      const before = baseline?.routes?.[route]?.[key];
+      const limit = before === undefined ? undefined : before + Math.max(before * TOLERANCE[key].rel, TOLERANCE[key].abs);
+      const regressed = limit !== undefined && current[key] > limit;
+      if (regressed) regressions.push(`${route} ${key}: ${fmt(key, before)} -> ${fmt(key, current[key])}`);
+      console.log(`| ${route} | ${key} | ${baseline ? `${fmt(key, before)} | ` : ""}${fmt(key, current[key])} | ${regressed ? "REGRESSED" : "ok"} |`);
+    }
+  }
+  if (regressions.length) {
+    console.error(`\nPerformance regressions:\n- ${regressions.join("\n- ")}`);
+    if (args["advisory-regressions"]) console.log("::warning::Valid benchmark found performance regressions; see the comparison table.");
+    else process.exitCode = 1;
+  }
+}
+
+await run().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});
