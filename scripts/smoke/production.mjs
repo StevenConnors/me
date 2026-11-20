@@ -72,8 +72,12 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     const baseUrl = new URL(values['base-url']);
     if (!['http:', 'https:'].includes(baseUrl.protocol)) throw new Error('Expected HTTP(S) base URL');
     console.log(`Smoke: ${baseUrl.origin}`);
-    const publicOrigin = new URL(values['public-origin']).origin;
-    if (!publicOrigin.startsWith('https://') && !publicOrigin.startsWith('http://')) throw new Error('Expected HTTP(S) public origin');
+    let publicOrigin;
+    if (values['public-origin'] !== undefined) {
+      const publicUrl = new URL(values['public-origin']);
+      if (!['http:', 'https:'].includes(publicUrl.protocol)) throw new Error('Expected HTTP(S) public origin');
+      publicOrigin = publicUrl.origin;
+    }
     const results = await smoke(baseUrl, values['expect-sha'], { publicOrigin });
     console.table(results);
     process.exitCode = results.some(({ result }) => result === 'FAIL') ? 1 : 0;

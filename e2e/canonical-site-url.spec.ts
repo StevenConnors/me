@@ -1,6 +1,8 @@
 import { expect, test } from '@playwright/test';
 import { MongoClient, ObjectId } from 'mongodb';
 
+import { resolveSiteUrl } from '../lib/site-url';
+
 test('published journal canonical uses the configured public origin', async ({ page }) => {
   const client = await MongoClient.connect(process.env.E2E_MONGODB_URI ?? 'mongodb://127.0.0.1:27018/journey_editor_e2e');
   const db = client.db();
@@ -16,7 +18,7 @@ test('published journal canonical uses the configured public origin', async ({ p
   try {
     await db.collection('journey_revisions').insertOne({ _id: revisionId, journeyId: id, sequence: 1, schemaVersion: 1, reason: 'published', document, metadataSnapshot: metadata, createdAt: now });
     await db.collection('journeys').insertOne({ _id: id, schemaVersion: 1, ...metadata, status: 'published', draftDocument: document, editVersion: 1, publishedRevisionId: revisionId, firstPublishedAt: now, publishedAt: now, createdAt: now, updatedAt: now });
-    const expectedOrigin = process.env.NEXT_PUBLIC_SITE_URL || (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : 'http://localhost:3000');
+    const expectedOrigin = resolveSiteUrl().origin;
     for (const width of [1280, 390]) {
       await page.setViewportSize({ width, height: 844 });
       expect((await page.goto(`/stories/${slug}`))?.status()).toBe(200);
