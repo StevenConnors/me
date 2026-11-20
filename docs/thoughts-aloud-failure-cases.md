@@ -12,3 +12,4 @@ Before changing how `/thoughts-aloud` renders posts:
 - YouTube Markdown links (inline, reference and angle autolinks) must stay inline links with their labels, open in a new tab safely, and never create an iframe inside a paragraph.
 - Bare YouTube URLs must still embed, including beside Markdown links. Code spans and fenced code must remain literal text.
 - Underscores inside bare YouTube IDs must not turn into Markdown emphasis or prevent the player from rendering.
+- Decoded entities and escaped characters before bare URLs must not truncate text after the player.

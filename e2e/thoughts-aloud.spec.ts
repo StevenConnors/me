@@ -103,6 +103,16 @@ test('YouTube Markdown links stay inline while bare URLs embed', async ({ page }
     for (const videoId of ['_abcdefghi_', '_abc_-defgh']) {
       await expect(underscoreArticle.locator(`iframe[src="https://www.youtube.com/embed/${videoId}"]`)).toHaveCount(1);
     }
+    for (const prefix of ['&amp;', '\\*']) {
+      await mongo.db().collection('thoughts').updateOne({ _id: id }, { $set: {
+        text: `${prefix} https://youtu.be/dQw4w9WgXcQ tail`,
+      } });
+      await page.reload();
+      const decodedArticle = page.locator('article').filter({ has: page.locator('iframe') });
+      await expect(decodedArticle.locator('iframe')).toHaveCount(1);
+      await expect(decodedArticle.locator('p').first()).toHaveText(prefix === '&amp;' ? '&' : '*');
+      await expect(decodedArticle.locator('p').last()).toHaveText('tail');
+    }
     expect(errors).toEqual([]);
   } finally {
     await mongo.db().collection('thoughts').deleteOne({ _id: id });
