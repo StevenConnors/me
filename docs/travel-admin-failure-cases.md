@@ -12,5 +12,6 @@ Before implementation, account for these failure modes:
 - A save fails after the user edits selections; retain the complete local selection state and keep the unsaved indicator.
 - A save succeeds but response parsing or UI update fails; avoid clearing local edits before confirming the canonical server response.
 - Clearing selections is a valid explicit edit; persist an empty selection object without inventing historical visits.
+- Reverting all edits leaves “Unsaved changes” visible or Save travel enabled; clear the indicator and disable Save travel once the selections match, regardless of toggle order.
 - Search has no matches or aliases match; show an accessible empty state and include aliases in filtering.
 - Keyboard or touch interaction toggles a place; expose native checkbox semantics and sufficiently large targets.
