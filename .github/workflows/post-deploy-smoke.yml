@@ -33,7 +33,7 @@ jobs:
           BASE_URL: ${{ github.event.deployment_status.environment_url || inputs.base_url }}
           EXPECT_SHA: ${{ github.event.deployment.sha }}
         run: |
-          args=(--base-url "$BASE_URL" --public-origin "https://me-indol.vercel.app")
+          args=(--base-url "$BASE_URL" --public-origin "https://yujitanaka.com")
           if [ -n "$EXPECT_SHA" ]; then args+=(--expect-sha "$EXPECT_SHA"); fi
           node scripts/smoke/production.mjs "${args[@]}"
       - name: Record result on deployed commit
