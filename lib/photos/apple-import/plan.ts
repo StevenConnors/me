@@ -1,0 +1,136 @@
+import type { PhotosMediaBlock, PhotosPageBlock, PhotosPageDocument } from '@/lib/photos/schemas';
+
+import type {
+  ApplePhotosImportedAlbum,
+  ApplePhotosImportedPhoto,
+  ApplePhotosSyncRequest,
+} from './schemas';
+
+export type ApplePhotosSyncSummary = {
+  albumsAdded: number;
+  photosAdded: number;
+  photosUpdated: number;
+  photosRemoved: number;
+  sectionsRemoved: number;
+  duplicatePhotoIds: string[];
+};
+
+export type ApplePhotosSyncPlan = {
+  document: PhotosPageDocument;
+  albums: ApplePhotosImportedAlbum[];
+  photos: ApplePhotosImportedPhoto[];
+  summary: ApplePhotosSyncSummary;
+};
+
+/** Index after the last block of the section run that starts at `sectionIndex`. */
+function runEnd(blocks: PhotosPageBlock[], sectionIndex: number): number {
+  const next = blocks.findIndex((block, index) => index > sectionIndex && block.type === 'section');
+  return next === -1 ? blocks.length : next;
+}
+
+function runMedia(blocks: PhotosPageBlock[], sectionId: string): PhotosMediaBlock[] {
+  const sectionIndex = blocks.findIndex((block) => block.id === sectionId);
+  if (sectionIndex === -1) return [];
+  return blocks
+    .slice(sectionIndex + 1, runEnd(blocks, sectionIndex))
+    .filter((block): block is PhotosMediaBlock => block.type === 'media');
+}
+
+/**
+ * Merge the Photos.app folder into the draft without undoing author edits:
+ * blocks the author moved, retitled or annotated keep their place and copy.
+ * Only blocks this import created are swapped or removed.
+ */
+export function planApplePhotosSync(input: {
+  document: PhotosPageDocument;
+  albums: ApplePhotosImportedAlbum[];
+  photos: ApplePhotosImportedPhoto[];
+  request: ApplePhotosSyncRequest;
+  createId: () => string;
+}): ApplePhotosSyncPlan {
+  const blocks: PhotosPageBlock[] = [...input.document.blocks];
+  const sectionIdByAlbum = new Map(input.albums.map((album) => [album.sourceAlbumId, album.sectionBlockId]));
+  const previousPhotos = new Map(input.photos.map((photo) => [photo.sourcePhotoId, photo]));
+  const nextPhotos = new Map(previousPhotos);
+  const nextAlbums: ApplePhotosImportedAlbum[] = [];
+  const syncedPhotoIds = new Set<string>();
+  const summary: ApplePhotosSyncSummary = {
+    albumsAdded: 0, photosAdded: 0, photosUpdated: 0, photosRemoved: 0, sectionsRemoved: 0, duplicatePhotoIds: [],
+  };
+
+  for (const album of input.request.albums) {
+    const sectionBlockId = sectionIdByAlbum.get(album.sourceAlbumId) ?? input.createId();
+    nextAlbums.push({ sourceAlbumId: album.sourceAlbumId, sectionBlockId });
+    if (!blocks.some((block) => block.id === sectionBlockId)) {
+      blocks.push({ id: sectionBlockId, type: 'section', title: album.title });
+      summary.albumsAdded += 1;
+    }
+
+    for (const photo of album.photos) {
+      if (syncedPhotoIds.has(photo.sourcePhotoId)) {
+        summary.duplicatePhotoIds.push(photo.sourcePhotoId);
+        continue;
+      }
+      syncedPhotoIds.add(photo.sourcePhotoId);
+      const previousBlockId = previousPhotos.get(photo.sourcePhotoId)?.blockId;
+      const existingIndex = blocks.findIndex((block) => block.type === 'media'
+        && (block.id === previousBlockId || block.mediaAssetId === photo.mediaAssetId));
+      const existing = blocks[existingIndex];
+
+      if (existing?.type === 'media') {
+        if (existing.mediaAssetId !== photo.mediaAssetId) {
+          blocks[existingIndex] = { ...existing, mediaAssetId: photo.mediaAssetId };
+          summary.photosUpdated += 1;
+        }
+        nextPhotos.set(photo.sourcePhotoId, { ...photo, blockId: existing.id });
+        continue;
+      }
+
+      const coverTaken = runMedia(blocks, sectionBlockId).some((block) => block.albumRole === 'cover');
+      const block: PhotosMediaBlock = {
+        id: input.createId(),
+        type: 'media',
+        mediaAssetId: photo.mediaAssetId,
+        decorative: false,
+        ...(photo.caption ? { caption: photo.caption } : {}),
+        ...(photo.altText ? { altText: photo.altText } : {}),
+        ...(photo.cover && !coverTaken ? { albumRole: 'cover' as const } : {}),
+      };
+      blocks.splice(runEnd(blocks, blocks.findIndex((candidate) => candidate.id === sectionBlockId)), 0, block);
+      nextPhotos.set(photo.sourcePhotoId, { ...photo, blockId: block.id });
+      summary.photosAdded += 1;
+    }
+  }
+
+  for (const previous of Array.from(previousPhotos.values())) {
+    if (syncedPhotoIds.has(previous.sourcePhotoId) || !previous.blockId) continue;
+    const index = blocks.findIndex((block) => block.id === previous.blockId);
+    if (index !== -1) {
+      blocks.splice(index, 1);
+      summary.photosRemoved += 1;
+    }
+    const { blockId: _removed, ...unplaced } = previous;
+    nextPhotos.set(previous.sourcePhotoId, unplaced);
+  }
+
+  const importedSectionIds = Array.from(new Set([...input.albums, ...nextAlbums].map((album) => album.sectionBlockId)));
+  for (const sectionId of importedSectionIds) {
+    const index = blocks.findIndex((block) => block.id === sectionId);
+    if (index !== -1 && runMedia(blocks, sectionId).length === 0) {
+      blocks.splice(index, 1);
+      summary.sectionsRemoved += 1;
+    }
+  }
+
+  return {
+    document: { ...input.document, blocks },
+    albums: nextAlbums,
+    photos: Array.from(nextPhotos.values()).map((photo) => ({
+      sourcePhotoId: photo.sourcePhotoId,
+      sourceVersion: photo.sourceVersion,
+      mediaAssetId: photo.mediaAssetId,
+      ...(photo.blockId ? { blockId: photo.blockId } : {}),
+    })),
+    summary,
+  };
+}
