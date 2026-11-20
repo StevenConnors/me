@@ -11,6 +11,12 @@
   font-size: 1.5rem;
   margin-bottom: 2rem;
 }
+.ta-empty {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  color: #888;
+}
 .ta-article {
   margin-bottom: 2rem;
   opacity: 0.95;
