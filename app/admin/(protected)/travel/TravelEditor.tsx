@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState, type KeyboardEvent } from 'react';
 import { TRAVEL_PLACES, type TravelPlace, type TravelRegion, type TravelSelections } from '@/lib/travel/catalog';
 import { TravelMap } from '@/components/travel/TravelMap';
+import { useUnsavedChangesGuard } from '@/lib/client/use-unsaved-changes-guard';
 import styles from './travel.module.css';
 
 type TravelRecord = { selections: TravelSelections; version: number; updatedAt: string | null };
@@ -48,6 +49,7 @@ export default function TravelEditor() {
     const savedCodes = new Set(saved);
     return current.some((code) => !savedCodes.has(code));
   }), [initialSelections, selections]);
+  useUnsavedChangesGuard(() => dirty, 'This travel map has unsaved changes. Leave and discard them?');
   const statusMessage = status.state === 'ready'
     ? (dirty ? 'Unsaved changes' : 'Select places you have visited, then save to update the public map.')
     : status.message;
