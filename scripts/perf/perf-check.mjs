@@ -10,7 +10,7 @@ import { dirname } from "node:path";
 import { chromium } from "@playwright/test";
 import { fixtureDatabase, fixtureJourney, fixturePhoto, fixtureThought } from "./fixtures.mjs";
 import { withFixtureServer } from "./owned-server.mjs";
-import { assertSample } from "./sample-guard.mjs";
+import { assertMeasurementIdentity, assertSample } from "./sample-guard.mjs";
 
 const args = Object.fromEntries(
   process.argv.slice(2).reduce((pairs, token, index, all) => {
@@ -150,7 +150,8 @@ const median = (values) => { const sorted = [...values].sort((a, b) => a - b); c
 const KEYS = ["ttfb", "fcp", "lcp", "cls", "tbt", "jsBytes", "totalBytes"];
 
 async function collect(browser, origin) {
-  const result = { baseUrl: origin, profile, runs, measuredAt: new Date().toISOString(), routes: {} };
+  const viewport = { ...PROFILES[profile].viewport, ...(width === undefined ? {} : { width }) };
+  const result = { baseUrl: origin, profile, viewport, runs, measuredAt: new Date().toISOString(), routes: {} };
   for (const route of routes) {
     await measure(browser, origin, route); // warm the server (JIT, connection pools); not recorded
     const samples = [];
@@ -184,6 +185,7 @@ async function run() {
 async function report(result) {
   if (args.out) { await mkdir(dirname(args.out), { recursive: true }); await writeFile(args.out, `${JSON.stringify(result, null, 2)}\n`); }
   const baseline = args.baseline ? JSON.parse(await readFile(args.baseline, "utf8")) : null;
+  if (baseline) assertMeasurementIdentity(result, baseline);
   const regressions = [];
   const fmt = (key, value) => value === undefined ? "–" : key === "cls" ? value.toFixed(3) : key.endsWith("Bytes") ? `${(value / 1024).toFixed(1)} KB` : `${Math.round(value)} ms`;
   console.log(`\n### UX performance (${profile}, median of ${runs} cold loads)\n`);
