@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { MongoClient, ObjectId } from 'mongodb';
+import { Collection, MongoClient, ObjectId } from 'mongodb';
 import { NextRequest } from 'next/server';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -22,6 +22,25 @@ describe.skipIf(!uri)('thoughts API with disposable MongoDB', () => {
     const { GET } = await import('../app/api/thoughts/route');
     return GET(new NextRequest(`http://localhost/api/thoughts${query}`));
   }
+
+  it('serves thoughts when index creation fails and retries on the next request', async () => {
+    await client.db().collection('thoughts').insertOne({ text: 'Still available', createdAt: new Date() });
+    const error = new Error('not authorized to create index');
+    const createIndex = vi.spyOn(Collection.prototype, 'createIndex').mockRejectedValueOnce(error);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const response = await get();
+      expect(response.status).toBe(200);
+      const page = await response.json();
+      expect(page.data.map((thought: { text: string }) => thought.text)).toEqual(['Still available']);
+      expect(warn).toHaveBeenCalledWith('Unable to create thoughts pagination index; continuing without it', error);
+      expect((await get()).status).toBe(200);
+      expect(createIndex).toHaveBeenCalledTimes(2);
+    } finally {
+      createIndex.mockRestore();
+      warn.mockRestore();
+    }
+  });
 
   it('reaches all 51 timestamp ties exactly once in descending ID order', async () => {
     const ids = Array.from({ length: 51 }, () => new ObjectId());

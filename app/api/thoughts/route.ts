@@ -52,12 +52,12 @@ export async function GET(request: NextRequest) {
     const collection = db.collection('thoughts');
     console.log('Collection accessed, querying thoughts...');
 
-    thoughtsIndexReady ??= collection.createIndex({ createdAt: -1, _id: -1 }, { name: 'thoughts_created_at_id' });
     try {
+      thoughtsIndexReady ??= collection.createIndex({ createdAt: -1, _id: -1 }, { name: 'thoughts_created_at_id' });
       await thoughtsIndexReady;
     } catch (error) {
       thoughtsIndexReady = undefined;
-      throw error;
+      console.warn('Unable to create thoughts pagination index; continuing without it', error);
     }
 
     let query: Filter<ThoughtInput> = {};
