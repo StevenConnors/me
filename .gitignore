@@ -117,3 +117,5 @@ dist
 
 # local UX performance results
 .perf/
+
+__pycache__/
