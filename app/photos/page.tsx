@@ -21,7 +21,7 @@ export default async function PhotosPage() {
       PhotosPageRepository.connect(),
       Promise.resolve(getCloudinaryMediaProvider()),
     ]);
-    const page = await loadPublicPhotosPage(await photosPageRepository.get(), mediaRepository, provider, { limit: 24 });
+    const page = await loadPublicPhotosPage(await photosPageRepository.get(), mediaRepository, provider, { limit: 24, withCovers: true });
     photos = page.items;
     if (page.unavailable.length) console.error('Photos page skipped unavailable published media', page.unavailable);
     return (
