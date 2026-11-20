@@ -81,4 +81,25 @@ describe('ApplePhotosImportService.sync', () => {
     expect(pages.page.draftDocument.blocks.map((block) => block.type === 'section' ? block.title : block.mediaAssetId))
       .toEqual(['Earlier', 'm0', 'Kumano', 'm1']);
   });
+
+  it('still removes photos that left the folder when an author save lands mid-sync', async () => {
+    const imports = new MemoryImports();
+    const pages = new RacingPhotosPages([authorSection], 0);
+    await service(pages, imports).sync(request);
+    pages.racesLeft = 1;
+
+    await service(pages, imports).sync({ albums: [] });
+    expect(pages.page.draftDocument.blocks.map((block) => block.type === 'section' ? block.title : block.mediaAssetId))
+      .toEqual(['Author title']);
+  });
+});
+
+describe('ApplePhotosImportService.manifest', () => {
+  it('leaves out uploads that were deleted from the media library so the script uploads them again', async () => {
+    const imports = new MemoryImports();
+    const pages = new RacingPhotosPages([], 0);
+    await service(pages, imports).sync(request);
+    const withoutMedia = new ApplePhotosImportService(imports, pages, { findByIds: async () => [] });
+    await expect(withoutMedia.manifest()).resolves.toEqual({ photos: [] });
+  });
 });

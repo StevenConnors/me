@@ -12,10 +12,12 @@ Before letting a script on the author's Mac sync a Photos.app folder into the Ph
 - A photo the author moved into another section or retitled section is moved back or retitled by the next sync.
 - A photo that is no longer in the synced folder stays in the draft, or its media asset is deleted from the library.
 - An album removed from the synced folder leaves an empty section that blocks publishing.
-- An album with a photo marked as cover does not get that photo as its cover, or overrides a cover the author already chose.
+- An album with a photo marked as cover does not get that photo as its cover, or overrides a cover the author already chose. A cover that leaves the album blocks the new cover photo.
+- A block the author placed with an imported upload is taken over by the sync, then swapped or removed when the photo changes in Photos.app.
 - The same photo in two synced albums makes the draft invalid (a media asset may appear only once).
 - A sync naming a media asset that does not exist, is a video, or is not ready is written to the draft.
 - A sync that would exceed 500 photos or 100 sections returns a 500 or partly writes the draft instead of a 400 with a message.
 - The sync publishes the page or changes the published document.
-- A sync running while the author saves in the editor overwrites the author's change instead of retrying on top of it.
+- A sync running while the author saves in the editor overwrites the author's change instead of retrying on top of it, or loses the photos and sections it was removing.
+- The manifest still lists an upload deleted from the media library, so the script never uploads it again and every sync fails.
 - Performance: the import adds requests or JavaScript to public pages.

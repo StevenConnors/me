@@ -104,7 +104,37 @@ describe('planApplePhotosSync', () => {
       request: request([{ id: 'kumano', title: 'Kumano', photos: [['p1', 'v1', 'm1']] }]) });
     expect(summarize(next.document)).toEqual(['section:Earlier', 'author-media', 'section:Kumano', 'm1']);
     expect(next.summary).toMatchObject({ photosRemoved: 2, sectionsRemoved: 1 });
-    expect(next.photos.find((photo) => photo.sourcePhotoId === 'p3')).toEqual({ sourcePhotoId: 'p3', sourceVersion: 'v1', mediaAssetId: 'm3' });
+    expect(next.photos.find((photo) => photo.sourcePhotoId === 'p3')).toMatchObject({ sourcePhotoId: 'p3', sourceVersion: 'v1', mediaAssetId: 'm3' });
+
+    // A draft that missed the removal (author save, crash) is still cleaned up by the next sync.
+    const retried = planApplePhotosSync({ ...next, document: first.document, createId,
+      request: request([{ id: 'kumano', title: 'Kumano', photos: [['p1', 'v1', 'm1']] }]) });
+    expect(summarize(retried.document)).toEqual(['section:Earlier', 'author-media', 'section:Kumano', 'm1']);
+  });
+
+  it('never takes over an author block that shows the same upload', () => {
+    const document: PhotosPageDocument = { schemaVersion: 1, blocks: [{ id: 'mine', type: 'media', mediaAssetId: 'm1', decorative: false }] };
+    const createId = ids();
+    const first = planApplePhotosSync({ document, albums: [], photos: [], createId,
+      request: request([{ id: 'kumano', title: 'Kumano', photos: [['p1', 'v1', 'm1']] }]) });
+    expect(first.document.blocks.filter((block) => block.type === 'media')).toEqual([document.blocks[0]]);
+
+    const edited = planApplePhotosSync({ ...first, createId,
+      request: request([{ id: 'kumano', title: 'Kumano', photos: [['p1', 'v2', 'm1-edit']] }]) });
+    expect(edited.document.blocks.find((block) => block.id === 'mine')).toEqual(document.blocks[0]);
+
+    const removed = planApplePhotosSync({ ...edited, createId, request: request([]) });
+    expect(removed.document.blocks).toEqual(document.blocks);
+  });
+
+  it('gives the cover to a new cover photo when the old cover leaves the album', () => {
+    const document: PhotosPageDocument = { schemaVersion: 1, blocks: [] };
+    const createId = ids();
+    const first = planApplePhotosSync({ document, albums: [], photos: [], createId,
+      request: request([{ id: 'kumano', title: 'Kumano', photos: [['p1', 'v1', 'm1', true], ['p2', 'v1', 'm2']] }]) });
+    const next = planApplePhotosSync({ ...first, createId,
+      request: request([{ id: 'kumano', title: 'Kumano', photos: [['p2', 'v1', 'm2'], ['p3', 'v1', 'm3', true]] }]) });
+    expect(summarize(next.document)).toEqual(['section:Kumano', 'm2', 'm3:cover']);
   });
 
   it('keeps an author-chosen cover and places a photo in two albums only once', () => {
