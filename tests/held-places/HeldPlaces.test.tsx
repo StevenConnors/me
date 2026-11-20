@@ -36,7 +36,7 @@ describe('HeldPlacesIndex', () => {
       .toEqual(expected.map((slug) => `/stories/${slug}`));
     expect(archive?.querySelector('h2 + span')).toHaveTextContent(String(expected.length).padStart(2, '0'));
     expect(screen.queryByText('Read the original journey.')).not.toBeInTheDocument();
-    expect(archive?.querySelector('a[href="/stories/dfw-okc"] [data-journey-meta]')).toHaveTextContent('August 2024 — August 2024');
+    expect(archive?.querySelector('a[href="/stories/dfw-okc"] [data-journey-meta]')).toHaveTextContent('August 2024');
     for (const slug of ['poc', 'dfw-okc', 'newpoc']) {
       if (journeys.some((journey) => journey.slug === slug)) continue;
       expect(archive?.querySelector(`a[href="/stories/${slug}"] [class*="archiveSummary"]`)).toBeEmptyDOMElement();
@@ -49,6 +49,16 @@ describe('HeldPlacesIndex', () => {
     expect(screen.getByText('New journeys are being prepared.')).toBeInTheDocument();
     rerender(<HeldPlacesIndex journeys={[]} photos={[]} failed />);
     expect(screen.getByText('Journeys are temporarily unavailable.')).toBeInTheDocument();
+  });
+  it.each([
+    { end: '2024-08-05', expected: 'August 2024' },
+    { end: '2024-09-05', expected: 'August 2024 — September 2024' },
+  ])('formats experience ranges ending $end', ({ end, expected }) => {
+    const { container } = render(<HeldPlacesIndex journeys={[{
+      ...published, experiencedAt: { start: '2024-08-01', end },
+    }]} photos={[]} />);
+    expect(container.querySelector('[data-journey-meta]')).toHaveTextContent(expected);
+    expect(container.querySelector('[data-journey-meta]')?.textContent).toBe(expected);
   });
 });
 

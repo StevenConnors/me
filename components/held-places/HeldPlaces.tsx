@@ -401,7 +401,7 @@ function formatJourneyMeta(
   if (experiencedAt?.start) {
     const start = formatDate(experiencedAt.start);
     const end = experiencedAt.end ? formatDate(experiencedAt.end) : undefined;
-    parts.push(end ? `${start} — ${end}` : start);
+    parts.push(end && end !== start ? `${start} — ${end}` : start);
   }
   return parts.join('  /  ');
 }
