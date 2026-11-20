@@ -74,7 +74,14 @@ async function measure(browser, route) {
       .reduce((sum, [, duration]) => sum + Math.max(0, duration - 50), 0);
     return { ttfb: nav.responseStart, fcp, lcp: window.__ux.lcp, cls: window.__ux.cls, tbt };
   });
-  const images = await page.locator('main img').evaluateAll((nodes) => nodes.map((node) => ({ src: node.getAttribute('src'), loaded: node.complete && node.naturalWidth > 0 })));
+  const images = await page.locator('main img').evaluateAll((nodes) => nodes.map((node) => {
+    const resources = performance.getEntriesByName(node.currentSrc, 'resource');
+    const resource = resources.at(-1);
+    return { src: node.getAttribute('src'), currentSrc: node.currentSrc, alt: node.alt,
+      loaded: node.complete && node.naturalWidth > 0,
+      ...(resource ? { startTime: resource.startTime, responseEnd: resource.responseEnd } : {}),
+    };
+  }));
   if (args.screenshot) await page.screenshot({ path: args.screenshot, fullPage: true });
   await context.close();
   return { status: response?.status() ?? 0, ...metrics, jsBytes: bytes.js, totalBytes: bytes.total, errors, images };
