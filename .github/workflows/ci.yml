@@ -75,8 +75,9 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # Advisory until fixtures are seeded and CI noise is calibrated; remove to make it blocking.
-    continue-on-error: true
+    defaults:
+      run:
+        shell: bash
     services:
       mongodb:
         image: mongo:7
@@ -90,16 +91,20 @@ jobs:
         with: { fetch-depth: 0 }
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npx playwright install --with-deps --only-shell chromium
+      - run: node scripts/perf/seed.mjs
       - name: Baseline (base branch)
+        env:
+          BASE_REF: ${{ github.base_ref }}
         run: |
-          git worktree add ../base "origin/${{ github.base_ref }}"
-          cp scripts/perf/perf-check.mjs ../base/perf-check.mjs
-          cd ../base && npm ci && npx playwright install --with-deps chromium
-          # node scripts/perf/seed.mjs   # deterministic fixtures, add with the first perf PR
-          npm run build && (npx next start -p 3200 -H 127.0.0.1 &) && npx wait-on -t 60000 http://127.0.0.1:3200/travel
-          node perf-check.mjs --base-url http://127.0.0.1:3200 --routes "$ROUTES" --runs 5 --out "$GITHUB_WORKSPACE/.perf/baseline.json"
-          pkill -f "next start" || true
+          git worktree add --detach ../base "origin/$BASE_REF"
+          (cd ../base && npm ci && npm run build)
+          node scripts/perf/perf-check.mjs --app-dir ../base --port 3200 --routes "$ROUTES" --runs 5 --out "$RUNNER_TEMP/ux-perf-baseline.json"
       - name: Pull request
         run: |
-          npm ci && npm run build && (npx next start -p 3200 -H 127.0.0.1 &) && npx wait-on -t 60000 http://127.0.0.1:3200/travel
-          node scripts/perf/perf-check.mjs --base-url http://127.0.0.1:3200 --routes "$ROUTES" --runs 5 --baseline .perf/baseline.json | tee -a "$GITHUB_STEP_SUMMARY"
+          npm run build
+          node scripts/perf/perf-check.mjs --app-dir . --port 3201 --routes "$ROUTES" --runs 5 --baseline "$RUNNER_TEMP/ux-perf-baseline.json" --advisory-regressions | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Report refused comparison
+        if: failure()
+        run: echo 'UX performance comparison refused. See the failed step for details.' >> "$GITHUB_STEP_SUMMARY"
