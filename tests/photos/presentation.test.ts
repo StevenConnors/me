@@ -52,6 +52,17 @@ describe('Photos public presentation', () => {
     expect(result.unavailable).toEqual([]);
   });
 
+  it('hides upload-session and legacy-story bookkeeping tags from visitors', () => {
+    const tags = ['upload-session-abc', 'night', 'legacy-story', 'Tokyo', 'legacy'];
+    const document = {
+      schemaVersion: 1 as const,
+      blocks: [{ id: 'media-first', type: 'media' as const, mediaAssetId: 'first', altText: 'First', decorative: false }],
+    };
+
+    expect(resolvePublishedPhotos(document, [media('first', { tags })], provider).photos[0].tags).toEqual(['night', 'Tokyo', 'legacy']);
+    expect(resolveLegacyPhotos([media('first', { tags: ['upload-session-abc', 'legacy-story'] })], provider)[0].tags).toEqual([]);
+  });
+
   it('retains a real blank break and skips missing assets without a broken URL', () => {
     const document = {
       schemaVersion: 1 as const,
