@@ -58,7 +58,10 @@ test('Photos reveals controls on touch and desktop hover or focus', async ({ bro
     for (const touch of [true, false]) {
       const context = await browser.newContext({
         baseURL,
-        viewport: { width: touch ? 390 : 1280, height: 844 },
+        viewport: {
+          width: touch ? 390 : 1280,
+          height: 844,
+        },
         hasTouch: touch,
         isMobile: touch,
       });
@@ -74,6 +77,8 @@ test('Photos reveals controls on touch and desktop hover or focus', async ({ bro
           await expect(edit).toHaveCSS('opacity', '1');
           await expect(select).toHaveCSS('opacity', '1');
           await page.mouse.move(0, 0);
+          await expect(edit).toHaveCSS('opacity', '0');
+          await expect(select).toHaveCSS('opacity', '0');
           await edit.focus();
           await expect(edit).toHaveCSS('opacity', '1');
           await expect(select).toHaveCSS('opacity', '1');
