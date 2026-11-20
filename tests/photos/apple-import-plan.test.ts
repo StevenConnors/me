@@ -141,6 +141,20 @@ describe('planApplePhotosSync', () => {
     expect(summarize(next.document)).toEqual(['m1-edit', 'section:Kumano', 'm1']);
   });
 
+  it('makes an already synced photo the cover once it is tagged, unless the album has one', () => {
+    const document: PhotosPageDocument = { schemaVersion: 1, blocks: [] };
+    const createId = ids();
+    const first = planApplePhotosSync({ document, albums: [], photos: [], createId,
+      request: request([{ id: 'kumano', title: 'Kumano', photos: [['p1', 'v1', 'm1'], ['p2', 'v1', 'm2']] }]) });
+    const tagged = planApplePhotosSync({ ...first, createId,
+      request: request([{ id: 'kumano', title: 'Kumano', photos: [['p1', 'v1', 'm1'], ['p2', 'v1', 'm2', true]] }]) });
+    expect(summarize(tagged.document)).toEqual(['section:Kumano', 'm1', 'm2:cover']);
+
+    const bothTagged = planApplePhotosSync({ ...tagged, createId,
+      request: request([{ id: 'kumano', title: 'Kumano', photos: [['p1', 'v1', 'm1', true], ['p2', 'v1', 'm2', true]] }]) });
+    expect(summarize(bothTagged.document)).toEqual(['section:Kumano', 'm1', 'm2:cover']);
+  });
+
   it('gives the cover to a new cover photo when the old cover leaves the album', () => {
     const document: PhotosPageDocument = { schemaVersion: 1, blocks: [] };
     const createId = ids();
