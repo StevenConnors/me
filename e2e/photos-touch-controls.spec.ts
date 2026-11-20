@@ -72,6 +72,29 @@ test('Photos reveals controls on touch and desktop hover or focus', async ({ bro
         const select = page.getByText('Select quiet-coast.jpg', { exact: true }).locator('..');
         await expect(edit).toHaveCSS('opacity', touch ? '1' : '0');
         await expect(select).toHaveCSS('opacity', touch ? '1' : '0');
+        if (touch) {
+          await page.getByRole('button', { name: 'Mobile', exact: true }).click();
+          const tile = page.locator('article[data-block-type="media"]').first();
+          const controls = tile.getByRole('button', { name: /^(Edit photo|Reorder|Insert point)/ })
+            .or(tile.locator('label'));
+          const targets = await controls.evaluateAll(
+            (elements) => elements.map((element) => {
+              const { width, height, top, right, bottom, left } = element.getBoundingClientRect();
+              return { width, height, top, right, bottom, left };
+            }),
+          );
+          expect(targets).toHaveLength(5);
+          for (let index = 0; index < targets.length; index++) {
+            const target = targets[index];
+            expect(target.width).toBeGreaterThanOrEqual(44);
+            expect(target.height).toBeGreaterThanOrEqual(44);
+            for (const other of targets.slice(index + 1)) {
+              const width = Math.min(target.right, other.right) - Math.max(target.left, other.left);
+              const height = Math.min(target.bottom, other.bottom) - Math.max(target.top, other.top);
+              expect(Math.max(0, width) * Math.max(0, height)).toBe(0);
+            }
+          }
+        }
         if (!touch) {
           await edit.hover();
           await expect(edit).toHaveCSS('opacity', '1');
