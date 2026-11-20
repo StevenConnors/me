@@ -127,6 +127,20 @@ describe('planApplePhotosSync', () => {
     expect(removed.document.blocks).toEqual(document.blocks);
   });
 
+  it('keeps the old media when the author already placed the edited upload elsewhere', () => {
+    const document: PhotosPageDocument = { schemaVersion: 1, blocks: [] };
+    const createId = ids();
+    const first = planApplePhotosSync({ document, albums: [], photos: [], createId,
+      request: request([{ id: 'kumano', title: 'Kumano', photos: [['p1', 'v1', 'm1']] }]) });
+    const authorPlaced: PhotosPageDocument = {
+      ...first.document,
+      blocks: [{ id: 'mine', type: 'media', mediaAssetId: 'm1-edit', decorative: false }, ...first.document.blocks],
+    };
+    const next = planApplePhotosSync({ ...first, document: authorPlaced, createId,
+      request: request([{ id: 'kumano', title: 'Kumano', photos: [['p1', 'v2', 'm1-edit']] }]) });
+    expect(summarize(next.document)).toEqual(['m1-edit', 'section:Kumano', 'm1']);
+  });
+
   it('gives the cover to a new cover photo when the old cover leaves the album', () => {
     const document: PhotosPageDocument = { schemaVersion: 1, blocks: [] };
     const createId = ids();
