@@ -94,6 +94,19 @@ describe('ApplePhotosImportService.sync', () => {
   });
 });
 
+describe('ApplePhotosImportService.sync cover tags', () => {
+  it('applies a cover tag added during a sync that hits an author save', async () => {
+    const imports = new MemoryImports();
+    const pages = new RacingPhotosPages([], 0);
+    await service(pages, imports).sync(request);
+    pages.racesLeft = 1;
+
+    const tagged = { albums: [{ ...request.albums[0], photos: [{ ...request.albums[0].photos[0], cover: true }] }] };
+    await service(pages, imports).sync(tagged);
+    expect(pages.page.draftDocument.blocks.find((block) => block.type === 'media')).toMatchObject({ albumRole: 'cover' });
+  });
+});
+
 describe('ApplePhotosImportService.manifest', () => {
   it('leaves out uploads that were deleted from the media library so the script uploads them again', async () => {
     const imports = new MemoryImports();
