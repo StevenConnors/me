@@ -23,6 +23,7 @@ Start the disposable DB once: `npm run e2e:db:up`. Run the narrowest specs first
 
 | Changed paths | Specs to run |
 | --- | --- |
+| `app/thoughts-aloud/**` | `e2e/thoughts-aloud.spec.ts` |
 | `app/api/thoughts/**`, `lib/thoughts/**` | `e2e/thoughts-pagination.spec.ts` |
 | `app/thoughts-aloud/**`, `styles/ThoughtsAloud.module.css` | `e2e/thoughts-aloud.spec.ts`, `e2e/thoughts-empty-state.spec.ts` |
 | Journal / Photos save and release status | `e2e/editor-release-status.spec.ts` |

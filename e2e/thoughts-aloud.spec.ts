@@ -58,6 +58,73 @@ async function stubExternalEmbeds(page: Page) {
   await page.route('https://www.youtube.com/**', (route) => route.fulfill({ contentType: 'text/html', body: '<html></html>' }));
 }
 
+test('YouTube Markdown links stay inline while bare URLs embed', async ({ page }) => {
+  const mongo = new MongoClient(process.env.E2E_MONGODB_URI ?? 'mongodb://127.0.0.1:27018/journey_editor_e2e');
+  const id = new ObjectId();
+  const url = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
+  const errors = collectRuntimeErrors(page);
+  await stubExternalEmbeds(page);
+  await mongo.connect();
+  try {
+    await mongo.db().collection('thoughts').insertOne({
+      _id: id,
+      createdAt: new Date('2099-01-01'),
+      text: `Watch [this video](${url}) now\n\n<${url}>\n\n[reference video][video]\n\n[video]: ${url}\n\nBare: ${url}\n\nShort: https://youtu.be/dQw4w9WgXcQ\n\n\`https://youtu.be/dQw4w9WgXcQ\`\n\n\`\`\`text\nhttps://youtu.be/dQw4w9WgXcQ\n\`\`\`\n\n**bold** and *italic* and [other](https://example.com)`,
+    });
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto('/thoughts-aloud');
+    const article = page.locator('article').filter({ hasText: 'Watch' });
+    await expect(article).toBeVisible();
+    await expect(article.getByText('now', { exact: false })).toBeVisible();
+    if (process.env.THOUGHTS_SCREENSHOT) await page.screenshot({ path: process.env.THOUGHTS_SCREENSHOT });
+    for (const name of ['this video', url, 'reference video']) {
+      const link = article.getByRole('link', { name, exact: true });
+      await expect(link).toHaveAttribute('href', url);
+      await expect(link).toHaveAttribute('target', '_blank');
+      await expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    }
+    await expect(article).toContainText('Watch this video now');
+    await expect(article.locator('iframe')).toHaveCount(2);
+    const embedGap = await article.getByText('Bare:', { exact: true }).evaluate(paragraph => {
+      const wrapper = paragraph.nextElementSibling;
+      return wrapper ? wrapper.getBoundingClientRect().top - paragraph.getBoundingClientRect().bottom : null;
+    });
+    expect(embedGap).toBeCloseTo(17.6, 1);
+    await expect(article.locator('p iframe, p div')).toHaveCount(0);
+    await expect(article.locator('code')).toHaveCount(2);
+    await expect(article.locator('strong')).toHaveText('bold');
+    await expect(article.locator('em')).toHaveText('italic');
+    await expect(article.getByRole('link', { name: 'other', exact: true })).toHaveAttribute('href', 'https://example.com');
+    await page.setViewportSize({ width: 390, height: 844 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
+    expect(errors).toEqual([]);
+    await test.info().attach('e2e-fixture-youtube-links-mobile.png', { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
+    await test.info().attach('e2e-fixture-youtube-links.json', { body: JSON.stringify({ links: 3, embeds: 2, errors }), contentType: 'application/json' });
+    await mongo.db().collection('thoughts').updateOne({ _id: id }, { $set: {
+      text: 'Underscore videos: https://youtu.be/_abcdefghi_\n\nhttps://www.youtube.com/watch?v=_abc_-defgh',
+    } });
+    await page.reload();
+    const underscoreArticle = page.locator('article').filter({ hasText: 'Underscore videos:' });
+    for (const videoId of ['_abcdefghi_', '_abc_-defgh']) {
+      await expect(underscoreArticle.locator(`iframe[src="https://www.youtube.com/embed/${videoId}"]`)).toHaveCount(1);
+    }
+    for (const prefix of ['&amp;', '\\*']) {
+      await mongo.db().collection('thoughts').updateOne({ _id: id }, { $set: {
+        text: `${prefix} https://youtu.be/dQw4w9WgXcQ tail`,
+      } });
+      await page.reload();
+      const decodedArticle = page.locator('article').filter({ has: page.locator('iframe') });
+      await expect(decodedArticle.locator('iframe')).toHaveCount(1);
+      await expect(decodedArticle.locator('p').first()).toHaveText(prefix === '&amp;' ? '&' : '*');
+      await expect(decodedArticle.locator('p').last()).toHaveText('tail');
+    }
+    expect(errors).toEqual([]);
+  } finally {
+    await mongo.db().collection('thoughts').deleteOne({ _id: id });
+    await mongo.close();
+  }
+});
+
 test('thoughts aloud renders posts even when a tweet payload has no entities', async ({ page }) => {
   test.setTimeout(90_000);
   const mongo = new MongoClient(
