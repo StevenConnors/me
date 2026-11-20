@@ -112,6 +112,18 @@ export async function loadPublicPhotosPage(
   };
 }
 
+/** Every published photo in order, for views that show the whole collection at once. */
+export async function loadAllPublicPhotos(
+  page: PhotosPage | null,
+  mediaRepository: Pick<MediaRepository, 'findByIds' | 'listPhotos'>,
+  provider: Pick<MediaProvider, 'buildImageUrl' | 'buildVideoPosterUrl' | 'buildVideoUrl'>,
+): Promise<PublicPhoto[]> {
+  if (!page?.publishedDocument) return resolveLegacyPhotos(await mediaRepository.listPhotos({ limit: 500 }), provider);
+  const document = page.publishedDocument;
+  const assets = await mediaRepository.findByIds(document.blocks.flatMap((block) => block.type === 'media' ? [block.mediaAssetId] : []));
+  return resolvePublishedPhotos(document, assets, provider).photos;
+}
+
 /** Each album's cover is the photo marked `cover`, else its first photo. */
 async function attachCovers(
   sections: PublicPhotosSection[],

@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import Link from 'next/link';
 import React, { type ReactNode } from 'react';
 
 import styles from './photos-gallery.module.css';
@@ -86,6 +87,7 @@ export function PhotosPageView({
   collapsedSections,
   onToggleSection,
   onSectionLinkClick,
+  browseHref,
   title = 'Photos',
   intro = 'A collection of moments, arranged in the order they belong.',
 }: {
@@ -101,6 +103,7 @@ export function PhotosPageView({
   collapsedSections?: ReadonlySet<string>;
   onToggleSection?: (id: string) => void;
   onSectionLinkClick?: (event: React.MouseEvent<HTMLAnchorElement>, id: string) => void;
+  browseHref?: string;
   title?: string;
   intro?: string;
 }) {
@@ -111,6 +114,7 @@ export function PhotosPageView({
     <section aria-labelledby="photos-title" className={styles.gallery}>
       <h1 id="photos-title">{title}</h1>
       {intro ? <p className={styles.intro}>{intro}</p> : null}
+      {browseHref ? <p className={styles.browseLink}><Link href={browseHref}>Browse by theme</Link></p> : null}
       {albums.length > 1 ? <nav aria-label="Albums" className={styles.albums}>
         {albums.map((album, index) => <a className={styles.albumCard} href={`#section-${album.id}`} key={album.id} onClick={(event) => onSectionLinkClick?.(event, album.id)}>
           <span className={styles.albumCover}><Image alt={album.cover.alt} fill priority={index === 0} sizes={index === 0 ? '(max-width: 700px) 100vw, 66vw' : '(max-width: 700px) 50vw, 33vw'} src={album.cover.thumbnailUrl ?? album.cover.source} /></span>
