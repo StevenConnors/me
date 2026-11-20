@@ -1,7 +1,8 @@
 // @ts-ignore
 import clientPromise from '../../../lib/mongodb';
 import { NextRequest, NextResponse } from 'next/server';
-import { MongoClient } from 'mongodb';
+import { Filter, MongoClient, ObjectId } from 'mongodb';
+import { thoughtsPaginationSchema } from '@/lib/thoughts/schemas';
 
 // Type assertion for clientPromise
 // @ts-ignore
@@ -12,7 +13,18 @@ interface ThoughtInput {
   createdAt: Date;
 }
 
+let thoughtsIndexReady: Promise<string> | undefined;
+
 export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const pagination = thoughtsPaginationSchema.safeParse({
+    limit: searchParams.get('limit') ?? undefined,
+    cursor: searchParams.get('cursor') ?? undefined,
+  });
+  if (!pagination.success) {
+    return NextResponse.json({ error: 'Invalid pagination: limit must be an integer from 1 to 100 and cursor must be valid' }, { status: 400 });
+  }
+  const { limit, cursor } = pagination.data;
   try {
     // Debug MongoDB connection
     console.log('MongoDB Environment check:', {
@@ -40,24 +52,36 @@ export async function GET(request: NextRequest) {
     const collection = db.collection('thoughts');
     console.log('Collection accessed, querying thoughts...');
 
-    const { searchParams } = new URL(request.url);
-    const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100);
-    const cursor = searchParams.get('cursor');
-    
-    const query: any = {};
+    thoughtsIndexReady ??= collection.createIndex({ createdAt: -1, _id: -1 }, { name: 'thoughts_created_at_id' });
+    try {
+      await thoughtsIndexReady;
+    } catch (error) {
+      thoughtsIndexReady = undefined;
+      throw error;
+    }
+
+    let query: Filter<ThoughtInput> = {};
     if (cursor) {
-      query.createdAt = { $lt: new Date(cursor) };
+      const createdAt = new Date(cursor.createdAt);
+      query = cursor.id ? {
+        $or: [
+          { createdAt: { $lt: createdAt } },
+          { createdAt, _id: { $lt: new ObjectId(cursor.id) } },
+        ],
+      } : { createdAt: { $lt: createdAt } };
     }
     
     const thoughts = await collection
       .find(query)
-      .sort({ createdAt: -1 })
+      .sort({ createdAt: -1, _id: -1 })
       .limit(limit)
       .toArray();
       
     console.log(`Found ${thoughts.length} thoughts`);
     
-    const nextCursor = thoughts.length === limit ? thoughts[thoughts.length - 1].createdAt.toISOString() : null;
+    const lastThought = thoughts[thoughts.length - 1];
+    const nextCursor = thoughts.length === limit && lastThought
+      ? `${lastThought.createdAt.toISOString()}_${lastThought._id.toHexString()}` : null;
     
     return NextResponse.json({
       data: thoughts.map(({ _id, text, createdAt }) => ({ _id, text, createdAt })),
