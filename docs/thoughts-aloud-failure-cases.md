@@ -13,3 +13,11 @@ Before changing how `/thoughts-aloud` renders posts:
 - Bare YouTube URLs must still embed, including beside Markdown links. Code spans and fenced code must remain literal text.
 - Underscores inside bare YouTube IDs must not turn into Markdown emphasis or prevent the player from rendering.
 - Decoded entities and escaped characters before bare URLs must not truncate text after the player.
+
+When `/api/thoughts` fails:
+
+- A failed first load (5xx, network error, invalid JSON) must stop requesting. The page must not refetch on its own in a loop.
+- A failed load must show a visible error message with a "Try again" button instead of an empty page.
+- "Try again" after the API recovers must load the posts and remove the error message.
+- A failed later page (infinite scroll) must keep the posts already shown, stop requesting, and offer "Try again", which continues from the same cursor without duplicating posts.
+- The error state must fit a 390 px viewport without horizontal scroll.

@@ -7,13 +7,14 @@ test('photo sections show counts and the section navigation stays on screen', as
   test.setTimeout(120_000);
   const mongo = new MongoClient(process.env.E2E_MONGODB_URI ?? 'mongodb://127.0.0.1:27018/journey_editor_e2e', { serverSelectionTimeoutMS: 10_000 });
   const runId = new ObjectId().toHexString();
-  const mediaIds = Array.from({ length: 26 }, () => new ObjectId().toHexString());
+  const mediaIds = Array.from({ length: 50 }, () => new ObjectId().toHexString());
   const firstSectionId = new ObjectId().toHexString();
   const laterSectionId = new ObjectId().toHexString();
   let originalPhotosPage: Record<string, unknown> | null = null;
   let connected = false;
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
+  page.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()); });
   try {
     await mongo.connect();
     connected = true;
@@ -29,7 +30,7 @@ test('photo sections show counts and the section navigation stays on screen', as
     const photosDocument = { schemaVersion: 1, blocks: [
       { id: firstSectionId, type: 'section', title: 'First light' },
       ...mediaIds.flatMap((id, index) => [
-        ...(index === 25 ? [{ id: laterSectionId, type: 'section', title: 'Last light' }] : []),
+        ...(index === 49 ? [{ id: laterSectionId, type: 'section', title: 'Last light' }] : []),
         { id: new ObjectId().toHexString(), type: 'media', mediaAssetId: id, decorative: false, altText: `Wayfinding photo ${index + 1}` },
       ]),
     ] };
@@ -38,11 +39,20 @@ test('photo sections show counts and the section navigation stays on screen', as
     }, { upsert: true });
 
     await page.setViewportSize({ width: 1280, height: 800 });
-    await page.goto('/photos');
+    await page.goto(`/photos#section-${laterSectionId}`);
+    const deepHeading = page.getByRole('region', { name: 'Last light' }).getByRole('heading', { level: 2 });
+    try {
+      await expect(deepHeading).toBeInViewport();
+    } finally {
+      if (process.env.PHOTOS_HASH_EVIDENCE) await page.screenshot({ path: process.env.PHOTOS_HASH_EVIDENCE });
+    }
+    await test.info().attach('e2e-fixture-photos-direct-hash.png', { body: await page.screenshot(), contentType: 'image/png' });
+    await page.goto('/photos?fixture=click');
+    await expect(page.getByRole('button', { name: 'Open photo 25', exact: true })).toHaveCount(0);
     const nav = page.getByRole('navigation', { name: 'Photo sections' });
-    await expect(nav.getByRole('link', { name: /First light/ })).toContainText('25');
+    await expect(nav.getByRole('link', { name: /First light/ })).toContainText('49');
     await expect(nav.getByRole('link', { name: /Last light/ })).toContainText('1');
-    await expect(page.getByRole('region', { name: 'First light' })).toContainText('25 photos');
+    await expect(page.getByRole('region', { name: 'First light' })).toContainText('49 photos');
 
     await page.mouse.wheel(0, 2500);
     await expect.poll(async () => (await nav.boundingBox())?.y ?? -1).toBeGreaterThanOrEqual(0);
@@ -59,13 +69,29 @@ test('photo sections show counts and the section navigation stays on screen', as
 
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/photos');
+    await page.evaluate((id) => { window.location.hash = `section-${id}`; }, laterSectionId);
+    await expect(deepHeading).toBeInViewport();
+    await page.evaluate(() => { window.location.hash = ''; });
+    await page.evaluate(() => { window.location.hash = 'unrelated'; });
+    await expect(deepHeading).toBeVisible();
+    await page.goto('/photos?fixture=missing#section-missing');
+    await expect(page.getByRole('button', { name: 'Open photo 50', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Load more', exact: true })).toHaveCount(0);
+
+    await page.route('**/api/photos?**', (route) => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: { message: 'Fixture unavailable' } }) }));
+    await page.goto(`/photos?fixture=retry#section-${laterSectionId}`);
+    await expect(page.getByRole('button', { name: 'Try again' })).toBeVisible();
+    await expect(deepHeading).toHaveCount(0);
+    await page.unroute('**/api/photos?**');
+    await page.getByRole('button', { name: 'Try again' }).click();
+    await expect(deepHeading).toBeInViewport();
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     expect(overflow).toBeLessThanOrEqual(0);
     await test.info().attach('e2e-fixture-photos-wayfinding-mobile.png', { body: await page.screenshot(), contentType: 'image/png' });
     const resultPath = test.info().outputPath('e2e-fixture-photos-wayfinding-result.json');
     await writeFile(resultPath, JSON.stringify({ runId, stuck, navBox, overflow }, null, 2));
     await test.info().attach('e2e-fixture-photos-wayfinding-result.json', { path: resultPath, contentType: 'application/json' });
-    expect(errors).toEqual([]);
+    expect(errors.filter((message) => !message.includes('503 (Service Unavailable)') && !message.includes('Fixture unavailable'))).toEqual([]);
   } finally {
     if (connected) {
       const db = mongo.db();

@@ -138,7 +138,7 @@ export function PhotosGallery({
       if (event.key === 'ArrowRight') next();
       if (event.key === 'Tab') {
         const focusable = Array.from(lightboxRef.current?.querySelectorAll<HTMLElement>('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"]), video[controls]') ?? [])
-          .filter((element) => !element.hasAttribute('hidden'));
+          .filter((element) => element.getClientRects().length > 0 && getComputedStyle(element).visibility === 'visible');
         if (!focusable.length) return;
         const first = focusable[0];
         const last = focusable[focusable.length - 1];
@@ -183,6 +183,16 @@ export function PhotosGallery({
     else if (nextCursor && loadState === 'idle') void loadMore();
     else if (!nextCursor) setPendingNextIndex(null);
   }, [loadMore, loadState, nextCursor, pendingNextIndex, photos, selectPhoto]);
+
+  useEffect(() => {
+    const syncSectionFromHash = () => {
+      const prefix = '#section-';
+      setPendingSectionId(window.location.hash.startsWith(prefix) ? window.location.hash.slice(prefix.length) || null : null);
+    };
+    syncSectionFromHash();
+    window.addEventListener('hashchange', syncSectionFromHash);
+    return () => window.removeEventListener('hashchange', syncSectionFromHash);
+  }, []);
 
   useEffect(() => {
     if (!pendingSectionId) return;
