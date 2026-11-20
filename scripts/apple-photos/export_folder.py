@@ -29,7 +29,11 @@ def find_folder(db, title):
 
 def albums_in(folder):
     """Albums in Photos.app sidebar order, including albums in subfolders."""
-    children = sorted([*folder.album_info, *folder.subfolders], key=lambda child: child.library_list_order)
+    # library_list_order is missing before osxphotos 0.76; the stable sort then keeps albums before subfolders.
+    children = sorted(
+        [*folder.album_info, *folder.subfolders],
+        key=lambda child: getattr(child, "library_list_order", (0,)),
+    )
     for child in children:
         if hasattr(child, "subfolders"):
             yield from albums_in(child)
