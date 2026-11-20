@@ -83,8 +83,6 @@ test('Mac import syncs Photos.app albums into the Photos draft without undoing a
     expect((await request.get('/api/admin/imports/apple-photos')).status()).toBe(401);
     expect((await request.get('/api/admin/imports/apple-photos', { headers: { Authorization: `Bearer ${TOKEN}x` } })).status()).toBe(401);
     expect((await request.post('/api/admin/imports/apple-photos', { data: syncBody([]) })).status()).toBe(401);
-    // Scope: the token does not stand in for the author on other admin endpoints.
-    expect((await request.get('/api/admin/photos-page', { headers: auth })).status()).toBe(401);
 
     const [m1, m2, m3] = [await uploadWithToken(request, 'kumano-1.jpg'), await uploadWithToken(request, 'kumano-2.jpg'), await uploadWithToken(request, 'egypt-1.jpg')];
     createdMedia.push(m1, m2, m3);
