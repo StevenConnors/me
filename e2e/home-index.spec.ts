@@ -7,9 +7,9 @@ const mongoUri = process.env.E2E_MONGODB_URI ?? 'mongodb://127.0.0.1:27018/journ
 const runId = new ObjectId().toHexString();
 const mediaId = new ObjectId().toHexString();
 const journeys = [
-  { id: new ObjectId(), revisionId: new ObjectId(), slug: `home-index-meta-${runId}`, title: `Autumn index ${runId.slice(-6)}`,
+  { id: new ObjectId(), revisionId: new ObjectId(), slug: `home-index-meta-${runId}`, title: 'Autumn index',
     experiencedAt: { start: '2024-10-02', end: '2024-11-12' }, locations: [{ id: 'jp', label: 'Japan', countryCode: 'JP' }] },
-  { id: new ObjectId(), revisionId: new ObjectId(), slug: `home-index-plain-${runId}`, title: `Plain index ${runId.slice(-6)}`, locations: [] },
+  { id: new ObjectId(), revisionId: new ObjectId(), slug: `home-index-plain-${runId}`, title: 'Plain index', locations: [] },
 ];
 
 test.beforeAll(async () => {
@@ -26,7 +26,7 @@ test.beforeAll(async () => {
     schemaVersion: 2, template: 'held-places-v1',
     chapters: [{ id: 'one', body: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Fixture.' }] }] }, media: [] }],
   };
-  for (let index = 0; index < journeys.length; index += 1) {
+  for (let index = journeys.length - 1; index >= 0; index -= 1) {
     const journey = journeys[index];
     const meta = {
       slug: journey.slug, title: journey.title, summary: `${journey.title} summary.`, locations: journey.locations,
@@ -89,4 +89,147 @@ test('home introduces the site and lists journeys with cover, places and dates',
   await writeFile(resultPath, JSON.stringify({ runId, introBox, photosBox, firstPhoto, overflow }, null, 2));
   await test.info().attach('e2e-fixture-home-index-result.json', { path: resultPath, contentType: 'application/json' });
   expect(errors).toEqual([]);
+});
+
+test('home keeps legacy journeys after published journeys on desktop and mobile', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  page.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()); });
+  const expectedSlugs = [...journeys.map(({ slug }) => slug), 'poc', 'dfw-okc', 'newpoc'];
+  if (process.env.HOME_ARCHIVE_EVIDENCE) {
+    for (const width of [1440, 390]) {
+      await page.setViewportSize({ width, height: 1100 });
+      await page.goto('/');
+      await page.locator('#journeys').screenshot({
+        path: `${process.env.HOME_ARCHIVE_EVIDENCE}-${width}.png`,
+        style: 'nextjs-portal { display: none !important; }',
+      });
+    }
+  }
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 1100 });
+    await page.goto('/');
+    const archive = page.locator('#journeys');
+    const rows = archive.getByRole('link');
+    await expect(rows).toHaveCount(expectedSlugs.length);
+    expect(await rows.evaluateAll((links) => links.map((link) => link.getAttribute('href'))))
+      .toEqual(expectedSlugs.map((slug) => `/stories/${slug}`));
+    await expect(archive.locator('h2 + span')).toHaveText('05');
+    for (const slug of ['poc', 'dfw-okc', 'newpoc']) {
+      await expect(archive.locator(`a[href="/stories/${slug}"]`)).toBeVisible();
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
+    await test.info().attach(`e2e-fixture-home-archive-${width}.png`, {
+      body: await archive.screenshot({ style: 'nextjs-portal { display: none !important; }' }), contentType: 'image/png',
+    });
+  }
+  expect(errors).toEqual([]);
+  await test.info().attach('e2e-fixture-home-archive.json', {
+    body: Buffer.from(JSON.stringify({ expectedSlugs, errors })), contentType: 'application/json',
+  });
+});
+
+test('archive rows align published and legacy titles, summaries and heights', async ({ page }) => {
+  const observations = [];
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 1100 });
+    await page.goto('/');
+    const archive = page.locator('#journeys');
+    const published = archive.locator(`a[href="/stories/${journeys[0].slug}"]`);
+    const publishedBox = await published.boundingBox();
+    const titleBox = await published.locator('[class*="archiveTitle"]').boundingBox();
+    const summaryBox = await published.locator('[class*="archiveSummary"]').boundingBox();
+    if (!publishedBox || !titleBox) throw new Error('Published archive row is missing');
+    for (const slug of ['poc', 'dfw-okc', 'newpoc']) {
+      const legacy = archive.locator(`a[href="/stories/${slug}"]`);
+      const row = await legacy.boundingBox();
+      const title = await legacy.locator('[class*="archiveTitle"]').boundingBox();
+      const summary = await legacy.locator('[class*="archiveSummary"]').boundingBox();
+      if (!row || !title) throw new Error(`Legacy archive row ${slug} is missing`);
+      expect(Math.abs(title.x - titleBox.x)).toBeLessThanOrEqual(1);
+      expect(Math.abs(row.height - publishedBox.height)).toBeLessThanOrEqual(1);
+      if (width === 1440) {
+        if (!summary || !summaryBox) throw new Error('Desktop summary column is missing');
+        expect(Math.abs(summary.x - summaryBox.x)).toBeLessThanOrEqual(1);
+      } else {
+        expect(summary).toBeNull();
+        expect(summaryBox).toBeNull();
+      }
+      observations.push({ width, slug, row, title, summary });
+    }
+    await expect(archive).not.toContainText('Read the original journey.');
+    await expect(archive.locator('a[href="/stories/dfw-okc"] [data-journey-meta]')).toHaveText('August 2024');
+    for (const slug of ['poc', 'dfw-okc', 'newpoc']) {
+      await expect(archive.locator(`a[href="/stories/${slug}"] [class*="archiveSummary"]`)).toBeEmpty();
+      if (slug !== 'dfw-okc') await expect(archive.locator(`a[href="/stories/${slug}"] [data-journey-meta]`)).toHaveCount(0);
+    }
+  }
+  await test.info().attach('e2e-fixture-home-archive-alignment.json', {
+    body: Buffer.from(JSON.stringify(observations)), contentType: 'application/json',
+  });
+});
+
+test('a published legacy slug appears once with database metadata', async ({ page }) => {
+  const client = await MongoClient.connect(mongoUri);
+  const db = client.db();
+  const journey = journeys[0];
+  try {
+    await db.collection('journeys').updateOne({ _id: journey.id }, { $set: { slug: 'poc' } });
+    await db.collection('journey_revisions').updateOne({ _id: journey.revisionId }, { $set: { 'metadataSnapshot.slug': 'poc' } });
+    await page.goto('/');
+    const archive = page.locator('#journeys');
+    const row = archive.locator('a[href="/stories/poc"]');
+    await expect(row).toHaveCount(1);
+    await expect(row).toContainText(journey.title);
+    await expect(row).toContainText(`${journey.title} summary.`);
+    await expect(archive.getByRole('link')).toHaveCount(4);
+    await expect(archive.locator('h2 + span')).toHaveText('04');
+  } finally {
+    await db.collection('journeys').updateOne({ _id: journey.id }, { $set: { slug: journey.slug } });
+    await db.collection('journey_revisions').updateOne({ _id: journey.revisionId }, { $set: { 'metadataSnapshot.slug': journey.slug } });
+    await client.close();
+  }
+});
+
+test('a retired legacy slug redirects without duplicating the published journey', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  page.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()); });
+  const client = await MongoClient.connect(mongoUri);
+  const db = client.db();
+  const journey = journeys[0];
+  const oldRevisionId = new ObjectId();
+  try {
+    const revision = await db.collection('journey_revisions').findOne({ _id: journey.revisionId });
+    if (!revision) throw new Error('Published fixture revision is missing');
+    await db.collection('journey_revisions').updateOne({ _id: journey.revisionId }, { $set: { sequence: 2 } });
+    await db.collection('journey_revisions').insertOne({
+      ...revision, _id: oldRevisionId, sequence: 1,
+      metadataSnapshot: { ...revision.metadataSnapshot, slug: 'poc' },
+    });
+    await db.collection('journeys').updateOne({ _id: journey.id }, { $set: { publishedSlug: journey.slug } });
+    const redirect = await page.request.get('/stories/poc', { maxRedirects: 0 });
+    expect(redirect.status()).toBe(307);
+    expect(redirect.headers().location).toBe(`/stories/${journey.slug}`);
+    for (const width of [1440, 390]) {
+      await page.setViewportSize({ width, height: 1100 });
+      await page.goto('/');
+      const archive = page.locator('#journeys');
+      await expect(archive.locator('a[href="/stories/poc"]')).toHaveCount(0);
+      await expect(archive.locator(`a[href="/stories/${journey.slug}"]`)).toHaveCount(1);
+      await expect(archive.getByRole('link')).toHaveCount(4);
+      await expect(archive.locator('h2 + span')).toHaveText('04');
+      expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
+    }
+    await test.info().attach('e2e-fixture-home-retired-slug.json', {
+      body: Buffer.from(JSON.stringify({ oldSlug: 'poc', liveSlug: journey.slug, redirect: redirect.status(), errors })),
+      contentType: 'application/json',
+    });
+    expect(errors).toEqual([]);
+  } finally {
+    await db.collection('journey_revisions').deleteOne({ _id: oldRevisionId });
+    await db.collection('journey_revisions').updateOne({ _id: journey.revisionId }, { $set: { sequence: 1 } });
+    await db.collection('journeys').updateOne({ _id: journey.id }, { $unset: { publishedSlug: '' } });
+    await client.close();
+  }
 });
