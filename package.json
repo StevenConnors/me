@@ -19,6 +19,7 @@
     "media:enrich": "node scripts/backfill-media-enrichments.mjs",
     "media:audit": "node scripts/audit-media-library.mjs",
     "photos:migrate": "node scripts/migrate-photos-page.mjs",
+    "photos:apple-sync": "node scripts/apple-photos-sync.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
