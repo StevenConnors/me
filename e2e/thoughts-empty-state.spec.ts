@@ -42,7 +42,6 @@ test('loading, failed and populated feeds do not show the empty line', async ({ 
     const text = message.text();
     if (message.location().url.includes('/api/thoughts?') &&
       text === 'Failed to load resource: the server responded with a status of 503 (Service Unavailable)') return;
-    if (text.startsWith('Error fetching thoughts: Error: HTTP error! status: 503')) return;
     errors.push(`console: ${text}`);
   });
   let release: () => void = () => {};
@@ -55,6 +54,7 @@ test('loading, failed and populated feeds do not show the empty line', async ({ 
   await expect(page.getByText('Loading…', { exact: true })).toBeVisible();
   await expect(page.getByText('Nothing here yet.', { exact: true })).toHaveCount(0);
   release();
+  await expect(page.getByRole('main').getByRole('alert')).toContainText("Couldn't load thoughts.");
   await expect(page.getByText('Loading…', { exact: true })).toHaveCount(0);
   await expect(page.getByText('Nothing here yet.', { exact: true })).toHaveCount(0);
 
@@ -65,6 +65,7 @@ test('loading, failed and populated feeds do not show the empty line', async ({ 
   } }));
   await page.reload();
   await expect(page.getByText('A thought for today.', { exact: true })).toBeVisible();
+  await expect(page.getByRole('main').getByRole('alert')).toHaveCount(0);
   await expect(page.getByText('Nothing here yet.', { exact: true })).toHaveCount(0);
   expect(errors).toEqual([]);
 });

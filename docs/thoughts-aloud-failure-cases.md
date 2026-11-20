@@ -17,3 +17,11 @@ When `/api/thoughts` fails:
 - "Try again" after the API recovers must load the posts and remove the error message.
 - A failed later page (infinite scroll) must keep the posts already shown, stop requesting, and offer "Try again", which continues from the same cursor without duplicating posts.
 - The error state must fit a 390 px viewport without horizontal scroll.
+
+When `/api/thoughts` returns an empty feed:
+
+- A successful empty feed must show "Nothing here yet." below the title.
+- Loading and failed requests must not show the empty line, including alongside the error alert.
+- A populated feed must not show the empty line alongside thoughts.
+- The empty line must fit a 390 px viewport without horizontal scroll or runtime errors.
+- The empty state must not add dependencies or regress the public route's LCP/CLS.
