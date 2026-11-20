@@ -105,6 +105,9 @@ export default function ThoughtsAloud() {
 
     <main className={styles['ta-main']}>
       <h1 className={styles['ta-title']}>thoughts out loud</h1>
+      {status === 'idle' && !hasMore && thoughts.length === 0 && (
+        <p className={styles['ta-empty']}>Nothing here yet.</p>
+      )}
       {thoughts.map(thought => (
         <article
           key={thought._id}
