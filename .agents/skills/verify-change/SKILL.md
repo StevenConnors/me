@@ -25,6 +25,7 @@ Start the disposable DB once: `npm run e2e:db:up`. Run the narrowest specs first
 | --- | --- |
 | Retired public routes / concept navigation | `e2e/retired-route.spec.ts`, `e2e/site-navigation.spec.ts` |
 | Public site origin / canonical metadata | `e2e/canonical-site-url.spec.ts` |
+| `app/admin/(protected)/travel/**` navigation guard | `e2e/travel-unsaved-guard.spec.ts`, `e2e/travel.spec.ts`, `e2e/journey-failed-autosave.spec.ts` |
 | Journal / Photos save and release status | `e2e/editor-release-status.spec.ts` |
 | Journal publication replay / recovery | `e2e/journal-publish.spec.ts` |
 | `app/api/health/**`, `scripts/smoke/**` | `e2e/production-health.spec.ts` |
