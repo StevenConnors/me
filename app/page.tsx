@@ -21,11 +21,19 @@ export default async function Home() {
   let photos: PublicPhoto[] = [];
   let covers: HeldPlacesMediaContext | undefined;
   let failed = false;
+  let visibleLegacyJourneys = legacyJourneys;
 
   try {
-    journeys = await (await JourneyRepository.connect()).listPublishedSummaries({
+    const repository = await JourneyRepository.connect();
+    journeys = await repository.listPublishedSummaries({
       limit: 24,
     });
+    try {
+      const resolved = await Promise.all(legacyJourneys.map(({ slug }) => repository.resolvePublicSlug(slug)));
+      visibleLegacyJourneys = legacyJourneys.filter((_, index) => !resolved[index]);
+    } catch (error) {
+      console.error('Unable to resolve legacy journey links', error);
+    }
   } catch (error) {
     failed = true;
     console.error('Unable to load the published journey index', error);
@@ -50,5 +58,5 @@ export default async function Home() {
     console.error('Unable to load home photo selection', error);
   }
 
-  return <HeldPlacesIndex covers={covers} failed={failed} journeys={journeys} photos={photos} legacyJourneys={legacyJourneys} />;
+  return <HeldPlacesIndex covers={covers} failed={failed} journeys={journeys} photos={photos} legacyJourneys={visibleLegacyJourneys} />;
 }

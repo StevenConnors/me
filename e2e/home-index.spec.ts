@@ -150,3 +150,46 @@ test('a published legacy slug appears once with database metadata', async ({ pag
     await client.close();
   }
 });
+
+test('a retired legacy slug redirects without duplicating the published journey', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  page.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()); });
+  const client = await MongoClient.connect(mongoUri);
+  const db = client.db();
+  const journey = journeys[0];
+  const oldRevisionId = new ObjectId();
+  try {
+    const revision = await db.collection('journey_revisions').findOne({ _id: journey.revisionId });
+    if (!revision) throw new Error('Published fixture revision is missing');
+    await db.collection('journey_revisions').updateOne({ _id: journey.revisionId }, { $set: { sequence: 2 } });
+    await db.collection('journey_revisions').insertOne({
+      ...revision, _id: oldRevisionId, sequence: 1,
+      metadataSnapshot: { ...revision.metadataSnapshot, slug: 'poc' },
+    });
+    await db.collection('journeys').updateOne({ _id: journey.id }, { $set: { publishedSlug: journey.slug } });
+    const redirect = await page.request.get('/stories/poc', { maxRedirects: 0 });
+    expect(redirect.status()).toBe(307);
+    expect(redirect.headers().location).toBe(`/stories/${journey.slug}`);
+    for (const width of [1440, 390]) {
+      await page.setViewportSize({ width, height: 1100 });
+      await page.goto('/');
+      const archive = page.locator('#journeys');
+      await expect(archive.locator('a[href="/stories/poc"]')).toHaveCount(0);
+      await expect(archive.locator(`a[href="/stories/${journey.slug}"]`)).toHaveCount(1);
+      await expect(archive.getByRole('link')).toHaveCount(4);
+      await expect(archive.locator('h2 + span')).toHaveText('04');
+      expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
+    }
+    await test.info().attach('e2e-fixture-home-retired-slug.json', {
+      body: Buffer.from(JSON.stringify({ oldSlug: 'poc', liveSlug: journey.slug, redirect: redirect.status(), errors })),
+      contentType: 'application/json',
+    });
+    expect(errors).toEqual([]);
+  } finally {
+    await db.collection('journey_revisions').deleteOne({ _id: oldRevisionId });
+    await db.collection('journey_revisions').updateOne({ _id: journey.revisionId }, { $set: { sequence: 1 } });
+    await db.collection('journeys').updateOne({ _id: journey.id }, { $unset: { publishedSlug: '' } });
+    await client.close();
+  }
+});
