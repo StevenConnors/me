@@ -35,11 +35,13 @@ export const PhotosMediaBlockSchema = z
     altText: OptionalAltTextSchema,
     decorative: z.boolean(),
     featuredOnHome: z.boolean().optional(),
+    albumRole: z.enum(['cover', 'feature']).optional(),
     displayDate: z.string().date().optional(),
   })
   .strict();
 
 export type PhotosMediaBlock = z.infer<typeof PhotosMediaBlockSchema>;
+export type PhotosAlbumRole = NonNullable<PhotosMediaBlock['albumRole']>;
 
 export const PhotosPageBlockSchema = z.discriminatedUnion('type', [
   PhotosSectionBlockSchema,
@@ -146,8 +148,10 @@ export function validatePhotosDocumentForPublishing(
     }));
   }
 
+  let albumHasCover = false;
   document.blocks.forEach((block, index) => {
     if (block.type === 'section') {
+      albumHasCover = false;
       const following = document.blocks[index + 1];
       if (!following || following.type !== 'media') {
         issues.push({
@@ -156,6 +160,16 @@ export function validatePhotosDocumentForPublishing(
         });
       }
       return;
+    }
+
+    if (block.albumRole === 'cover') {
+      if (albumHasCover) {
+        issues.push({
+          blockId: block.id,
+          message: 'This album already has a cover. Keep one cover and change this photo to featured or regular.',
+        });
+      }
+      albumHasCover = true;
     }
 
     if (!block.decorative && !block.altText) {

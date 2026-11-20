@@ -2,7 +2,7 @@ import 'server-only';
 
 import type { MediaProvider } from '@/lib/media/providers/MediaProvider';
 import type { MediaAsset } from '@/lib/media/schemas';
-import type { PhotosPageDocument } from '@/lib/photos/schemas';
+import type { PhotosAlbumRole, PhotosPageDocument } from '@/lib/photos/schemas';
 
 export type PublicPhotoSectionBreak = { title?: string; text?: string };
 
@@ -16,6 +16,7 @@ type PublicPhotoBase = {
   caption?: string;
   tags: string[];
   captureDate?: string;
+  albumRole?: PhotosAlbumRole;
   sectionBreak?: PublicPhotoSectionBreak;
   sectionBlockId?: string;
 };
@@ -54,6 +55,7 @@ function publicPhotoFromAsset(
     altText?: string;
     decorative?: boolean;
     displayDate?: string;
+    albumRole?: PhotosAlbumRole;
     sectionBreak?: PublicPhotoSectionBreak;
     sectionBlockId?: string;
     provider: Pick<MediaProvider, 'buildImageUrl' | 'buildVideoPosterUrl' | 'buildVideoUrl'>;
@@ -111,6 +113,7 @@ function publicPhotoFromAsset(
     tags: asset.tags.filter((tag) => !isBookkeepingTag(tag)),
     ...(options.caption ?? asset.caption ? { caption: options.caption ?? asset.caption } : {}),
     ...(options.displayDate ?? asset.captureDate ? { captureDate: options.displayDate ?? asset.captureDate } : {}),
+    ...(options.albumRole ? { albumRole: options.albumRole } : {}),
     ...(options.sectionBreak ? { sectionBreak: options.sectionBreak } : {}),
     ...(options.sectionBlockId ? { sectionBlockId: options.sectionBlockId } : {}),
   };
@@ -157,6 +160,7 @@ export function resolvePublishedPhotos(
       ...(block.caption ? { caption: block.caption } : {}),
       ...(block.altText ? { altText: block.altText } : {}),
       ...(block.displayDate ? { displayDate: block.displayDate } : {}),
+      ...(block.albumRole ? { albumRole: block.albumRole } : {}),
       ...(pendingSection ? {
         sectionBreak: {
           ...(pendingSection.title ? { title: pendingSection.title } : {}),

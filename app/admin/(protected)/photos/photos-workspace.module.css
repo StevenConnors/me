@@ -48,7 +48,7 @@
 .sectionEditor[data-drag-active] { outline: 1px dashed #8d887d; outline-offset: 6px; }
 .sectionEditor[data-drop-position="after"] { box-shadow: 0 5px 0 #1b2f4d; }
 .sectionEditor label, .inspector label { display: grid; gap: 5px; margin-bottom: 10px; color: #4d493f; font: 12px/1.2 Arial, sans-serif; }
-.sectionEditor input, .sectionEditor textarea, .inspector input { width: 100%; box-sizing: border-box; padding: 8px; border: 1px solid #aba496; border-radius: 2px; background: #fffdf8; color: #22201b; font: 15px/1.35 Georgia, serif; }
+.sectionEditor input, .sectionEditor textarea, .inspector input, .inspector select { width: 100%; box-sizing: border-box; padding: 8px; border: 1px solid #aba496; border-radius: 2px; background: #fffdf8; color: #22201b; font: 15px/1.35 Georgia, serif; }
 .sectionEditor textarea { min-height: 76px; resize: vertical; }
 .sectionSelect { display: block; width: 100%; padding: 0; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
 .sectionHeader { display: flex; align-items: start; gap: 18px; }

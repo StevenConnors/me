@@ -1,4 +1,5 @@
 import type {
+  PhotosAlbumRole,
   PhotosMediaBlock,
   PhotosPageDocument,
   PhotosSectionBlock,
@@ -70,6 +71,32 @@ export function updateMediaBlock(
     ? { ...block, ...patch }
     : block,
   ));
+}
+
+/** An album is the run of media between section blocks; it keeps at most one cover. */
+export function setAlbumRole(
+  document: PhotosPageDocument,
+  blockId: string,
+  albumRole: PhotosAlbumRole | undefined,
+): PhotosPageDocument {
+  const index = indexOfBlock(document, blockId);
+  if (index < 0 || document.blocks[index].type !== 'media') return document;
+  let start = index;
+  while (start > 0 && document.blocks[start - 1].type === 'media') start -= 1;
+  let end = index;
+  while (end + 1 < document.blocks.length && document.blocks[end + 1].type === 'media') end += 1;
+  return copy(document, document.blocks.map((block, position) => {
+    if (block.type !== 'media') return block;
+    if (block.id === blockId) {
+      const { albumRole: _previous, ...rest } = block;
+      return albumRole ? { ...rest, albumRole } : rest;
+    }
+    if (albumRole === 'cover' && position >= start && position <= end && block.albumRole === 'cover') {
+      const { albumRole: _previous, ...rest } = block;
+      return rest;
+    }
+    return block;
+  }));
 }
 
 export function updateSectionBlock(
