@@ -80,8 +80,12 @@ export function planApplePhotosSync(input: {
       const existingIndex = previousBlockId ? blocks.findIndex((block) => block.id === previousBlockId) : -1;
       const existing = blocks[existingIndex];
 
+      const placedElsewhere = blocks.some((block, index) => index !== existingIndex
+        && block.type === 'media' && block.mediaAssetId === photo.mediaAssetId);
+
       if (existing?.type === 'media') {
-        if (existing.mediaAssetId !== photo.mediaAssetId) {
+        // A media asset may appear once; keep the old upload if the author already placed the new one.
+        if (existing.mediaAssetId !== photo.mediaAssetId && !placedElsewhere) {
           blocks[existingIndex] = { ...existing, mediaAssetId: photo.mediaAssetId };
           summary.photosUpdated += 1;
         }
@@ -89,7 +93,7 @@ export function planApplePhotosSync(input: {
         continue;
       }
       // The author already placed this upload; leave their block alone and do not add a copy.
-      if (blocks.some((block) => block.type === 'media' && block.mediaAssetId === photo.mediaAssetId)) {
+      if (placedElsewhere) {
         nextPhotos.set(photo.sourcePhotoId, { ...photo });
         continue;
       }
