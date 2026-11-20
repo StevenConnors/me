@@ -49,7 +49,6 @@ test('travel editor clears unsaved changes when saved selections are restored', 
 
   try {
     await collection.replaceOne({ _id: 'travel' }, {
-      _id: 'travel',
       schemaVersion: 1,
       selections: { ...travelSelections, countries: ['AU', 'JP'] },
       version: 1,
