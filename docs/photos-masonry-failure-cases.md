@@ -1,3 +1,5 @@
+# Legacy browser fallback
+- Without container queries, photos remain in source order in a two-column grid, retain their aspect ratios, and do not overlap.
 # Photos masonry failures
 
 - At 390 px or 412 px, the first server-rendered photo layout has different tile positions or section height after hydration.

@@ -64,6 +64,26 @@ test('photos keep their server layout through hydration and resize in canonical 
     }
     await test.info().attach('e2e-fixture-masonry-mobile.png', { body: await page.screenshot(), contentType: 'image/png' });
     await test.info().attach('e2e-fixture-masonry-layout.json', { body: JSON.stringify(observations), contentType: 'application/json' });
+    await page.evaluate(() => {
+      const fallback = Array.from(document.styleSheets).flatMap((sheet) => Array.from(sheet.cssRules))
+        .find((rule) => rule instanceof CSSSupportsRule && /not.*container-type/.test(rule.conditionText));
+      if (!(fallback instanceof CSSSupportsRule)) throw new Error('Missing non-container-query grid fallback');
+      const style = document.createElement('style');
+      style.textContent = Array.from(fallback.cssRules).map((rule) => rule.cssText).join('\n');
+      document.head.append(style);
+    });
+    const fallbackTiles = await geometry(page);
+    expect(new Set(fallbackTiles.map((tile) => tile.x)).size).toBe(2);
+    fallbackTiles.forEach((tile, index) => {
+      expect(Math.abs(tile.height - tile.width * [0.75, 1.5, 1][index % 3])).toBeLessThan(1);
+      fallbackTiles.slice(index + 1).forEach((other) => {
+        const overlaps = tile.x < other.x + other.width && tile.x + tile.width > other.x
+          && tile.y < other.y + other.height && tile.y + tile.height > other.y;
+        expect(overlaps).toBe(false);
+      });
+    });
+    expect(await page.locator('button img').evaluateAll((images) => images.map((image) => image.getAttribute('src')))).toEqual(sources);
+    await test.info().attach('e2e-fixture-masonry-fallback.png', { body: await page.screenshot(), contentType: 'image/png' });
     expect(errors).toEqual([]);
   } finally {
     await media.deleteMany({ _id: { $in: ids } });
