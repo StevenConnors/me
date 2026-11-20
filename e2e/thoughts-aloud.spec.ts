@@ -115,3 +115,140 @@ test('thoughts aloud renders posts even when a tweet payload has no entities', a
     await test.info().attach('e2e-fixture-thoughts-aloud-result.json', { path: artifactPath, contentType: 'application/json' });
   }
 });
+
+const thoughtsApi = '**/api/thoughts?**';
+// Long enough for the old loop to send dozens of requests (118 in 2 s was observed).
+const refetchObservationMs = 2_000;
+
+function collectErrorsIgnoringThoughtsApi(page: Page) {
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(`pageerror: ${error.message}`));
+  page.on('console', (message) => {
+    if (message.type() !== 'error') return;
+    // The browser logs each 503 from the stubbed API as a failed resource load.
+    if (new URL(message.location().url, 'http://localhost').pathname === '/api/thoughts') return;
+    errors.push(`console: ${message.text()}`);
+  });
+  return errors;
+}
+
+async function connectToE2eMongo() {
+  const mongo = new MongoClient(
+    process.env.E2E_MONGODB_URI ?? 'mongodb://127.0.0.1:27018/journey_editor_e2e',
+    { serverSelectionTimeoutMS: 10_000 },
+  );
+  await mongo.connect();
+  return mongo;
+}
+
+test('thoughts aloud stops after a failed first load and recovers with Try again', async ({ page }) => {
+  test.setTimeout(90_000);
+  const runId = new ObjectId().toHexString();
+  const id = new ObjectId();
+  const artifact = { runId, requestsWhenErrorShown: 0, requestsAfterWindow: 0, horizontalOverflow: Number.NaN, errors: [] as string[] };
+  const mongo = await connectToE2eMongo();
+
+  try {
+    await mongo.db().collection('thoughts').insertOne({
+      _id: id,
+      text: `Recovered ${runId}`,
+      createdAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+    });
+
+    let failedRequests = 0;
+    await page.route(thoughtsApi, (route) => {
+      failedRequests += 1;
+      return route.fulfill({ status: 503, json: { error: 'Service unavailable' } });
+    });
+    const errors = collectErrorsIgnoringThoughtsApi(page);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/thoughts-aloud');
+
+    const alert = page.getByRole('main').getByRole('alert');
+    await expect(alert).toContainText("Couldn't load thoughts.");
+    artifact.requestsWhenErrorShown = failedRequests;
+    // Observation window: a refetch loop shows up as requests made while the error is on screen.
+    await page.waitForTimeout(refetchObservationMs);
+    artifact.requestsAfterWindow = failedRequests;
+    expect(artifact.requestsAfterWindow).toBe(artifact.requestsWhenErrorShown);
+    // React Strict Mode runs the mount effect twice in development.
+    expect(artifact.requestsAfterWindow).toBeLessThanOrEqual(2);
+
+    artifact.horizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    expect(artifact.horizontalOverflow).toBeLessThanOrEqual(0);
+    const screenshot = test.info().outputPath('e2e-fixture-thoughts-aloud-load-error-mobile.png');
+    await page.screenshot({ path: screenshot, fullPage: true });
+    await test.info().attach('e2e-fixture-thoughts-aloud-load-error-mobile.png', { path: screenshot, contentType: 'image/png' });
+
+    await page.unroute(thoughtsApi);
+    await page.getByRole('button', { name: 'Try again' }).click();
+    await expect(page.getByText(`Recovered ${runId}`)).toBeVisible();
+    await expect(alert).toHaveCount(0);
+
+    artifact.errors = errors;
+    expect(errors).toEqual([]);
+  } finally {
+    await mongo.db().collection('thoughts').deleteOne({ _id: id });
+    await mongo.close();
+    const artifactPath = test.info().outputPath('e2e-fixture-thoughts-aloud-load-error-result.json');
+    await writeFile(artifactPath, JSON.stringify(artifact, null, 2));
+    await test.info().attach('e2e-fixture-thoughts-aloud-load-error-result.json', { path: artifactPath, contentType: 'application/json' });
+  }
+});
+
+test('thoughts aloud keeps loaded posts when a later page fails and resumes from the same cursor', async ({ page }) => {
+  test.setTimeout(90_000);
+  const runId = new ObjectId().toHexString();
+  const pageLimit = 50;
+  const future = Date.now() + 2 * 365 * 24 * 60 * 60 * 1000;
+  const docs = Array.from({ length: pageLimit + 1 }, (_, index) => ({
+    _id: new ObjectId(),
+    text: `Paged ${runId} #${index + 1}`,
+    createdAt: new Date(future - index * 1000),
+  }));
+  const artifact = { runId, requestsWhenErrorShown: 0, requestsAfterWindow: 0, postsAfterRetry: 0, errors: [] as string[] };
+  const mongo = await connectToE2eMongo();
+
+  try {
+    await mongo.db().collection('thoughts').insertMany(docs);
+
+    const failedCursors: string[] = [];
+    await page.route(thoughtsApi, (route) => {
+      const cursor = new URL(route.request().url()).searchParams.get('cursor');
+      if (cursor === null) return route.continue();
+      failedCursors.push(cursor);
+      return route.fulfill({ status: 503, json: { error: 'Service unavailable' } });
+    });
+    const errors = collectErrorsIgnoringThoughtsApi(page);
+    await page.goto('/thoughts-aloud');
+
+    const posts = page.locator('article').filter({ hasText: `Paged ${runId}` });
+    await expect(posts).toHaveCount(pageLimit);
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+
+    const alert = page.getByRole('main').getByRole('alert');
+    await expect(alert).toContainText("Couldn't load more thoughts.");
+    artifact.requestsWhenErrorShown = failedCursors.length;
+    await page.waitForTimeout(refetchObservationMs);
+    artifact.requestsAfterWindow = failedCursors.length;
+    expect(artifact.requestsAfterWindow).toBe(artifact.requestsWhenErrorShown);
+    expect(artifact.requestsAfterWindow).toBe(1);
+    await expect(posts).toHaveCount(pageLimit);
+
+    await page.unroute(thoughtsApi);
+    await page.getByRole('button', { name: 'Try again' }).click();
+    await expect(page.getByText(`Paged ${runId} #${pageLimit + 1}`, { exact: true })).toBeVisible();
+    await expect(alert).toHaveCount(0);
+    artifact.postsAfterRetry = await posts.count();
+    expect(artifact.postsAfterRetry).toBe(pageLimit + 1);
+
+    artifact.errors = errors;
+    expect(errors).toEqual([]);
+  } finally {
+    await mongo.db().collection('thoughts').deleteMany({ _id: { $in: docs.map((doc) => doc._id) } });
+    await mongo.close();
+    const artifactPath = test.info().outputPath('e2e-fixture-thoughts-aloud-next-page-error-result.json');
+    await writeFile(artifactPath, JSON.stringify(artifact, null, 2));
+    await test.info().attach('e2e-fixture-thoughts-aloud-next-page-error-result.json', { path: artifactPath, contentType: 'application/json' });
+  }
+});

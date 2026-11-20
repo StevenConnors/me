@@ -9,3 +9,11 @@ Before changing how `/thoughts-aloud` renders posts:
 - Bare YouTube URLs render an embed that must not be wider than the viewport; at 390 px the page must not scroll horizontally.
 - No `pageerror` or console errors may be logged while the page loads.
 - Performance: the fix must not add a new dependency or noticeably increase the page's client JavaScript.
+
+When `/api/thoughts` fails:
+
+- A failed first load (5xx, network error, invalid JSON) must stop requesting. The page must not refetch on its own in a loop.
+- A failed load must show a visible error message with a "Try again" button instead of an empty page.
+- "Try again" after the API recovers must load the posts and remove the error message.
+- A failed later page (infinite scroll) must keep the posts already shown, stop requesting, and offer "Try again", which continues from the same cursor without duplicating posts.
+- The error state must fit a 390 px viewport without horizontal scroll.

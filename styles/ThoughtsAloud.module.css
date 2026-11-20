@@ -67,6 +67,34 @@
   height: 100%;
   border: 0;
 }
+.ta-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  color: #555;
+}
+.ta-error p {
+  margin: 0;
+}
+.ta-retry {
+  font: inherit;
+  font-size: 0.95rem;
+  color: #121212;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 0.375rem;
+  padding: 0.35rem 0.9rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.ta-retry:hover {
+  background: #f5f7fa;
+}
+.ta-retry:focus-visible {
+  outline: 2px solid #121212;
+  outline-offset: 2px;
+}
 @media (max-width: 600px) {
   .ta-main {
     padding: 1rem 0.25rem;
