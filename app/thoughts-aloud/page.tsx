@@ -7,6 +7,8 @@ import styles from '../../styles/ThoughtsAloud.module.css';
 
 const PAGE_LIMIT = 50;
 
+type LoadStatus = 'idle' | 'loading' | 'error';
+
 interface Thought {
   _id: string;
   text: string;
@@ -36,12 +38,12 @@ function getYouTubeEmbedUrl(url: string): string | null {
 export default function ThoughtsAloud() {
   const [thoughts, setThoughts] = useState<Thought[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState<LoadStatus>('idle');
   const [hasMore, setHasMore] = useState(true);
   const loader = useRef<HTMLDivElement>(null);
 
   const fetchThoughts = useCallback(async (cursor: string | null = null) => {
-    setLoading(true);
+    setStatus('loading');
     try {
       const params = new URLSearchParams({ limit: PAGE_LIMIT.toString() });
       if (cursor) params.append('cursor', cursor);
@@ -71,11 +73,9 @@ export default function ThoughtsAloud() {
       });
       setNextCursor(data.nextCursor);
       setHasMore(!!data.nextCursor);
-    } catch (error) {
-      console.error('Error fetching thoughts:', error);
-      // You might want to show an error message to the user here
-    } finally {
-      setLoading(false);
+      setStatus('idle');
+    } catch {
+      setStatus('error');
     }
   }, []);
 
@@ -83,9 +83,10 @@ export default function ThoughtsAloud() {
     fetchThoughts();
   }, [fetchThoughts]);
 
-  // Infinite scroll
+  // Infinite scroll. A failed load waits for "Try again": the loader is still in
+  // view, so re-observing it would refetch immediately and loop.
   useEffect(() => {
-    if (!hasMore || loading) return;
+    if (!hasMore || status !== 'idle') return;
     const observer = new window.IntersectionObserver(
       entries => {
         if (entries[0].isIntersecting) {
@@ -96,7 +97,7 @@ export default function ThoughtsAloud() {
     );
     if (loader.current) observer.observe(loader.current);
     return () => observer.disconnect();
-  }, [hasMore, loading, nextCursor, fetchThoughts]);
+  }, [hasMore, status, nextCursor, fetchThoughts]);
 
   return (
     <>
@@ -219,7 +220,15 @@ export default function ThoughtsAloud() {
           </div>
         </article>
       ))}
-      {loading && <div>Loading…</div>}
+      {status === 'loading' && <div>Loading…</div>}
+      {status === 'error' && (
+        <div role="alert" className={styles['ta-error']}>
+          <p>{thoughts.length > 0 ? "Couldn't load more thoughts." : "Couldn't load thoughts."}</p>
+          <button type="button" className={styles['ta-retry']} onClick={() => fetchThoughts(nextCursor)}>
+            Try again
+          </button>
+        </div>
+      )}
       <div ref={loader} />
     </main>
   </>);
