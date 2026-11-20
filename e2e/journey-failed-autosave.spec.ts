@@ -74,7 +74,7 @@ test('queued and in-flight edits warn, and explicit discard permits navigation',
     await expect(page.getByText('Local changes · not saved', { exact: true })).toBeVisible();
     const dialogs: string[] = [];
     page.on('dialog', async (dialog) => { dialogs.push(dialog.type()); await dialog.dismiss(); });
-    await page.getByRole('link', { name: 'Photos', exact: true }).click();
+    await page.getByRole('link', { name: 'Analytics', exact: true }).click();
     expect(dialogs).toEqual(['confirm']);
     await expect(page).toHaveURL(editorUrl);
     await page.clock.fastForward(1_100);

@@ -2,12 +2,13 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 
 import { HeldPlacesEditor } from '@/components/editor/HeldPlacesEditor';
 import { JourneyVisualEditor, type EditorMedia } from '@/components/editor/JourneyVisualEditor';
 import styles from '@/app/admin/admin.module.css';
 import { useDraftSave } from '@/lib/client/use-draft-save';
+import { useUnsavedChangesGuard } from '@/lib/client/use-unsaved-changes-guard';
 import type {
   JourneyDocument,
   JourneyLocation,
@@ -76,29 +77,7 @@ export function JourneyWorkspace({ initialJourney, initialPublishedSnapshot, med
   const [migrationState, setMigrationState] = useState<'idle' | 'migrating' | 'error'>('idle');
   const releaseBusy = publishState.state === 'publishing' || migrationState === 'migrating';
 
-  useEffect(() => {
-    function beforeUnload(event: BeforeUnloadEvent) {
-      if (!isDirty()) return;
-      event.preventDefault();
-      event.returnValue = '';
-    }
-    function beforeNavigate(event: MouseEvent) {
-      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || !isDirty()) return;
-      const link = event.target instanceof Element ? event.target.closest('a[href]') : null;
-      if (!(link instanceof HTMLAnchorElement) || link.download || (link.target && link.target !== '_self')) return;
-      const destination = new URL(link.href);
-      if (destination.origin === window.location.origin && destination.pathname === window.location.pathname && destination.search === window.location.search) return;
-      if (window.confirm('This journey has unsaved changes. Leave and discard them? Choose Cancel to stay and use Save now to retry.')) return;
-      event.preventDefault();
-      event.stopPropagation();
-    }
-    window.addEventListener('beforeunload', beforeUnload);
-    document.addEventListener('click', beforeNavigate, true);
-    return () => {
-      window.removeEventListener('beforeunload', beforeUnload);
-      document.removeEventListener('click', beforeNavigate, true);
-    };
-  }, [isDirty]);
+  useUnsavedChangesGuard(isDirty, 'This journey has unsaved changes. Leave and discard them? Choose Cancel to stay and use Save now to retry.');
 
   function change<K extends keyof Pick<EditableJourney, 'title' | 'slug' | 'summary' | 'cover' | 'experiencedAt' | 'locations' | 'draftDocument'>>(key: K, value: EditableJourney[K]) {
     edit({ ...readDraft(), [key]: value });
