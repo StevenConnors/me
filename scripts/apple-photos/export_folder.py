@@ -29,10 +29,12 @@ def find_folder(db, title):
 
 def albums_in(folder):
     """Albums in Photos.app sidebar order, including albums in subfolders."""
-    for album in folder.album_info:
-        yield album
-    for subfolder in folder.subfolders:
-        yield from albums_in(subfolder)
+    children = sorted([*folder.album_info, *folder.subfolders], key=lambda child: child.library_list_order)
+    for child in children:
+        if hasattr(child, "subfolders"):
+            yield from albums_in(child)
+        else:
+            yield child
 
 
 def source_version(photo):

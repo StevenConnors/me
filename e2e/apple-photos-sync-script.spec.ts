@@ -33,10 +33,14 @@ test('Mac sync script uploads favorites from a Photos.app folder into the Photos
     p3: { favorite: false },
     p4: { keywords: ['Cover'] },
     p5: {},
+    p8: {},
   };
   const folders = () => [
-    { title: 'Website', albums: [{ uuid: 'album-kumano', title: 'Kumano', photos: ['p1', 'p2', 'p3', 'p4'] }],
-      subfolders: [{ title: 'Africa', albums: [{ uuid: 'album-egypt', title: 'Egypt', photos: ['p5'] }] }] },
+    // In the sidebar: Kumano, then the Africa folder, then Alps.
+    { title: 'Website', albums: [
+      { uuid: 'album-kumano', title: 'Kumano', photos: ['p1', 'p2', 'p3', 'p4'], order: 1 },
+      { uuid: 'album-alps', title: 'Alps', photos: ['p8'], order: 3 },
+    ], subfolders: [{ title: 'Africa', order: 2, albums: [{ uuid: 'album-egypt', title: 'Egypt', photos: ['p5'] }] }] },
     { title: 'Private', albums: [{ uuid: 'album-private', title: 'Private', photos: ['p1'] }] },
   ];
   const writeLibrary = (folderList = folders()) => writeFile(libraryPath, JSON.stringify({ folders: folderList, photos }));
@@ -76,27 +80,27 @@ test('Mac sync script uploads favorites from a Photos.app folder into the Photos
 
     const report = await run();
     expect(report.code).toBe(0);
-    expect(report.output).toContain('"Website": 2 albums, 4 photos, 4 to upload');
+    expect(report.output).toContain('"Website": 3 albums, 5 photos, 5 to upload');
     expect(report.output).not.toContain(TOKEN);
     expect(await uploads()).toBe(0);
     expect((await draft()).blocks).toEqual([]);
 
     const first = await run('--apply');
     expect(first.code).toBe(0);
-    expect(await shape()).toEqual(['section:Kumano', 'p1', 'p2', 'p4:cover', 'section:Egypt', 'p5']);
+    expect(await shape()).toEqual(['section:Kumano', 'p1', 'p2', 'p4:cover', 'section:Egypt', 'p5', 'section:Alps', 'p8']);
     expect((await draft()).blocks.find((block) => block.caption)).toMatchObject({ caption: 'Cedar steps' });
     const sips = (await readFile(sipsLog, 'utf8')).trim().split('\n').map((line) => JSON.parse(line));
-    expect(sips).toHaveLength(4);
+    expect(sips).toHaveLength(5);
     for (const call of sips) expect(call.args.slice(0, 4)).toEqual(['-s', 'format', 'jpeg', '-s']);
     expect(sips.filter((call) => call.args.includes('-Z')).map((call) => call.source)).toEqual(['p2.jpeg']);
     expect(sips.find((call) => call.source === 'p2.jpeg').args.slice(-2)).toEqual(['-Z', '4096']);
-    expect(await uploads()).toBe(4);
+    expect(await uploads()).toBe(5);
     observations.firstRun = first.output.trim().split('\n');
 
     const repeat = await run('--apply');
     expect(repeat.output).toContain('0 to upload');
     expect(repeat.output).toContain('already matches');
-    expect(await uploads()).toBe(4);
+    expect(await uploads()).toBe(5);
 
     // Favoriting in Photos is not an edit; editing p1 is. p5 leaves the folder.
     photos.p3.favorite = true;
@@ -111,11 +115,14 @@ test('Mac sync script uploads favorites from a Photos.app folder into the Photos
 
     // One photo failing to export does not stop the others, and the run exits non-zero.
     photos.p6 = { exportFails: true };
+    // An edit whose export fails keeps the synced version in the draft.
+    photos.p2 = { ...photos.p2, editedAt: '2026-11-21T09:00:00+09:00', exportFails: true };
     photos.p7 = {};
     await writeLibrary([{ title: 'Website', albums: [{ uuid: 'album-kumano', title: 'Kumano', photos: ['p1', 'p2', 'p3', 'p4', 'p6', 'p7'] }] }]);
     const partial = await run('--apply');
     expect(partial.code).toBe(1);
     expect(partial.output).toContain('Skipped p6');
+    expect(partial.output).toContain('Skipped p2');
     expect(await shape()).toEqual(['section:Kumano', 'p1', 'p2', 'p4:cover', 'p3', 'p7']);
     observations.partialRun = partial.output.trim().split('\n');
     expect((await pages.findOne({ _id: 'photos' }))?.publishedDocument).toBeUndefined();

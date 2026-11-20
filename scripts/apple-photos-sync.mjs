@@ -26,6 +26,8 @@ import { loadEnvironment, requiredEnvironment } from './lib/cloudinary-images.mj
 
 const EXPORTER = resolve(dirname(fileURLToPath(import.meta.url)), 'apple-photos/export_folder.py');
 const MAX_EDGE = 4096;
+const MAX_ALBUMS = 100;
+const MAX_PHOTOS = 500;
 
 const sourceKey = ({ sourcePhotoId, sourceVersion }) => `${sourcePhotoId}@${sourceVersion}`;
 
@@ -51,16 +53,45 @@ export function planUploads(albums, known) {
   return Array.from(pending.values());
 }
 
-export function buildSyncRequest(albums, known) {
+/**
+ * The folder as the sync endpoint expects it. An edited photo whose new
+ * version failed to upload is sent at its last synced version, so its block
+ * and the author's edits to it stay in the draft until the next run.
+ *
+ * @param {{ photos: Array<{ sourcePhotoId: string, sourceVersion: string, mediaAssetId: string }> }} [manifest]
+ */
+export function buildSyncRequest(albums, known, manifest = { photos: [] }) {
+  const synced = new Map(manifest.photos.map((photo) => [photo.sourcePhotoId, photo]));
   return {
     albums: albums.map((album) => ({
       sourceAlbumId: album.sourceAlbumId,
       title: album.title,
-      photos: album.photos
-        .filter((photo) => known.has(sourceKey(photo)))
-        .map((photo) => ({ ...photo, mediaAssetId: known.get(sourceKey(photo)) })),
+      photos: album.photos.flatMap((photo) => {
+        if (known.has(sourceKey(photo))) return [{ ...photo, mediaAssetId: known.get(sourceKey(photo)) }];
+        const previous = synced.get(photo.sourcePhotoId);
+        return previous ? [{ ...photo, sourceVersion: previous.sourceVersion, mediaAssetId: previous.mediaAssetId }] : [];
+      }),
     })),
   };
+}
+
+/** The Photos page limits, checked before any upload so a too-large folder uploads nothing. */
+export function assertWithinLimits(albums) {
+  if (albums.length > MAX_ALBUMS) throw new Error(`The folder has ${albums.length} albums; the Photos page holds at most ${MAX_ALBUMS} albums.`);
+  const photos = new Set(albums.flatMap((album) => album.photos.map((photo) => photo.sourcePhotoId)));
+  const largest = Math.max(0, ...albums.map((album) => album.photos.length));
+  if (photos.size > MAX_PHOTOS || largest > MAX_PHOTOS) {
+    throw new Error(`The folder has ${Math.max(photos.size, largest)} photos; the Photos page holds at most ${MAX_PHOTOS} photos.`);
+  }
+}
+
+/** The import token can change the Photos draft, so it only travels over HTTPS or to this machine. */
+export function assertSecureSiteUrl(siteUrl) {
+  const url = new URL(siteUrl);
+  const local = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
+  if (url.protocol !== 'https:' && !(url.protocol === 'http:' && local)) {
+    throw new Error('PHOTOS_IMPORT_SITE_URL must use https:// (http:// is only allowed for localhost).');
+  }
 }
 
 function parseArguments(argv) {
@@ -152,13 +183,16 @@ async function writeJournal(journal) {
 async function main() {
   loadEnvironment();
   const options = parseArguments(process.argv.slice(2));
-  const api = createApi(requiredEnvironment('PHOTOS_IMPORT_SITE_URL'), requiredEnvironment('PHOTOS_IMPORT_TOKEN'));
+  const siteUrl = requiredEnvironment('PHOTOS_IMPORT_SITE_URL');
+  assertSecureSiteUrl(siteUrl);
+  const api = createApi(siteUrl, requiredEnvironment('PHOTOS_IMPORT_TOKEN'));
 
   const [{ albums }, manifest, journal] = await Promise.all([
     runExporter(['list', '--folder', options.folder, ...(options.includeAll ? ['--all'] : [])]),
     api('/api/admin/imports/apple-photos'),
     readJournal(),
   ]);
+  assertWithinLimits(albums);
   const known = knownMedia(manifest, journal);
   const uploads = planUploads(albums, known);
   const photoCount = albums.reduce((total, album) => total + album.photos.length, 0);
@@ -200,7 +234,7 @@ async function main() {
   try {
     const result = await api('/api/admin/imports/apple-photos', {
       method: 'POST',
-      body: JSON.stringify(buildSyncRequest(albums, known)),
+      body: JSON.stringify(buildSyncRequest(albums, known, manifest)),
     });
     console.log(result.draftChanged
       ? `Photos draft updated: ${result.photosAdded} added, ${result.photosUpdated} replaced, ${result.photosRemoved} removed. Review and publish in /admin/photos.`

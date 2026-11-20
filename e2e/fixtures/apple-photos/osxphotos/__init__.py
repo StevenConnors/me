@@ -37,6 +37,7 @@ class _Album:
         self.uuid = data["uuid"]
         self.title = data["title"]
         self.photos = [photos[uuid] for uuid in data["photos"]]
+        self.library_list_order = (data.get("order", 0),)
 
 
 class _Folder:
@@ -44,6 +45,7 @@ class _Folder:
         self.title = data["title"]
         self.album_info = [_Album(album, photos) for album in data.get("albums", [])]
         self.subfolders = [_Folder(folder, photos) for folder in data.get("subfolders", [])]
+        self.library_list_order = (data.get("order", 0),)
 
 
 class PhotosDB:
