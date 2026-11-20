@@ -40,3 +40,22 @@ describe('layoutColumns', () => {
     expect(layoutColumns([{ id: 'only', width: 1, height: 3 }], 3).positions[0]).toMatchObject({ id: 'only', column: 0 });
   });
 });
+
+describe('wide masonry items', () => {
+  it('starts a two-column item under the taller of the lowest adjacent pair and lifts both columns', () => {
+    const { positions, height } = layoutColumns([
+      { id: 'a', width: 100, height: 100 },
+      { id: 'b', width: 100, height: 200 },
+      { id: 'wide', width: 200, height: 100, span: 2 },
+      { id: 'c', width: 100, height: 100 },
+    ], 3);
+    expect(positions.map(({ id, column, span }) => ({ id, column, span }))).toEqual([
+      { id: 'a', column: 0, span: 1 },
+      { id: 'b', column: 1, span: 1 },
+      { id: 'wide', column: 0, span: 2 },
+      { id: 'c', column: 2, span: 1 },
+    ]);
+    expect(positions[2].top).toBe('calc(((100cqw - 16px) / 3) * 2 + 8px)');
+    expect(height).toBe('max(calc(((100cqw - 16px) / 3) * 3 + 12px), calc(((100cqw - 16px) / 3) * 3 + 12px), calc(((100cqw - 16px) / 3) * 1 + 0px))');
+  });
+});

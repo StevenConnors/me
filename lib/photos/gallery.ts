@@ -10,8 +10,10 @@ export type PublicPhotosPage = {
   items: PublicPhoto[];
   nextCursor: string | null;
   unavailable: UnavailablePhotosBlock[];
-  sections: Array<PublicPhotoSectionBreak & { id: string; count: number }>;
+  sections: PublicPhotosSection[];
 };
+
+export type PublicPhotosSection = PublicPhotoSectionBreak & { id: string; count: number; cover?: PublicPhoto };
 
 const legacyPublishedAt = new Date(0).toISOString();
 
@@ -43,18 +45,24 @@ export async function loadPublicPhotosPage(
   page: PhotosPage | null,
   mediaRepository: Pick<MediaRepository, 'findByIds' | 'listPhotos'>,
   provider: Pick<MediaProvider, 'buildImageUrl' | 'buildVideoPosterUrl' | 'buildVideoUrl'>,
-  options: { limit?: number; cursor?: string } = {},
+  options: { limit?: number; cursor?: string; withCovers?: boolean } = {},
 ): Promise<PublicPhotosPage> {
   const limit = Math.min(Math.max(options.limit ?? 24, 1), 48);
   const cursor = options.cursor ? decodeGalleryCursor(options.cursor) : undefined;
   if (!page?.publishedDocument) {
     if (cursor && cursor.publishedAt !== legacyPublishedAt) throw new StaleGalleryCursorError();
     const legacy = resolveLegacyPhotos(await mediaRepository.listPhotos({ limit: 500 }), provider);
+    const sections = countSections(legacy.map((photo) => photo.sectionBreak && photo.sectionBlockId
+      ? { id: photo.sectionBlockId, ...photo.sectionBreak, photo: true } : { photo: true }));
     return {
       ...pageResolvedPhotos(legacy, legacyPublishedAt, limit, cursor?.mediaAssetId),
       unavailable: [],
-      sections: countSections(legacy.map((photo) => photo.sectionBreak && photo.sectionBlockId
-        ? { id: photo.sectionBlockId, ...photo.sectionBreak, photo: true } : { photo: true })),
+      sections: options.withCovers
+        ? sections.map((section) => {
+          const cover = legacy.find((photo) => photo.sectionBlockId === section.id);
+          return cover ? { ...section, cover } : section;
+        })
+        : sections,
     };
   }
 
@@ -92,15 +100,49 @@ export async function loadPublicPhotosPage(
 
   const items = resolved.photos.slice(0, limit);
   const last = items[items.length - 1];
+  const sections = countSections(publishedBlocks.map((block) => block.type === 'section'
+    ? { id: block.id, title: block.title, text: block.text, photo: false } : { photo: true }));
   return {
     items,
     nextCursor: last && resolved.photos.length > limit
       ? encodeGalleryCursor({ version: 1, publishedAt, mediaAssetId: last.id })
       : null,
     unavailable: resolved.unavailable,
-    sections: countSections(publishedBlocks.map((block) => block.type === 'section'
-      ? { id: block.id, title: block.title, text: block.text, photo: false } : { photo: true })),
+    sections: options.withCovers ? await attachCovers(sections, publishedBlocks, mediaRepository, provider) : sections,
   };
+}
+
+/** Each album's cover is the photo marked `cover`, else its first photo. */
+async function attachCovers(
+  sections: PublicPhotosSection[],
+  blocks: PhotosPageBlock[],
+  mediaRepository: Pick<MediaRepository, 'findByIds'>,
+  provider: Pick<MediaProvider, 'buildImageUrl' | 'buildVideoPosterUrl' | 'buildVideoUrl'>,
+): Promise<PublicPhotosSection[]> {
+  const coverBlocks = new Map<string, PhotosMediaBlock>();
+  let sectionId: string | undefined;
+  for (const block of blocks) {
+    if (block.type === 'section') {
+      sectionId = block.id;
+      continue;
+    }
+    if (sectionId && (!coverBlocks.has(sectionId) || block.albumRole === 'cover' && coverBlocks.get(sectionId)?.albumRole !== 'cover')) {
+      coverBlocks.set(sectionId, block);
+    }
+  }
+  if (!coverBlocks.size) return sections;
+  const blocksToResolve = Array.from(coverBlocks.values());
+  const covers = resolvePublishedPhotos(
+    { schemaVersion: 1, blocks: blocksToResolve },
+    await mediaRepository.findByIds(blocksToResolve.map((block) => block.mediaAssetId)),
+    provider,
+  ).photos;
+  const coversById = new Map(covers.map((photo) => [photo.id, photo]));
+  return sections.map((section) => {
+    const block = coverBlocks.get(section.id);
+    const cover = block ? coversById.get(block.mediaAssetId) : undefined;
+    return cover ? { ...section, cover } : section;
+  });
 }
 
 /** Section links with the number of photographs that follow each section start. */

@@ -24,12 +24,13 @@ export function MasonryGrid({
     layout.positions.forEach((position, index) => {
       itemStyles[index][`--left-${columns}`] = position.left;
       itemStyles[index][`--top-${columns}`] = position.top;
+      itemStyles[index][`--span-${columns}`] = position.span;
     });
   }
 
   return <div className={styles.masonryContainer}>
     <div className={styles.masonryGrid} style={gridStyle}>
-      {items.map((item, index) => <div className={styles.masonryItem} key={item.id} style={{
+      {items.map((item, index) => <div className={styles.masonryItem} data-wide={item.span === 2 || undefined} key={item.id} style={{
         ...itemStyles[index], aspectRatio: `${Math.max(1, item.width)} / ${Math.max(1, item.height)}`,
       }}>{renderItem(item)}</div>)}
     </div>
