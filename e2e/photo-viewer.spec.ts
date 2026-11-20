@@ -3,7 +3,7 @@ import { writeFile } from 'node:fs/promises';
 import { MongoClient, ObjectId } from 'mongodb';
 import { expect, test } from '@playwright/test';
 
-test('photo viewer navigates, displays details, and opens shared photo URLs', async ({ page }) => {
+test('photo viewer navigates, opens shared URLs, and keeps keyboard focus inside', async ({ page }) => {
   test.setTimeout(120_000);
   const mongo = new MongoClient(process.env.E2E_MONGODB_URI ?? 'mongodb://127.0.0.1:27018/journey_editor_e2e');
   const ids = Array.from({ length: 26 }, () => new ObjectId().toHexString());
@@ -26,12 +26,12 @@ test('photo viewer navigates, displays details, and opens shared photo URLs', as
       altText: `Viewer photo ${index + 1}`, showInPhotos: true, status: 'ready',
       createdAt: new Date(now.getTime() + index), updatedAt: now,
     })));
-    const document = { schemaVersion: 1, blocks: ids.map((id) => ({
+    const photosDocument = { schemaVersion: 1, blocks: ids.map((id) => ({
       id: new ObjectId().toHexString(), type: 'media', mediaAssetId: id, decorative: false,
     })) };
     await db.collection('photos_pages').replaceOne({ _id: 'photos' }, {
-      _id: 'photos', schemaVersion: 1, draftDocument: document, draftVersion: 1,
-      publishedDocument: document, createdAt: now, updatedAt: now, publishedAt: now,
+      _id: 'photos', schemaVersion: 1, draftDocument: photosDocument, draftVersion: 1,
+      publishedDocument: photosDocument, createdAt: now, updatedAt: now, publishedAt: now,
     }, { upsert: true });
 
     await page.goto('/photos');
@@ -77,6 +77,44 @@ test('photo viewer navigates, displays details, and opens shared photo URLs', as
     await page.getByRole('button', { name: 'Previous photo' }).click();
     await expect(page.getByRole('dialog').getByRole('img', { name: 'Viewer photo 25' })).toBeVisible();
     artifact.navigation.push('shared later photo and previous');
+
+    const errors: string[] = [];
+    page.on('pageerror', (error) => errors.push(error.message));
+    page.on('console', (message) => {
+      if (message.type() === 'error') errors.push(message.text());
+    });
+
+    const dialog = page.getByRole('dialog');
+    const close = dialog.getByRole('button', { name: 'Close gallery' });
+    const next = dialog.getByRole('button', { name: 'Next photo' });
+    await expect(close).toBeFocused();
+    await page.keyboard.press('Shift+Tab');
+    await expect(next).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(close).toBeFocused();
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/photos');
+    const trigger = page.getByRole('button', { name: 'Open photo 2', exact: true });
+    await trigger.press('Enter');
+    await expect(close).toBeFocused();
+    await expect(next).toBeHidden();
+
+    const mobileFocus = [];
+    for (const key of ['Tab', 'Shift+Tab']) {
+      await close.focus();
+      await page.keyboard.press(key);
+      const focused = await page.evaluate(() => document.activeElement?.getAttribute('aria-label') ?? document.activeElement?.tagName);
+      mobileFocus.push({ key, focused });
+      expect.soft(focused, `390 px: focus immediately after ${key}`).toBe('Close gallery');
+    }
+    await test.info().attach('e2e-fixture-mobile-photo-focus.png', { body: await page.screenshot(), contentType: 'image/png' });
+    await test.info().attach('e2e-fixture-mobile-photo-focus.json', { body: JSON.stringify(mobileFocus, null, 2), contentType: 'application/json' });
+
+    await page.keyboard.press('Escape');
+    await expect(dialog).toBeHidden();
+    await expect(trigger).toBeFocused();
+    expect(errors).toEqual([]);
   } finally {
     if (connected) {
       const db = mongo.db();
