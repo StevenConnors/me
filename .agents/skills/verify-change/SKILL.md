@@ -24,6 +24,7 @@ Start the disposable DB once: `npm run e2e:db:up`. Run the narrowest specs first
 | Changed paths | Specs to run |
 | --- | --- |
 | Public site origin / canonical metadata | `e2e/canonical-site-url.spec.ts` |
+| `app/admin/(protected)/travel/**` navigation guard | `e2e/travel-unsaved-guard.spec.ts`, `e2e/travel.spec.ts`, `e2e/journey-failed-autosave.spec.ts` |
 | `app/thoughts-aloud/**` | `e2e/thoughts-aloud.spec.ts` |
 | `app/api/thoughts/**`, `lib/thoughts/**` | `e2e/thoughts-pagination.spec.ts` |
 | `app/thoughts-aloud/**`, `styles/ThoughtsAloud.module.css` | `e2e/thoughts-aloud.spec.ts`, `e2e/thoughts-empty-state.spec.ts` |
