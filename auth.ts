@@ -1,7 +1,7 @@
 import type { NextAuthOptions } from 'next-auth';
 import GitHub from 'next-auth/providers/github';
 
-import { isAllowedAuthor } from '@/lib/auth/admin';
+import { adminRoleFor } from '@/lib/auth/admin';
 
 function githubProfileId(profile: unknown): string | undefined {
   const id = (profile as { id?: unknown } | undefined)?.id;
@@ -22,7 +22,7 @@ export const authOptions: NextAuthOptions = {
     async signIn({ account, profile }) {
       if (account?.provider !== 'github') return false;
 
-      return isAllowedAuthor({ id: githubProfileId(profile) });
+      return adminRoleFor({ id: githubProfileId(profile) }) !== null;
     },
     async jwt({ token, account, profile }) {
       if (account?.provider === 'github') {

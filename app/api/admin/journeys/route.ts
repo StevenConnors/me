@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ZodError } from 'zod';
 
-import { apiError, requireAuthorApi } from '@/lib/http/admin-api';
+import { apiError, requireAdminReadApi, requireAuthorApi } from '@/lib/http/admin-api';
 import { JourneyRepository } from '@/lib/journeys/repository';
 import { serializeJourney } from '@/lib/journeys/serializers';
 import { JourneyStatusSchema } from '@/lib/journeys/schemas';
@@ -9,7 +9,7 @@ import { JourneyStatusSchema } from '@/lib/journeys/schemas';
 export const runtime = 'nodejs';
 
 export async function GET(request: NextRequest) {
-  const authorization = await requireAuthorApi();
+  const authorization = await requireAdminReadApi();
   if (authorization.response) return authorization.response;
 
   try {

@@ -6,7 +6,7 @@ import { signOut } from 'next-auth/react';
 
 import styles from './admin.module.css';
 
-export function AdminHeader({ email }: { email?: string | null }) {
+export function AdminHeader({ email, viewOnly = false }: { email?: string | null; viewOnly?: boolean }) {
   const [navigationOpen, setNavigationOpen] = useState(false);
   return (
     <header className={styles.header}>
@@ -23,7 +23,8 @@ export function AdminHeader({ email }: { email?: string | null }) {
         <Link href="/" className={styles.navLink}>View site ↗</Link>
       </nav>
       <div className={styles.headerActions}>
-        <span className={styles.identity}>{email ?? 'Configured author'}</span>
+        {viewOnly ? <span className={styles.viewOnlyBadge} title="Changes are disabled for this account">View only</span> : null}
+        <span className={styles.identity}>{email ?? (viewOnly ? 'Viewer' : 'Configured author')}</span>
         <button className={styles.quietButton} type="button" onClick={() => signOut({ callbackUrl: '/' })}>
           Sign out
         </button>

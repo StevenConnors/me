@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-import { apiError, requireAuthorApi } from '@/lib/http/admin-api';
+import { apiError, requireAdminReadApi } from '@/lib/http/admin-api';
 import { serializeJourneyEditorMedia } from '@/lib/journeys/editor-media';
 import { InvalidAdminMediaCursorError } from '@/lib/media/admin-cursor';
 import { getCloudinaryMediaProvider } from '@/lib/media/provider';
@@ -17,7 +17,7 @@ function withPreviews(assets: MediaAsset[]) {
 }
 
 export async function GET(request: NextRequest) {
-  const authorization = await requireAuthorApi();
+  const authorization = await requireAdminReadApi();
   if (authorization.response) return authorization.response;
 
   try {

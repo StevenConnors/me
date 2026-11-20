@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ZodError } from 'zod';
 
-import { apiError, requireAuthorApi } from '@/lib/http/admin-api';
+import { apiError, requireAdminReadApi, requireAuthorApi } from '@/lib/http/admin-api';
 import {
   InvalidJourneyIdError,
   JourneyConflictError,
@@ -34,7 +34,7 @@ function mapJourneyError(error: unknown) {
 }
 
 export async function GET(_request: NextRequest, context: RouteContext) {
-  const authorization = await requireAuthorApi();
+  const authorization = await requireAdminReadApi();
   if (authorization.response) return authorization.response;
 
   try {

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
-import { apiError, requireAuthorApi } from '@/lib/http/admin-api';
+import { apiError, requireAdminReadApi, requireAuthorApi } from '@/lib/http/admin-api';
 import { TravelRepository, TravelVersionConflictError } from '@/lib/travel/repository';
 import { InvalidTravelSelectionsError, normalizeTravelSelections, TravelSelectionsSchema } from '@/lib/travel/schema';
 
@@ -13,7 +13,7 @@ const UpdateTravelSchema = z.object({
 }).strict();
 
 export async function GET() {
-  const authorization = await requireAuthorApi();
+  const authorization = await requireAdminReadApi();
   if (authorization.response) return authorization.response;
   try {
     return NextResponse.json(await (await TravelRepository.connect()).get());

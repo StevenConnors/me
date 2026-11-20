@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ZodError } from 'zod';
 
-import { apiError, requireAuthorApi } from '@/lib/http/admin-api';
+import { apiError, requireAdminReadApi, requireAuthorApi } from '@/lib/http/admin-api';
 import { MediaCollectionNotFoundError } from '@/lib/media/collections';
 import { DismissSuggestionsSchema, MediaCollectionSuggestionsRepository } from '@/lib/media/suggestions';
 
@@ -9,7 +9,7 @@ export const runtime = 'nodejs';
 type Context = { params: Promise<{ collectionId: string }> };
 
 export async function GET(_request: NextRequest, { params }: Context) {
-  const authorization = await requireAuthorApi();
+  const authorization = await requireAdminReadApi();
   if (authorization.response) return authorization.response;
   try {
     const { collectionId } = await params;

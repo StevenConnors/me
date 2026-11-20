@@ -52,6 +52,7 @@
 .navLink { color: #625b50; }
 .navLink:hover, .navLink:focus-visible { color: #201e1a; text-decoration: underline; }
 .identity { color: #7e7569; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.viewOnlyBadge { border: 1px solid #c9bfae; border-radius: 999px; color: #5f564b; font-size: 0.75rem; letter-spacing: 0.04em; padding: 0.15rem 0.6rem; text-transform: uppercase; white-space: nowrap; }
 
 .main {
   width: min(1100px, calc(100% - 48px));
