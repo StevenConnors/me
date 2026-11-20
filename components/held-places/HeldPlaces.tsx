@@ -193,16 +193,17 @@ export function HeldPlacesIndex({
   journeys: PublishedJourneySummary[];
   photos: PublicPhoto[];
   failed?: boolean;
-  legacyJourneys?: { slug: string; title: string }[];
+  legacyJourneys?: { slug: string; title: string; experiencedAt?: DateRange }[];
 }) {
-  const archiveRows = journeys.length
-    ? journeys.map((journey) => ({ ...journey, legacy: false as const }))
-    : legacyJourneys.map((journey) => ({
-        ...journey,
-        id: `legacy-${journey.slug}`,
-        summary: 'Read the original journey.',
-        legacy: true as const,
-      }));
+  const publishedSlugs = new Set(journeys.map(({ slug }) => slug));
+  const archiveRows = [
+    ...journeys.map((journey) => ({ ...journey, legacy: false as const })),
+    ...legacyJourneys.filter(({ slug }) => !publishedSlugs.has(slug)).map((journey) => ({
+      ...journey,
+      id: `legacy-${journey.slug}`,
+      legacy: true as const,
+    })),
+  ];
   return (
     <main className={`${styles.paper} ${styles.indexPage}`}>
       <HeldPlacesHeader />
@@ -222,22 +223,26 @@ export function HeldPlacesIndex({
       <section className={styles.archive} id="journeys">
         <div className={styles.archiveHeading}>
           <h2>Journeys</h2>
-          <span>{String(journeys.length || legacyJourneys.length).padStart(2, '0')}</span>
+          <span>{String(archiveRows.length).padStart(2, '0')}</span>
         </div>
         {archiveRows.length ? (
           <div className={styles.archiveList}>
             {archiveRows.map((journey, index) => {
               const cover = !journey.legacy && covers ? prepareSlide(journey.cover, covers, 'cover') : null;
               const coverSrc = cover?.kind === 'video' ? cover.poster : cover?.src;
-              const meta = journey.legacy ? '' : formatJourneyMeta(journey.experiencedAt, journey.locations);
+              const meta = formatJourneyMeta(journey.experiencedAt, journey.legacy ? undefined : journey.locations);
               return (
                 <Link
-                  className={journey.legacy ? styles.archiveRow : `${styles.archiveRow} ${styles.archiveRowCover}`}
+                  className={styles.archiveRow}
                   href={`/stories/${journey.slug}`}
                   key={journey.id}
                   passHref
                 >
-                  {journey.legacy ? <span className={styles.archiveMarker} data-palette={index % 4} /> : (
+                  {journey.legacy ? (
+                    <span aria-hidden="true" className={styles.archiveLegacyCover}>
+                      <span className={styles.archiveMarker} data-palette={index % 4} />
+                    </span>
+                  ) : (
                     <span className={styles.archiveCover} data-palette={index % 4}>
                       {cover && coverSrc ? <Image alt={cover.alt} fill sizes="(max-width: 768px) 72px, 132px" src={coverSrc} style={{ objectPosition: cover.desktopPosition }} /> : null}
                     </span>
@@ -246,7 +251,7 @@ export function HeldPlacesIndex({
                     <span className={styles.archiveTitle}>{journey.title}</span>
                     {meta ? <span className={styles.archiveMeta} data-journey-meta>{meta}</span> : null}
                   </span>
-                  <span className={styles.archiveSummary}>{journey.summary}</span>
+                  <span className={styles.archiveSummary}>{journey.legacy ? null : journey.summary}</span>
                   <span aria-hidden="true" className={styles.archiveArrow}>→</span>
                 </Link>
               );
@@ -396,7 +401,7 @@ function formatJourneyMeta(
   if (experiencedAt?.start) {
     const start = formatDate(experiencedAt.start);
     const end = experiencedAt.end ? formatDate(experiencedAt.end) : undefined;
-    parts.push(end ? `${start} — ${end}` : start);
+    parts.push(end && end !== start ? `${start} — ${end}` : start);
   }
   return parts.join('  /  ');
 }
