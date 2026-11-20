@@ -3,6 +3,7 @@ import 'server-only';
 import type { Collection, UpdateFilter, WithId } from 'mongodb';
 
 import { getDatabase } from '@/lib/db/collections';
+import { unwrapFindOneAndUpdate } from '@/lib/db/unwrap-find-one-and-update';
 import { EMPTY_TRAVEL_SELECTIONS, type TravelSelections } from '@/lib/travel/catalog';
 import { emptyTravelRecord, TravelRecordSchema, type TravelRecord } from '@/lib/travel/schema';
 
@@ -13,14 +14,6 @@ export class TravelVersionConflictError extends Error {
     super(`Travel locations changed since version ${expectedVersion}; current version is ${currentVersion}`);
     this.name = 'TravelVersionConflictError';
   }
-}
-
-function unwrapFindOneAndUpdate<T>(result: unknown): T | null {
-  if (result === null) return null;
-  if (typeof result === 'object' && result && 'value' in result) {
-    return ((result as { value?: T | null }).value ?? null) as T | null;
-  }
-  return result as T;
 }
 
 export class TravelRepository {
