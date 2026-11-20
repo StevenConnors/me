@@ -32,6 +32,7 @@ export function MediaGrid({
   intro?: string;
 }) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const isOpen = activeIndex !== null;
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const lightboxRef = useRef<HTMLDivElement>(null);
   const openerRef = useRef<HTMLButtonElement | null>(null);
@@ -52,7 +53,7 @@ export function MediaGrid({
   }, [items.length]);
 
   useEffect(() => {
-    if (activeIndex === null) return;
+    if (!isOpen) return;
 
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -70,7 +71,7 @@ export function MediaGrid({
       document.body.style.overflow = previousOverflow;
       window.removeEventListener('keydown', onKeyDown);
     };
-  }, [activeIndex, close, showNext, showPrevious]);
+  }, [isOpen, close, showNext, showPrevious]);
 
   const handleTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
     const touch = event.changedTouches[0];

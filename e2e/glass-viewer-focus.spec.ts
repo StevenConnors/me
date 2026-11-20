@@ -34,6 +34,7 @@ test('the Glass viewer keeps keyboard focus inside and returns it to the opening
 
     const dialog = page.getByRole('dialog');
     const close = page.getByRole('button', { name: 'Close gallery' });
+    const next = page.getByRole('button', { name: 'Next item' });
     const trigger = page.getByRole('button', { name: 'Open photo 2', exact: true });
 
     await page.setViewportSize({ width: 1280, height: 800 });
@@ -52,6 +53,12 @@ test('the Glass viewer keeps keyboard focus inside and returns it to the opening
       const focused = await focusedLabel(page);
       observations.push({ viewport: '1280', key: `click counter, ${key}`, focused });
       expect.soft(focused, `1280 px: focus after clicking the counter and pressing ${key}`).toBe(expected);
+    }
+    await next.focus();
+    for (const position of [3, 1]) {
+      await page.keyboard.press('Enter');
+      await expect(dialog).toHaveAccessibleName(`Glass, ${position} of 3`);
+      await expect(next).toBeFocused();
     }
     await page.keyboard.press('Escape');
     await expect(dialog).toBeHidden();
@@ -81,13 +88,16 @@ test('the Glass viewer keeps keyboard focus inside and returns it to the opening
       expect(box.x + box.width).toBeLessThanOrEqual(390);
       expect(box.y >= imageBox.y + imageBox.height || box.y + box.height <= imageBox.y || box.x >= imageBox.x + imageBox.width || box.x + box.width <= imageBox.x).toBe(true);
     }
-    await dialog.getByRole('button', { name: 'Next item' }).click();
+    await next.click();
     await expect(dialog).toHaveAccessibleName('Glass, 3 of 3');
+    await expect(next).toBeFocused();
     await expect(image).toHaveAttribute('alt', 'Glass piece 3');
-    await dialog.getByRole('button', { name: 'Next item' }).click();
+    await page.keyboard.press('Enter');
     await expect(dialog).toHaveAccessibleName('Glass, 1 of 3');
+    await expect(next).toBeFocused();
     await dialog.getByRole('button', { name: 'Previous item' }).click();
     await expect(dialog).toHaveAccessibleName('Glass, 3 of 3');
+    await expect(dialog.getByRole('button', { name: 'Previous item' })).toBeFocused();
     const media = image.locator('..');
     await media.dispatchEvent('touchstart', { changedTouches: [{ identifier: 0, clientX: 300, clientY: 400 }] });
     await media.dispatchEvent('touchend', { changedTouches: [{ identifier: 0, clientX: 100, clientY: 400 }] });
