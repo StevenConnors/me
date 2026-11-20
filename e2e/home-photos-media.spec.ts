@@ -49,8 +49,8 @@ test('home previews published photos, section navigation reaches later pages, an
     await expect(page.getByRole('heading', { name: 'Journeys' })).toBeVisible();
 
     await page.getByRole('link', { name: 'See all photos', exact: true }).click();
-    await expect(page.getByRole('link', { name: 'Last light' })).toBeVisible();
-    await page.getByRole('link', { name: 'Last light' }).click();
+    await expect(page.getByRole('navigation', { name: 'Photo sections' }).getByRole('link', { name: 'Last light' })).toBeVisible();
+    await page.getByRole('navigation', { name: 'Photo sections' }).getByRole('link', { name: 'Last light' }).click();
     await expect(page.getByRole('heading', { name: 'Last light' })).toBeVisible();
     await expect(page).toHaveURL(new RegExp(`#section-${laterSectionId}$`));
     artifact.laterSectionReached = true;
