@@ -10,7 +10,7 @@ import { PhotosPageRepository } from '@/lib/photos/repository';
 
 const legacyJourneys = [
   { slug: 'poc', title: 'Autumn in Tōhoku' },
-  { slug: 'dfw-okc', title: 'Oklahoma! Oklahoma?', summary: 'Experienced August 1–5, 2024' },
+  { slug: 'dfw-okc', title: 'Oklahoma! Oklahoma?', experiencedAt: { start: '2024-08-01', end: '2024-08-05' } },
   { slug: 'newpoc', title: 'Whisky with an e' },
 ];
 

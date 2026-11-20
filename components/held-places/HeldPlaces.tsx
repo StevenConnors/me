@@ -193,7 +193,7 @@ export function HeldPlacesIndex({
   journeys: PublishedJourneySummary[];
   photos: PublicPhoto[];
   failed?: boolean;
-  legacyJourneys?: { slug: string; title: string; summary?: string }[];
+  legacyJourneys?: { slug: string; title: string; experiencedAt?: DateRange }[];
 }) {
   const publishedSlugs = new Set(journeys.map(({ slug }) => slug));
   const archiveRows = [
@@ -230,7 +230,7 @@ export function HeldPlacesIndex({
             {archiveRows.map((journey, index) => {
               const cover = !journey.legacy && covers ? prepareSlide(journey.cover, covers, 'cover') : null;
               const coverSrc = cover?.kind === 'video' ? cover.poster : cover?.src;
-              const meta = journey.legacy ? '' : formatJourneyMeta(journey.experiencedAt, journey.locations);
+              const meta = formatJourneyMeta(journey.experiencedAt, journey.legacy ? undefined : journey.locations);
               return (
                 <Link
                   className={styles.archiveRow}
@@ -251,7 +251,7 @@ export function HeldPlacesIndex({
                     <span className={styles.archiveTitle}>{journey.title}</span>
                     {meta ? <span className={styles.archiveMeta} data-journey-meta>{meta}</span> : null}
                   </span>
-                  <span className={styles.archiveSummary}>{journey.summary}</span>
+                  <span className={styles.archiveSummary}>{journey.legacy ? null : journey.summary}</span>
                   <span aria-hidden="true" className={styles.archiveArrow}>→</span>
                 </Link>
               );

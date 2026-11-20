@@ -158,7 +158,11 @@ test('archive rows align published and legacy titles, summaries and heights', as
       observations.push({ width, slug, row, title, summary });
     }
     await expect(archive).not.toContainText('Read the original journey.');
-    await expect(archive.locator('a[href="/stories/dfw-okc"]')).toContainText('August 1–5, 2024');
+    await expect(archive.locator('a[href="/stories/dfw-okc"] [data-journey-meta]')).toHaveText('August 2024 — August 2024');
+    for (const slug of ['poc', 'dfw-okc', 'newpoc']) {
+      await expect(archive.locator(`a[href="/stories/${slug}"] [class*="archiveSummary"]`)).toBeEmpty();
+      if (slug !== 'dfw-okc') await expect(archive.locator(`a[href="/stories/${slug}"] [data-journey-meta]`)).toHaveCount(0);
+    }
   }
   await test.info().attach('e2e-fixture-home-archive-alignment.json', {
     body: Buffer.from(JSON.stringify(observations)), contentType: 'application/json',

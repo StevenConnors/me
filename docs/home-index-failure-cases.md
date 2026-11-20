@@ -12,6 +12,6 @@ Before changing the Home page introduction and the journey list:
 - The Journeys heading count matches the combined rows, including when no journeys are published or the database is unavailable.
 - All legacy links use /stories/<slug> and remain readable at 390 px without horizontal overflow or runtime errors.
 - Legacy and published rows share cover, title and summary columns and row heights at 1440 and 390 px. Mobile summaries stay hidden for both kinds of row.
-- Legacy rows contain no placeholder summary. Oklahoma uses its recorded August 1–5, 2024 experience dates; entries without summary metadata leave the column empty.
+- Legacy summary cells stay empty. Oklahoma uses its recorded August 1–5, 2024 experience dates in the same formatted metadata line as published rows, without a location; undated legacy entries have no metadata line.
 - At 390 px every row shows the cover and title without horizontal scrolling, and the summary may be hidden as before.
 - Performance: covers use `next/image` with `sizes` near their rendered width and lazy loading, so the Home LCP element stays a photograph from the Photos grid and transfer size grows by only the thumbnails.
