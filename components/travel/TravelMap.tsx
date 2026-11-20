@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState, type KeyboardEvent } from 'react';
+import { useId, useRef, useState, type KeyboardEvent } from 'react';
 
 import { TRAVEL_PLACES, TRAVEL_REGION_LABELS, type TravelRegion } from '@/lib/travel/catalog';
 import countryMarkers from '@/lib/travel/country-markers.json';
@@ -33,6 +33,8 @@ export function TravelMap({
   const titleId = `travel-map-${region}-title`;
   const labelId = `${titleId}-label`;
   const figureRef = useRef<HTMLElement>(null);
+  const endRef = useRef<HTMLDivElement>(null);
+  const endId = useId();
   const [active, setActive] = useState<{ region: TravelRegion; code: string; x: number; y: number } | null>(null);
   const activePlace = active?.region === region ? places.find((place) => place.code === active.code) : undefined;
 
@@ -57,7 +59,12 @@ export function TravelMap({
   };
 
   return (
+    <>
     <figure ref={figureRef} className={`${styles.figure} ${className ?? ''}`.trim()}>
+      <a className={styles.skipMap} href={`#${endId}`} onClick={(event) => {
+        event.preventDefault();
+        endRef.current?.focus();
+      }}>Skip map</a>
       <MapViewport
         key={region}
         region={region}
@@ -102,5 +109,7 @@ export function TravelMap({
         {region === 'countries' ? <span><i className={styles.dotSwatch} />Small places shown as dots</span> : null}
       </figcaption>
     </figure>
+    <div ref={endRef} id={endId} role="group" aria-label="End of map" tabIndex={-1} />
+    </>
   );
 }

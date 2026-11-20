@@ -1,4 +1,6 @@
 .figure { position: relative; min-width: 0; margin: 0; }
+.skipMap { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.skipMap:focus { top: 4px; left: 4px; z-index: 3; width: auto; height: auto; padding: 12px 18px; overflow: visible; clip-path: none; border: 1px solid #9b493b; border-radius: 3px; background: #fffdf7; color: #7f2d20; font: 14px/1.35 Arial, Helvetica, sans-serif; text-decoration: underline; text-underline-offset: 3px; outline: 2px solid #9b493b; outline-offset: 2px; box-shadow: 0 2px 8px #26251f20; }
 .viewport { min-width: 0; }
 .controls { display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-bottom: 12px; }
 .controls output { min-width: 52px; margin-right: 6px; color: #615f58; text-align: right; font: 12px/1.35 Arial, Helvetica, sans-serif; font-variant-numeric: tabular-nums; }

@@ -75,6 +75,13 @@ test('visited countries link to the published journeys that went there', async (
   await expect(japan.getByText(journeys[2].title)).toHaveCount(0);
   await expect(list.getByRole('listitem').filter({ hasText: 'France' }).getByRole('link')).toHaveCount(0);
 
+  await page.getByRole('tab', { name: 'Countries', exact: true }).focus();
+  await page.keyboard.press('Tab');
+  await expect(page.getByRole('link', { name: 'Skip map', exact: true })).toBeFocused();
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Tab');
+  await expect(links.nth(0)).toBeFocused();
+
   await page.getByRole('tab', { name: 'US states' }).click();
   await expect(list.getByRole('link')).toHaveCount(0);
 
