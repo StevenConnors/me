@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 
+import { keepTabFocusWithin } from '@/components/focusTrap';
 import styles from './photos-gallery.module.css';
 import { PhotosPageView, type PublicPhoto, type PublicPhotoSection } from './PhotosPageView';
 
@@ -136,20 +137,7 @@ export function PhotosGallery({
       if (event.key === 'Escape') close();
       if (event.key === 'ArrowLeft') previous();
       if (event.key === 'ArrowRight') next();
-      if (event.key === 'Tab') {
-        const focusable = Array.from(lightboxRef.current?.querySelectorAll<HTMLElement>('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"]), video[controls]') ?? [])
-          .filter((element) => element.getClientRects().length > 0 && getComputedStyle(element).visibility === 'visible');
-        if (!focusable.length) return;
-        const first = focusable[0];
-        const last = focusable[focusable.length - 1];
-        if (event.shiftKey && document.activeElement === first) {
-          event.preventDefault();
-          last.focus();
-        } else if (!event.shiftKey && document.activeElement === last) {
-          event.preventDefault();
-          first.focus();
-        }
-      }
+      keepTabFocusWithin(event, lightboxRef.current);
     };
     window.addEventListener('keydown', onKeyDown);
     return () => {
