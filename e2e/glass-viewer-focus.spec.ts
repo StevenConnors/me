@@ -16,6 +16,7 @@ test('the Glass viewer keeps keyboard focus inside and returns it to the opening
   const errors: string[] = [];
   const observations: Array<{ viewport: string; key: string; focused: string | undefined }> = [];
   page.on('pageerror', (error) => errors.push(error.message));
+  page.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()); });
   try {
     await mongo.connect();
     connected = true;
@@ -65,11 +66,38 @@ test('the Glass viewer keeps keyboard focus inside and returns it to the opening
     await page.goto('/glass');
     await trigger.press('Enter');
     await expect(close).toBeFocused();
-    for (const key of ['Tab', 'Shift+Tab']) {
+    const image = dialog.getByRole('img');
+    const imageBox = await image.boundingBox();
+    expect(imageBox).not.toBeNull();
+    for (const name of ['Previous item', 'Next item']) {
+      const button = dialog.getByRole('button', { name });
+      await expect(button).toBeVisible();
+      const box = await button.boundingBox();
+      expect(box).not.toBeNull();
+      if (!box || !imageBox) throw new Error('Viewer bounds are unavailable');
+      expect(box.width).toBeGreaterThanOrEqual(44);
+      expect(box.height).toBeGreaterThanOrEqual(44);
+      expect(box.x).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.width).toBeLessThanOrEqual(390);
+      expect(box.y >= imageBox.y + imageBox.height || box.y + box.height <= imageBox.y || box.x >= imageBox.x + imageBox.width || box.x + box.width <= imageBox.x).toBe(true);
+    }
+    await dialog.getByRole('button', { name: 'Next item' }).click();
+    await expect(dialog).toHaveAccessibleName('Glass, 3 of 3');
+    await expect(image).toHaveAttribute('alt', 'Glass piece 3');
+    await dialog.getByRole('button', { name: 'Next item' }).click();
+    await expect(dialog).toHaveAccessibleName('Glass, 1 of 3');
+    await dialog.getByRole('button', { name: 'Previous item' }).click();
+    await expect(dialog).toHaveAccessibleName('Glass, 3 of 3');
+    const media = image.locator('..');
+    await media.dispatchEvent('touchstart', { changedTouches: [{ identifier: 0, clientX: 300, clientY: 400 }] });
+    await media.dispatchEvent('touchend', { changedTouches: [{ identifier: 0, clientX: 100, clientY: 400 }] });
+    await expect(dialog).toHaveAccessibleName('Glass, 1 of 3');
+    await close.focus();
+    for (const [key, expected] of [['Tab', 'Previous item'], ['Tab', 'Next item'], ['Tab', 'Close gallery'], ['Shift+Tab', 'Next item']]) {
       await page.keyboard.press(key);
       const focused = await focusedLabel(page);
       observations.push({ viewport: '390', key, focused });
-      expect.soft(focused, `390 px: focus after ${key}`).toBe('Close gallery');
+      expect.soft(focused, `390 px: focus after ${key}`).toBe(expected);
     }
     await test.info().attach('e2e-fixture-glass-viewer-focus-mobile.png', { body: await page.screenshot(), contentType: 'image/png' });
     await page.keyboard.press('Escape');

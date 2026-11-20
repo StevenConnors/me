@@ -152,7 +152,18 @@
     width: 100%;
     height: calc(100dvh - 156px);
   }
-  .directionButton { display: none; }
+  .directionButton {
+    top: auto;
+    bottom: 18px;
+    width: 44px;
+    height: 44px;
+    transform: none;
+  }
+  .previousButton { left: calc(50% - 86px); }
+  .nextButton { right: calc(50% - 86px); }
+  .position { bottom: 34px; }
+  .directionButton:focus-visible,
+  .closeButton:focus-visible { outline-color: #fff; }
   .closeButton { top: 18px; right: 18px; }
 }
 
