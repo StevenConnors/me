@@ -58,4 +58,26 @@ describe('wide masonry items', () => {
     expect(positions[2].top).toBe('calc(((100cqw - 16px) / 3) * 2 + 8px)');
     expect(height).toBe('max(calc(((100cqw - 16px) / 3) * 3 + 12px), calc(((100cqw - 16px) / 3) * 3 + 12px), calc(((100cqw - 16px) / 3) * 1 + 0px))');
   });
+
+  it('starts a wide item below both columns when neither is taller at every width', () => {
+    const { positions } = layoutColumns([
+      { id: 'tall', width: 1, height: 2 },
+      { id: 'one', width: 2, height: 1 },
+      { id: 'two', width: 2, height: 1 },
+      { id: 'three', width: 4, height: 3 },
+      { id: 'wide', width: 2, height: 1, span: 2 },
+    ], 2);
+    expect(positions.map(({ column }) => column)).toEqual([0, 1, 1, 1, 0]);
+    expect(positions[4].top).toBe('max(calc(((100cqw - 8px) / 2) * 2 + 8px), calc(((100cqw - 8px) / 2) * 1.75 + 24px))');
+  });
+
+  it('drops a column height that the other column always exceeds', () => {
+    const { positions } = layoutColumns([
+      { id: 'tall', width: 1, height: 2 },
+      { id: 'one', width: 1, height: 1 },
+      { id: 'two', width: 1, height: 1 },
+      { id: 'wide', width: 2, height: 1, span: 2 },
+    ], 2);
+    expect(positions[3].top).toBe('calc(((100cqw - 8px) / 2) * 2 + 16px)');
+  });
 });
