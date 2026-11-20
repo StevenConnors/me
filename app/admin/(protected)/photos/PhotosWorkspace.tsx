@@ -16,10 +16,11 @@ import {
   moveSectionGroup,
   removeMediaBlocks,
   removeSection,
+  setAlbumRole,
   updateMediaBlock,
   updateSectionBlock,
 } from '@/lib/photos/editor-commands';
-import type { PhotosMediaBlock, PhotosPageDocument, PhotosSectionBlock } from '@/lib/photos/schemas';
+import type { PhotosAlbumRole, PhotosMediaBlock, PhotosPageDocument, PhotosSectionBlock } from '@/lib/photos/schemas';
 import type { MediaDeletionPlanItem } from '@/lib/media/bulk-delete-service';
 
 import { MediaPicker, type PickerMedia } from './MediaPicker';
@@ -117,6 +118,7 @@ function documentCanvas(
       height: asset?.height ?? 1,
       originalFilename: asset?.originalFilename ?? `Unavailable upload (${block.mediaAssetId})`,
       featuredOnHome: block.featuredOnHome,
+      ...(block.albumRole ? { albumRole: block.albumRole } : {}),
       ...(block.caption ? { caption: block.caption } : {}),
       ...(block.displayDate ? { captureDate: block.displayDate } : {}),
       kind: asset?.resourceType ?? 'image',
@@ -131,6 +133,12 @@ function documentCanvas(
     activeSection.photos.push({ ...photo, index });
   }
   return { photos, sections };
+}
+
+const ALBUM_ROLE_LABELS: Record<PhotosAlbumRole, string> = { cover: 'Cover', feature: 'Featured' };
+
+function parseAlbumRole(value: string): PhotosAlbumRole | undefined {
+  return value === 'cover' || value === 'feature' ? value : undefined;
 }
 
 function isMediaBlock(block: PhotosPageDocument['blocks'][number] | undefined): block is PhotosMediaBlock {
@@ -780,7 +788,7 @@ export function PhotosWorkspace({
         {editorPhoto.loading ? <span className={styles.loadingPhoto}>Loading photo…</span> : editorPhoto.unavailable ? <span className={styles.unavailable}>This upload is unavailable. Remove it before publishing.</span> : <Image draggable={false} loading="lazy" alt={editorPhoto.alt} height={editorPhoto.height} sizes="(max-width: 700px) 50vw, (max-width: 1100px) 33vw, 25vw" src={editorPhoto.source} width={editorPhoto.width} />}
       </button>
       <label className={styles.selectTile}><input checked={selected} onChange={() => toggleMediaSelection(editorPhoto.blockId)} type="checkbox" /><span className="sr-only">Select {editorPhoto.originalFilename}</span></label>
-      {editorPhoto.featuredOnHome ? <span className={styles.homeBadge}>Homepage</span> : null}
+      {editorPhoto.featuredOnHome || editorPhoto.albumRole ? <span className={styles.homeBadge}>{[editorPhoto.featuredOnHome ? 'Homepage' : null, editorPhoto.albumRole ? ALBUM_ROLE_LABELS[editorPhoto.albumRole] : null].filter(Boolean).join(' · ')}</span> : null}
       {editorPhoto.kind === 'video' ? <span className={styles.videoBadge}>Video</span> : null}
       <button aria-label={`Edit ${editorPhoto.kind === 'video' ? 'video' : 'photo'} ${editorPhoto.originalFilename}`} className={styles.editTile} onClick={() => { if (!suppressClickRef.current) selectBlock(editorPhoto.blockId); }} type="button">Edit</button>
       <button aria-label={`Reorder ${editorPhoto.originalFilename}; drag or use arrow keys`} className={styles.dragHandle} draggable onPointerDown={(event) => startPointerDrag(event, editorPhoto.blockId)} onDragEnd={clearDragState} onDragStart={(event) => startMediaDrag(event, editorPhoto.blockId)} onKeyDown={(event) => reorderWithKeyboard(event, editorPhoto.blockId)} title="Drag or use arrow keys to reorder" type="button">↕</button>
@@ -855,6 +863,7 @@ export function PhotosWorkspace({
       <label>Display date<input max="9999-12-31" onChange={(event) => applyDocument(updateMediaBlock(readDraft(), activeMediaBlock.id, { displayDate: event.target.value || undefined }))} type="date" value={activeMediaBlock.displayDate ?? ''} /></label>
       <label>Caption<input maxLength={2_000} onChange={(event) => applyDocument(updateMediaBlock(readDraft(), activeMediaBlock.id, { caption: event.target.value.trim() || undefined }))} placeholder="Optional text beneath the photo" value={activeMediaBlock.caption ?? ''} /></label>
       <label>Alt text<input aria-invalid={!activeMediaBlock.decorative && !activeMediaBlock.altText || undefined} maxLength={1_000} onChange={(event) => applyDocument(updateMediaBlock(readDraft(), activeMediaBlock.id, { altText: event.target.value.trim() || undefined }))} placeholder="Describe the image" value={activeMediaBlock.altText ?? ''} /></label>
+      <label>Album role<select onChange={(event) => applyDocument(setAlbumRole(readDraft(), activeMediaBlock.id, parseAlbumRole(event.target.value)))} value={activeMediaBlock.albumRole ?? ''}><option value="">Regular photo</option><option value="cover">Album cover</option><option value="feature">Featured in album</option></select></label>
       <label className={styles.decorative}><input checked={Boolean(activeMediaBlock.featuredOnHome)} disabled={!activeMediaBlock.featuredOnHome && featuredPhotoCount >= 8} onChange={(event) => applyDocument(updateMediaBlock(readDraft(), activeMediaBlock.id, { featuredOnHome: event.target.checked }))} type="checkbox" /> Show on homepage</label>
       <label className={styles.decorative}><input checked={activeMediaBlock.decorative} onChange={(event) => applyDocument(updateMediaBlock(readDraft(), activeMediaBlock.id, { decorative: event.target.checked }))} type="checkbox" /> Decorative image</label>
       {!activeMediaBlock.decorative && !activeMediaBlock.altText ? <p className={styles.fieldError}>Alt text is required before publishing.</p> : null}

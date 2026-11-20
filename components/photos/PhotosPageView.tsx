@@ -25,6 +25,7 @@ export type PublicPhoto = {
   caption?: string;
   tags?: string[];
   captureDate?: string;
+  albumRole?: 'cover' | 'feature';
   sectionBreak?: PublicPhotoSectionBreak;
   /** Editing identity only; omitted from ordinary public presentation. */
   sectionBlockId?: string;
