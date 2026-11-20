@@ -79,6 +79,7 @@ export function PhotosPageView({
   photos,
   sectionGroups,
   onOpen,
+  onOpenPhoto,
   renderTile,
   renderSection,
   sectionLinks,
@@ -92,6 +93,8 @@ export function PhotosPageView({
   /** Authoring may supply draft groups so empty section blocks stay visible. */
   sectionGroups?: PhotoSection[];
   onOpen: (index: number) => void;
+  /** Opens a photo that may not be loaded yet, such as an album cover on a later page. */
+  onOpenPhoto?: (photo: PublicPhoto) => void;
   renderTile?: (photo: PublicPhoto & { index: number }) => ReactNode;
   renderSection?: (section: PhotoSection, sectionIndex: number) => ReactNode;
   sectionLinks?: PublicPhotoSection[];
@@ -121,9 +124,10 @@ export function PhotosPageView({
       {sections.map((section, sectionIndex) => {
         const sectionNumber = sectionLinks?.findIndex((item) => item.id === section.sectionBlockId);
         const sectionCount = sectionNumber !== undefined && sectionNumber >= 0 ? sectionLinks?.[sectionNumber].count : undefined;
-        const coverId = sectionNumber !== undefined && sectionNumber >= 0 ? sectionLinks?.[sectionNumber].cover?.id : undefined;
-        const heroPhoto = coverId && !renderTile ? section.photos.find((photo) => photo.id === coverId) : undefined;
-        const gridPhotos = heroPhoto ? section.photos.filter((photo) => photo !== heroPhoto) : section.photos;
+        const cover = sectionNumber !== undefined && sectionNumber >= 0 && !renderTile ? sectionLinks?.[sectionNumber].cover : undefined;
+        const loadedCover = cover ? section.photos.find((photo) => photo.id === cover.id) : undefined;
+        const hero = loadedCover ?? (cover && onOpenPhoto ? cover : undefined);
+        const gridPhotos = hero ? section.photos.filter((photo) => photo.id !== hero.id) : section.photos;
         const sectionTitle = section.sectionBreak?.title ?? (section.sectionBreak ? `Section ${sectionNumber !== undefined && sectionNumber >= 0 ? sectionNumber + 1 : sectionIndex + 1}` : undefined);
         return <section aria-label={sectionTitle ?? 'Photographs'} className={styles.section} id={section.sectionBlockId ? `section-${section.sectionBlockId}` : undefined} key={section.sectionBlockId ?? `opening-${sectionIndex}`}>
           {renderSection ? renderSection(section, sectionIndex) : <>
@@ -132,8 +136,8 @@ export function PhotosPageView({
             {section.sectionBreak?.text ? <p className={styles.sectionNote}>{section.sectionBreak.text}</p> : null}
           </>}
           {!section.sectionBlockId || !collapsedSections?.has(section.sectionBlockId) ? <>
-          {heroPhoto ? <button aria-label={`Open ${heroPhoto.kind === 'video' ? 'video' : 'photo'} ${heroPhoto.index + 1}`} className={styles.chapterHero} onClick={() => onOpen(heroPhoto.index)} type="button">
-            <Image alt={heroPhoto.alt} fill sizes="100vw" src={heroPhoto.kind === 'video' ? heroPhoto.posterUrl ?? heroPhoto.source : heroPhoto.displaySource ?? heroPhoto.source} />
+          {hero ? <button aria-label={loadedCover ? `Open ${loadedCover.kind === 'video' ? 'video' : 'photo'} ${loadedCover.index + 1}` : `Open ${sectionTitle ?? 'album'} cover`} className={styles.chapterHero} onClick={() => loadedCover ? onOpen(loadedCover.index) : onOpenPhoto?.(hero)} type="button">
+            <Image alt={hero.alt} fill sizes="100vw" src={hero.kind === 'video' ? hero.posterUrl ?? hero.source : hero.displaySource ?? hero.source} />
           </button> : null}
           <MasonryGrid
             items={gridPhotos.map((photo) => ({ id: photo.id, width: photo.width, height: photo.height, span: photo.albumRole === 'feature' || photo.width > photo.height * 1.2 ? 2 : 1 }))}

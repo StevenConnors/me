@@ -6,6 +6,7 @@ Before turning the Photos page into albums that open as chapters:
 - A visitor cannot see what albums exist without scrolling through every earlier photo. The section links are text only.
 - An album card for a section that is not loaded yet does nothing, or jumps to the wrong place.
 - An album has no cover marked, and its card is blank instead of using the album's first photo.
+- An album cover on a later page shows on the album card but not as its chapter hero until the visitor pages that far.
 - A cover photo that is unavailable leaves a broken image on the card or chapter.
 - The chapter hero shows a portrait cover at full width, so it fills several screens.
 - The cover appears twice in its chapter, once as the hero and once in the grid.

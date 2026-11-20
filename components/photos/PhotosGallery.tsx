@@ -48,21 +48,22 @@ export function PhotosGallery({
     setPendingNextIndex(null);
     setRequestedPhotoId(photo.id);
   }, []);
-  const open = useCallback((index: number) => {
+  const openPhoto = useCallback((photo: PublicPhoto) => {
     triggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const photo = photos[index];
-    if (photo) {
-      selectPhoto(photo);
-      try {
-        navigator.sendBeacon(
-          '/api/photos/open',
-          new Blob([JSON.stringify({ photoId: photo.id })], { type: 'application/json' }),
-        );
-      } catch {
-        // Photo-open analytics must never block the gallery interaction.
-      }
+    selectPhoto(photo);
+    try {
+      navigator.sendBeacon(
+        '/api/photos/open',
+        new Blob([JSON.stringify({ photoId: photo.id })], { type: 'application/json' }),
+      );
+    } catch {
+      // Photo-open analytics must never block the gallery interaction.
     }
-  }, [photos, selectPhoto]);
+  }, [selectPhoto]);
+  const open = useCallback((index: number) => {
+    const photo = photos[index];
+    if (photo) openPhoto(photo);
+  }, [openPhoto, photos]);
   const close = useCallback(() => {
     const url = new URL(window.location.href);
     url.searchParams.delete('photo');
@@ -221,7 +222,7 @@ export function PhotosGallery({
 
   return (
     <>
-      <PhotosPageView collapsedSections={collapsedSections} onOpen={open} onSectionLinkClick={jumpToSection} onToggleSection={(id) => setCollapsedSections((current) => { const next = new Set(current); if (next.has(id)) next.delete(id); else next.add(id); return next; })} photos={photos} sectionLinks={sections} />
+      <PhotosPageView collapsedSections={collapsedSections} onOpen={open} onOpenPhoto={openPhoto} onSectionLinkClick={jumpToSection} onToggleSection={(id) => setCollapsedSections((current) => { const next = new Set(current); if (next.has(id)) next.delete(id); else next.add(id); return next; })} photos={photos} sectionLinks={sections} />
       {nextCursor ? <div className={styles.loader} ref={sentinelRef}>
         {loadState === 'error' ? <p>{loadFailure?.message ?? 'More photos could not be loaded.'}</p> : null}
         {loadFailure?.reloadRequired

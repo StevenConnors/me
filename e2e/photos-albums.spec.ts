@@ -25,7 +25,7 @@ test('albums lead to chapters with a cover hero and wide featured photos', async
       width: index === 5 ? 1600 : 900, height: index === 5 ? 900 : 1200, bytes: 100, checksum: `e2e-${id}`, tags: [],
       altText: `Album photo ${index + 1}`, showInPhotos: true, status: 'ready', createdAt: new Date(now.getTime() + index), updatedAt: now,
     })));
-    const role = (index: number) => index === 2 ? { albumRole: 'cover' } : index === 3 ? { albumRole: 'feature' } : {};
+    const role = (index: number) => index === 27 ? { albumRole: 'cover' } : index === 3 ? { albumRole: 'feature' } : {};
     const media = (index: number) => ({ id: new ObjectId().toHexString(), type: 'media', mediaAssetId: ids[index], decorative: false, altText: `Album photo ${index + 1}`, ...role(index) });
     const photosDocument = { schemaVersion: 1, blocks: [
       { id: kumanoId, type: 'section', title: 'Kumano', text: 'Old pilgrim roads.' }, ...ids.slice(0, 30).map((_, index) => media(index)),
@@ -40,12 +40,15 @@ test('albums lead to chapters with a cover hero and wide featured photos', async
     await expect(albums.getByRole('link')).toHaveCount(2);
     await expect(albums.getByRole('link', { name: /Kumano/ })).toContainText('30 photos');
     await expect(albums.getByRole('link', { name: /Egypt/ })).toContainText('4 photos');
-    await expect(albums.getByRole('link', { name: /Kumano/ }).getByRole('img', { name: 'Album photo 3' })).toBeVisible();
+    await expect(albums.getByRole('link', { name: /Kumano/ }).getByRole('img', { name: 'Album photo 28' })).toBeVisible();
     await expect(albums.getByRole('link', { name: /Egypt/ }).getByRole('img', { name: 'Album photo 31' })).toBeVisible();
 
     const kumano = page.getByRole('region', { name: 'Kumano' });
-    const hero = kumano.getByRole('button', { name: 'Open photo 3', exact: true });
+    const hero = kumano.locator('button[class*="chapterHero"]');
     await expect(hero).toHaveCount(1);
+    await expect(hero).toHaveAccessibleName('Open Kumano cover');
+    await expect(hero.getByRole('img', { name: 'Album photo 28' })).toBeAttached();
+    await expect(kumano.getByRole('button', { name: 'Open photo 25', exact: true })).toHaveCount(0);
     const regionBox = (await kumano.boundingBox())!;
     const heroBox = (await hero.boundingBox())!;
     const tileBox = (await kumano.getByRole('button', { name: 'Open photo 1', exact: true }).boundingBox())!;
@@ -59,11 +62,13 @@ test('albums lead to chapters with a cover hero and wide featured photos', async
     expect(landscapeBox.width).toBeGreaterThan(tileBox.width * 1.8);
 
     await hero.click();
-    await expect(page.getByRole('dialog').getByRole('img', { name: 'Album photo 3' })).toBeVisible();
+    await expect(page.getByRole('dialog').getByRole('img', { name: 'Album photo 28' })).toBeVisible();
     await page.keyboard.press('ArrowRight');
-    await expect(page.getByRole('dialog').getByRole('img', { name: 'Album photo 4' })).toBeVisible();
+    await expect(page.getByRole('dialog').getByRole('img', { name: 'Album photo 29' })).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(hero).toHaveAccessibleName('Open photo 28');
+    await expect(kumano.getByRole('button', { name: 'Open photo 28', exact: true })).toHaveCount(1);
 
     await albums.getByRole('link', { name: /Egypt/ }).click();
     const egypt = page.getByRole('region', { name: 'Egypt' });
