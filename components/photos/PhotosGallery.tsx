@@ -185,6 +185,16 @@ export function PhotosGallery({
   }, [loadMore, loadState, nextCursor, pendingNextIndex, photos, selectPhoto]);
 
   useEffect(() => {
+    const syncSectionFromHash = () => {
+      const prefix = '#section-';
+      setPendingSectionId(window.location.hash.startsWith(prefix) ? window.location.hash.slice(prefix.length) || null : null);
+    };
+    syncSectionFromHash();
+    window.addEventListener('hashchange', syncSectionFromHash);
+    return () => window.removeEventListener('hashchange', syncSectionFromHash);
+  }, []);
+
+  useEffect(() => {
     if (!pendingSectionId) return;
     const target = document.getElementById(`section-${pendingSectionId}`);
     if (target) {
