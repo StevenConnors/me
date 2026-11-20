@@ -2,7 +2,7 @@
 
 Before moving the MDX stories (`/stories/poc`, `/stories/newpoc`, `/stories/dfw-okc`) into the paper shell:
 
-- The page uses the same header (Primary navigation with Photos, Travel, Glass, Work) and footer (Footer navigation) as the rest of the site; the old "thoughts aloud / photos" header is gone.
+- The page uses the same header (Primary navigation with Photos, Travel, Glass, Work) and footer (Footer navigation) as the rest of the site.
 - The story title is the only `h1`; the site name is no longer a second `h1`.
 - The paper background reaches the viewport edges at 1280 px and 390 px, with no white frame and no body padding.
 - On desktop the fixed media panel starts below the header and never covers the navigation.

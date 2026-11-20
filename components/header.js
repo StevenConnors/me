@@ -14,10 +14,6 @@ export default function Header() {
           <h1 className={styles.titleText}>佑治</h1>
         </Link>
 
-        <Link href="/thoughts-aloud" passHref style={{ textDecoration: 'none' }}>
-          <div className={styles.titleText}>thoughts aloud</div>
-        </Link>
-
         <Link href="/photos" passHref style={{ textDecoration: 'none' }}>
           <div className={styles.titleText}>photos</div>
         </Link>

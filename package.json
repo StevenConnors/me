@@ -42,8 +42,6 @@
     "postcss": "8.5.23",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "react-markdown": "^10.1.0",
-    "react-tweet": "^3.2.2",
     "server-only": "^0.0.1",
     "tailwindcss": "^4.1.14",
     "zod": "4.6.6"

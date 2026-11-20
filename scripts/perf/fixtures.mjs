@@ -3,4 +3,3 @@ export const fixtureCloud = 'ux-perf-fixture';
 export const fixtureImage = new URL('../../public/gallery-placeholders/photos-contact-sheet.png', import.meta.url);
 export const fixturePhoto = 'UX performance fixture photo';
 export const fixtureJourney = 'UX performance fixture journey';
-export const fixtureThought = 'UX performance fixture thought.';

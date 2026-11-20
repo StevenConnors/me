@@ -85,7 +85,7 @@ jobs:
     env:
       MONGODB_URI: mongodb://127.0.0.1:27018/perf
       NEXT_TELEMETRY_DISABLED: 1
-      ROUTES: /,/photos,/travel,/thoughts-aloud
+      ROUTES: /,/photos,/travel
     steps:
       - uses: actions/checkout@v4
         with: { fetch-depth: 0 }

@@ -15,7 +15,6 @@ test('legacy stories use the paper shell, header and footer', async ({ page }) =
       await page.goto(`/stories/${slug}`);
       const primary = page.getByRole('navigation', { name: 'Primary navigation' });
       await expect(primary.getByRole('link', { name: 'Photos' })).toBeVisible();
-      await expect(page.getByRole('link', { name: 'thoughts aloud' })).toHaveCount(0);
       await expect(page.locator('h1')).toHaveCount(1);
       await expect(page.getByRole('navigation', { name: 'Footer navigation' })).toBeAttached();
       const shell = await page.evaluate(() => ({
