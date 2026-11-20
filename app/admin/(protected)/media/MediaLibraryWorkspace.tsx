@@ -115,7 +115,10 @@ export function MediaLibraryWorkspace() {
     setSelected(new Set());
     return () => controller.abort();
   }, [load, refresh]);
-  useEffect(() => { void loadCollections().catch((cause) => setError(cause instanceof Error ? cause.message : 'Unable to load collections')); }, [loadCollections]);
+  const reloadCollections = useCallback(() => {
+    void loadCollections().catch((cause) => setError(cause instanceof Error ? cause.message : 'Unable to load collections'));
+  }, [loadCollections]);
+  useEffect(reloadCollections, [reloadCollections]);
   useEffect(() => {
     if (!cursor || !sentinelRef.current || typeof IntersectionObserver === 'undefined' || error) return;
     const observer = new IntersectionObserver((entries) => {
@@ -311,7 +314,7 @@ export function MediaLibraryWorkspace() {
         <button onClick={() => setSelected(new Set())} type="button">Clear selection</button>
       </div> : null}
       {notice ? <p className={styles.success} role="status">{notice}</p> : null}
-      {error ? <p className={styles.error} role="alert">{error} <button onClick={() => setRefresh((value) => value + 1)} type="button">Retry</button></p> : null}
+      {error ? <p className={styles.error} role="alert">{error} <button onClick={() => { setRefresh((value) => value + 1); reloadCollections(); }} type="button">Retry</button></p> : null}
       <div className={styles.grid}>{items.map((asset) => <article aria-label={asset.originalFilename} className={styles.card} key={asset._id}>
         <div className={styles.image}>{asset.previewUrl ? <Image alt="" fill sizes="(max-width: 700px) 90vw, 260px" src={asset.previewUrl} unoptimized /> : <span>No preview</span>}</div>
         <div className={styles.cardBody}>
