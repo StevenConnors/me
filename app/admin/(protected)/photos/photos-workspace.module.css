@@ -127,5 +127,5 @@
 .publishError p { margin: 0; }
 .publishError ul { margin: 10px 0 0; padding-left: 18px; }
 .publishError button { padding: 4px 0; border: 0; background: transparent; color: inherit; text-align: left; text-decoration: underline; cursor: pointer; font: inherit; }
-@media (hover: none) { .editorTile .dragHandle, .editorTile .insertionPoint { opacity: 1; } }
+@media (hover: none), (pointer: coarse) { .editorTile .selectTile, .editorTile .editTile, .editorTile .dragHandle, .editorTile .insertionPoint { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .editorTile .insertionPoint { transition: none; } }
