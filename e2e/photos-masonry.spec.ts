@@ -54,9 +54,13 @@ test('photos keep their server layout through hydration and resize in canonical 
       }
     }
     const sources = await page.locator('button img').evaluateAll((images) => images.map((image) => image.getAttribute('src')));
-    const loading = await page.locator('button img').evaluateAll((images) => images.map((image) => image.getAttribute('loading')));
-    expect(loading.slice(0, 2)).not.toContain('lazy');
-    expect(loading.slice(2).every((value) => value === 'lazy')).toBe(true);
+    const images = await page.locator('button img').evaluateAll((images) => images.map((image) => ({
+      source: image.getAttribute('src') ?? '', loading: image.getAttribute('loading'),
+    })));
+    expect(images.slice(0, 2).map((image) => image.loading)).not.toContain('lazy');
+    images.slice(2).forEach((image) => {
+      expect(image.loading).toBe(/^(data|blob):/.test(image.source) ? null : 'lazy');
+    });
     const observations = [];
     for (const [width, columns] of [[1280, 4], [900, 3], [390, 2]]) {
       await page.setViewportSize({ width, height: 844 });
