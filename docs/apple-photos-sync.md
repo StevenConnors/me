@@ -3,7 +3,7 @@
 `npm run photos:apple-sync` runs on a Mac with iCloud Photos turned on. It reads the local Photos library, so it works the same with or without Advanced Data Protection and never signs in to iCloud.
 
 ## Curate in Photos
-- Make a top-level folder named `Website` in the Photos sidebar. Each album in it, including albums in subfolders, becomes one section on the Photos page.
+- Make a top-level folder named `Website` in the Photos sidebar. Each album in it, including albums in subfolders, becomes one section on the Photos page. A top-level album named `Website` also works, as a single section.
 - Favorite the photos you want on the site, from the iPhone or the Mac. Only favorites are synced unless you pass `--all`.
 - Add the keyword `cover` to a photo to make it its album's cover. An album keeps a cover you already chose in the editor.
 - Album order follows the Photos sidebar; photo order follows the album's sort order.

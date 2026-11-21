@@ -18,13 +18,19 @@ COVER_KEYWORD = "cover"
 CAPTION_LIMIT = 2000
 
 
-def find_folder(db, title):
+def source_albums(db, title):
+    """Albums under the top-level folder named `title`, or the top-level album itself when there is no such folder."""
     matches = [folder for folder in db.folder_info if folder.title == title]
-    if not matches:
-        raise SystemExit(f'No top-level Photos.app folder named "{title}"')
     if len(matches) > 1:
         raise SystemExit(f'More than one top-level Photos.app folder is named "{title}"')
-    return matches[0]
+    if matches:
+        return list(albums_in(matches[0]))
+    albums = [album for album in db.album_info if album.title == title and not album.folder_names]
+    if len(albums) > 1:
+        raise SystemExit(f'More than one top-level Photos.app album is named "{title}"')
+    if not albums:
+        raise SystemExit(f'No top-level Photos.app folder or album named "{title}"')
+    return albums
 
 
 def albums_in(folder):
@@ -56,7 +62,7 @@ def wanted(photo, include_all):
 
 def list_folder(db, title, include_all):
     albums = []
-    for album in albums_in(find_folder(db, title)):
+    for album in source_albums(db, title):
         photos = []
         for photo in album.photos:
             if not wanted(photo, include_all):
