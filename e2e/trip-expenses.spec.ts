@@ -183,7 +183,8 @@ test('author creates a trip in the admin and friends add expenses from its share
     await newTrip.getByLabel('Trip name').fill(tripName);
     await newTrip.getByLabel('People').fill('Yuji\nAsha\nKen');
     await newTrip.getByRole('button', { name: 'Create trip and link' }).click();
-    await expect(page).toHaveURL(/\/admin\/trips\/[A-Za-z0-9_-]{22}$/);
+    // The first visit compiles the editor route in dev mode, which can take a while on CI.
+    await expect(page).toHaveURL(/\/admin\/trips\/[A-Za-z0-9_-]{22}$/, { timeout: 30_000 });
     const tripId = page.url().split('/').pop() ?? '';
     expect(await db.collection('trips').countDocuments({ _id: tripId, name: tripName } as never)).toBe(1);
     await expect(page.getByRole('heading', { name: tripName, level: 1 })).toBeVisible();
