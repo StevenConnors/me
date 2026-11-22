@@ -1,4 +1,4 @@
-import { minorToMajor, type CurrencyCode } from '@/lib/trips/currencies';
+import { currencyDecimals, type CurrencyCode } from '@/lib/trips/currencies';
 import type { Participant, YenConversion } from '@/lib/trips/schemas';
 
 export function conversionRate(conversion: YenConversion): number {
@@ -13,9 +13,23 @@ export function conversionRate(conversion: YenConversion): number {
   }
 }
 
+/** The exact decimal a rate prints as, e.g. 150.12345 -> 15012345 x 10^-5. */
+function toDecimal(value: number): { digits: bigint; scale: number } {
+  const [mantissa = '0', exponent = '0'] = String(value).toLowerCase().split('e');
+  const [whole = '0', fraction = ''] = mantissa.split('.');
+  return { digits: BigInt(whole + fraction), scale: fraction.length - Number(exponent) };
+}
+
+const pow10 = (exponent: number) => BigInt(`1${'0'.repeat(exponent)}`);
+
+/** Exact integer maths so halves round up and nothing just below a half does. */
 export function toYen({ amountMinor, currency, conversion }: { amountMinor: number; currency: CurrencyCode; conversion: YenConversion }): number {
-  // toPrecision drops binary noise such as 1.13 * 150 = 169.49999999999997 so halves round up.
-  return Math.round(Number((minorToMajor(amountMinor, currency) * conversionRate(conversion)).toPrecision(12)));
+  const rate = toDecimal(conversionRate(conversion));
+  const scale = rate.scale + currencyDecimals(currency);
+  const product = BigInt(amountMinor) * rate.digits;
+  if (scale <= 0) return Number(product * pow10(-scale));
+  const divisor = pow10(scale);
+  return Number((product * BigInt(2) + divisor) / (divisor * BigInt(2)));
 }
 
 /**

@@ -14,6 +14,10 @@ describe('toYen', () => {
     expect(toYen({ amountMinor: 1000, currency: 'JPY', conversion: { kind: 'same-currency' } })).toBe(1000);
     expect(toYen({ amountMinor: 113, currency: 'USD', conversion: { kind: 'manual', rate: 150 } })).toBe(170);
     expect(toYen({ amountMinor: 1, currency: 'USD', conversion: { kind: 'manual', rate: 50 } })).toBe(1);
+    expect(toYen({ amountMinor: 672_742, currency: 'USD', conversion: { kind: 'manual', rate: 150.12345 } })).toBe(1_009_943);
+    expect(toYen({ amountMinor: 1, currency: 'IDR', conversion: { kind: 'manual', rate: 0.0000005 } })).toBe(0);
+    expect(toYen({ amountMinor: 2_000_000, currency: 'IDR', conversion: { kind: 'manual', rate: 0.00925 } })).toBe(185);
+    expect(toYen({ amountMinor: 5, currency: 'KRW', conversion: { kind: 'manual', rate: 1e21 } })).toBe(5e21);
   });
 });
 
