@@ -12,6 +12,8 @@ describe('toYen', () => {
     expect(toYen({ amountMinor: 300_000, currency: 'INR', conversion: { kind: 'reference', provider: 'ecb', rate: 1.7118, rateDate: '2026-11-20' } })).toBe(5135);
     expect(toYen({ amountMinor: 1001, currency: 'USD', conversion: { kind: 'manual', rate: 150 } })).toBe(1502);
     expect(toYen({ amountMinor: 1000, currency: 'JPY', conversion: { kind: 'same-currency' } })).toBe(1000);
+    expect(toYen({ amountMinor: 113, currency: 'USD', conversion: { kind: 'manual', rate: 150 } })).toBe(170);
+    expect(toYen({ amountMinor: 1, currency: 'USD', conversion: { kind: 'manual', rate: 50 } })).toBe(1);
   });
 });
 

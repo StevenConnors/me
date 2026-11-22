@@ -14,7 +14,8 @@ export function conversionRate(conversion: YenConversion): number {
 }
 
 export function toYen({ amountMinor, currency, conversion }: { amountMinor: number; currency: CurrencyCode; conversion: YenConversion }): number {
-  return Math.round(minorToMajor(amountMinor, currency) * conversionRate(conversion));
+  // toPrecision drops binary noise such as 1.13 * 150 = 169.49999999999997 so halves round up.
+  return Math.round(Number((minorToMajor(amountMinor, currency) * conversionRate(conversion)).toPrecision(12)));
 }
 
 /**
