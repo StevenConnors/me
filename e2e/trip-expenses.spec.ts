@@ -140,7 +140,7 @@ test('share-link API converts to yen on the spend date, splits exactly and rejec
     expect(stale.status()).toBe(409);
     const crossTrip = `/api/trips/${other.trip.id}/expenses/${lunchBody.expense.id}`;
     expect((await request.put(crossTrip, { data: { ...edit, amount: '9999', expectedVersion: 1 } })).status()).toBe(400);
-    expect((await request.delete(crossTrip)).status()).toBe(404);
+    expect((await request.delete(`${crossTrip}?version=1`)).status()).toBe(404);
     expect(await db.collection('trip_expenses').findOne({ _id: lunchBody.expense.id } as never)).toMatchObject({ amountMinor: 1200, version: 1 });
 
     const tripUrl = `/api/admin/trips/${trip.id}`;
@@ -153,9 +153,13 @@ test('share-link API converts to yen on the spend date, splits exactly and rejec
     expect((await renamed.json() as TripBody).trip.participants.map((person) => person.name)).toEqual(['Yuji', 'Asha R', 'Ken', 'Mira']);
     expect((await request.patch(tripUrl, { data: { name: 'Stale', defaultCurrency: 'INR', participants: [{ id: yuji, name: 'Yuji' }, { id: asha, name: 'Asha' }, { id: ken, name: 'Ken' }], expectedVersion: trip.version } })).status()).toBe(409);
 
-    const deleted = await request.delete(`${expenseUrl}/${hotelBody.expense.id}`);
-    expect(deleted.status()).toBe(204);
-    expect((await request.delete(`${expenseUrl}/${hotelBody.expense.id}`)).status()).toBe(404);
+    const hotelUrl = `${expenseUrl}/${hotelBody.expense.id}`;
+    expect((await request.delete(hotelUrl)).status()).toBe(400);
+    expect((await request.delete(`${hotelUrl}?version=abc`)).status()).toBe(400);
+    expect((await request.delete(`${lunchUrl}?version=0`)).status()).toBe(409);
+    expect(await db.collection('trip_expenses').countDocuments({ _id: lunchBody.expense.id } as never)).toBe(1);
+    expect((await request.delete(`${hotelUrl}?version=${hotelBody.expense.version}`)).status()).toBe(204);
+    expect((await request.delete(`${hotelUrl}?version=${hotelBody.expense.version}`)).status()).toBe(404);
 
     const stored = await db.collection('trip_expenses').find({ tripId: trip.id }).toArray();
     expect(stored.map((expense) => [expense.description, expense.amountJpy]).sort()).toEqual([['Lunch', 1200], ['Taxi', 1502]]);

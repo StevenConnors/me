@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 
 import { parseTripIdParam, readJson, tripErrorResponse } from '@/lib/trips/api-errors';
 import { TripRepository } from '@/lib/trips/repository';
-import { serializeExpense, UpdateExpenseInputSchema } from '@/lib/trips/schemas';
+import { ExpenseVersionParamSchema, serializeExpense, UpdateExpenseInputSchema } from '@/lib/trips/schemas';
 
 export const runtime = 'nodejs';
 type Context = { params: Promise<{ tripId: string; expenseId: string }> };
@@ -20,10 +20,11 @@ export async function PUT(request: Request, { params }: Context) {
   }
 }
 
-export async function DELETE(_request: Request, { params }: Context) {
+export async function DELETE(request: Request, { params }: Context) {
   try {
     const { tripId, expenseId } = await params;
-    await (await TripRepository.connect()).deleteExpense(parseTripIdParam(tripId), expenseId);
+    const version = ExpenseVersionParamSchema.parse(new URL(request.url).searchParams.get('version') ?? undefined);
+    await (await TripRepository.connect()).deleteExpense(parseTripIdParam(tripId), expenseId, version);
     return new NextResponse(null, { status: 204 });
   } catch (error) {
     return tripErrorResponse(error, 'delete this expense');

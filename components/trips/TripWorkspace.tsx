@@ -171,7 +171,7 @@ export function TripWorkspace({ initialTrip, initialExpenses, mode }: { initialT
 
   async function deleteExpense(expense: ExpenseView) {
     if (!window.confirm(`Delete “${expense.description}”?`)) return;
-    const response = await fetch(`${apiBase}/expenses/${expense.id}`, { method: 'DELETE' }).catch(() => null);
+    const response = await fetch(`${apiBase}/expenses/${expense.id}?version=${expense.version}`, { method: 'DELETE' }).catch(() => null);
     if (!response?.ok && response?.status !== 404) {
       setStatus({ state: 'error', message: await readApiError(response, 'Could not delete the expense. Try again.') });
       return;

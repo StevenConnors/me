@@ -57,6 +57,9 @@ export const YenConversionSchema = z.discriminatedUnion('kind', [
 ]);
 export type YenConversion = z.infer<typeof YenConversionSchema>;
 
+/** `?version=` on a delete, so a stale tab cannot remove an expense someone just changed. */
+export const ExpenseVersionParamSchema = z.string({ message: 'Provide the expense version' }).regex(/^\d{1,9}$/, 'Provide the expense version').transform(Number);
+
 export const ExpenseRecordSchema = z.object({
   _id: z.string().uuid(),
   schemaVersion: z.literal(1),

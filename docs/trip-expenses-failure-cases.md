@@ -30,6 +30,7 @@ The author creates trips in `/admin/trips`. Each trip gets an unguessable share 
 - A trip id is short, sequential or derived from the name, so other trips' links can be guessed.
 - A malformed or unknown trip link renders an empty trip or a 500 instead of a 404, on the page and on every trip API.
 - Someone with one trip's link edits or deletes an expense from another trip by swapping the expense id.
+- A tab with an old copy of an expense deletes it after someone else changed it (deletes must carry the version and get a 409 when stale).
 - The rate preview works without a real trip, making the site an open exchange-rate proxy.
 - People on a shared link can rename, add or remove trip members (only the author can, from the admin).
 - Creating trips or changing members works without the author session.

@@ -171,9 +171,11 @@ export class TripRepository {
     throw new ExpenseNotFoundError();
   }
 
-  async deleteExpense(tripId: string, expenseId: string): Promise<void> {
-    const result = await this.expenses.deleteOne({ _id: expenseId, tripId });
-    if (!result.deletedCount) throw new ExpenseNotFoundError();
+  async deleteExpense(tripId: string, expenseId: string, expectedVersion: number): Promise<void> {
+    const result = await this.expenses.deleteOne({ _id: expenseId, tripId, version: expectedVersion });
+    if (result.deletedCount) return;
+    if (await this.expenses.countDocuments({ _id: expenseId, tripId }, { limit: 1 })) throw new VersionConflictError('expense');
+    throw new ExpenseNotFoundError();
   }
 }
 
