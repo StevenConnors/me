@@ -2,15 +2,18 @@
 
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
+import { z } from 'zod';
 
 import styles from '@/app/admin/admin.module.css';
+import { readApiError } from '@/components/trips/api-client';
 import { CURRENCY_CODES, type CurrencyCode } from '@/lib/trips/currencies';
-import { readApiError } from './api-client';
+import { TripViewSchema } from '@/lib/trips/schemas';
+
+const CreatedTripSchema = z.object({ trip: TripViewSchema });
 
 export function NewTripForm() {
   const router = useRouter();
   const [name, setName] = useState('');
-  const [slug, setSlug] = useState('');
   const [defaultCurrency, setDefaultCurrency] = useState<CurrencyCode>('INR');
   const [people, setPeople] = useState('');
   const [status, setStatus] = useState<{ state: 'idle' | 'saving' } | { state: 'error'; message: string }>({ state: 'idle' });
@@ -22,13 +25,14 @@ export function NewTripForm() {
     const response = await fetch('/api/admin/trips', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, slug, defaultCurrency, participants }),
+      body: JSON.stringify({ name, defaultCurrency, participants }),
     }).catch(() => null);
-    if (!response?.ok) {
+    const parsed = response?.ok ? CreatedTripSchema.safeParse(await response.json().catch(() => null)) : null;
+    if (!parsed?.success) {
       setStatus({ state: 'error', message: await readApiError(response, 'Could not create the trip. Try again.') });
       return;
     }
-    router.push(`/admin/trips/${slug}`);
+    router.push(`/admin/trips/${parsed.data.trip.id}`);
   }
 
   return (
@@ -36,11 +40,6 @@ export function NewTripForm() {
       <div className={styles.field}>
         <label htmlFor="trip-name">Trip name</label>
         <input id="trip-name" required maxLength={80} value={name} onChange={(event) => setName(event.target.value)} placeholder="India 2026" />
-      </div>
-      <div className={styles.field}>
-        <label htmlFor="trip-slug">Address</label>
-        <input id="trip-slug" required pattern="[a-z0-9]+(-[a-z0-9]+)*" minLength={3} maxLength={60} value={slug} onChange={(event) => setSlug(event.target.value.toLowerCase())} placeholder="india-2026" />
-        <span className={styles.fieldHint}>The public page lives at /{slug || 'india-2026'}. It is not linked anywhere on the site.</span>
       </div>
       <div className={styles.field}>
         <label htmlFor="trip-currency">Usual currency</label>
@@ -55,7 +54,7 @@ export function NewTripForm() {
       </div>
       <div className={styles.formFooter}>
         <p className={styles.status} data-state={status.state} role="status">{status.state === 'error' ? status.message : ''}</p>
-        <button className={styles.button} type="submit" disabled={status.state === 'saving'}>{status.state === 'saving' ? 'Creating…' : 'Create trip'}</button>
+        <button className={styles.button} type="submit" disabled={status.state === 'saving'}>{status.state === 'saving' ? 'Creating…' : 'Create trip and link'}</button>
       </div>
     </form>
   );

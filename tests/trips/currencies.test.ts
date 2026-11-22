@@ -1,10 +1,7 @@
-import { readdirSync } from 'node:fs';
-import { join } from 'node:path';
-
 import { describe, expect, it } from 'vitest';
 
 import { formatMoney, parseAmountToMinor } from '@/lib/trips/currencies';
-import { CreateTripInputSchema, RESERVED_TRIP_SLUGS, TripSlugSchema } from '@/lib/trips/schemas';
+import { CreateTripInputSchema } from '@/lib/trips/schemas';
 
 describe('parseAmountToMinor', () => {
   it('stores exact integer minor units', () => {
@@ -28,21 +25,9 @@ describe('formatMoney', () => {
   });
 });
 
-describe('trip slugs', () => {
-  it('cannot shadow any top-level page in app/', () => {
-    const appDirectory = join(process.cwd(), 'app');
-    const topLevelRoutes = readdirSync(appDirectory, { withFileTypes: true })
-      .filter((entry) => entry.isDirectory() && /^[a-z0-9-]+$/.test(entry.name))
-      .map((entry) => entry.name);
-    expect(topLevelRoutes.length).toBeGreaterThan(5);
-    for (const route of topLevelRoutes) expect(RESERVED_TRIP_SLUGS.has(route), route).toBe(true);
-    expect(TripSlugSchema.safeParse('photos').success).toBe(false);
-    expect(TripSlugSchema.safeParse('india-2026').success).toBe(true);
-    expect(TripSlugSchema.safeParse('India 2026').success).toBe(false);
-  });
-
+describe('trips', () => {
   it('rejects trips with duplicate names', () => {
-    const result = CreateTripInputSchema.safeParse({ slug: 'india-2026', name: 'India', defaultCurrency: 'INR', participants: ['Yuji', 'yuji '] });
+    const result = CreateTripInputSchema.safeParse({ name: 'India', defaultCurrency: 'INR', participants: ['Yuji', 'yuji '] });
     expect(result.success).toBe(false);
   });
 });

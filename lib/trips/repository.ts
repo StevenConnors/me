@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import type { Collection, Db, WithId } from 'mongodb';
 
 import { COLLECTION_NAMES, getDatabase } from '@/lib/db/collections';
@@ -23,15 +23,8 @@ const MAX_EXPENSES_PER_TRIP = 2_000;
 
 export class TripNotFoundError extends Error {
   readonly code = 'TRIP_NOT_FOUND';
-  constructor(slug: string) {
-    super(`No trip exists at /${slug}`);
-  }
-}
-
-export class DuplicateTripError extends Error {
-  readonly code = 'TRIP_SLUG_TAKEN';
-  constructor(slug: string) {
-    super(`A trip already uses /${slug}`);
+  constructor() {
+    super('This trip link does not exist');
   }
 }
 
@@ -57,9 +50,10 @@ export class InvalidExpenseError extends Error {
   readonly code = 'EXPENSE_INVALID';
 }
 
-function isDuplicateKeyError(error: unknown) {
-  return typeof error === 'object' && error !== null && 'code' in error && error.code === 11000;
-}
+export type TripTotals = { expenseCount: number; totalJpy: number };
+
+/** 128 random bits, so a share link cannot be guessed or enumerated. */
+const newTripId = () => randomBytes(16).toString('base64url');
 
 let expenseIndexReady: Promise<string> | undefined;
 
@@ -85,20 +79,28 @@ export class TripRepository {
     return trips.map((trip) => TripRecordSchema.parse(trip));
   }
 
-  async findTrip(slug: string): Promise<TripRecord | null> {
-    const trip = await this.trips.findOne({ _id: slug });
+  async totalsByTrip(tripIds: string[]): Promise<Map<string, TripTotals>> {
+    const rows = await this.expenses.aggregate<{ _id: string; expenseCount: number; totalJpy: number }>([
+      { $match: { tripId: { $in: tripIds } } },
+      { $group: { _id: '$tripId', expenseCount: { $sum: 1 }, totalJpy: { $sum: '$amountJpy' } } },
+    ]).toArray();
+    return new Map(rows.map((row) => [row._id, { expenseCount: row.expenseCount, totalJpy: row.totalJpy }]));
+  }
+
+  async findTrip(tripId: string): Promise<TripRecord | null> {
+    const trip = await this.trips.findOne({ _id: tripId });
     return trip ? TripRecordSchema.parse(trip) : null;
   }
 
-  async getTrip(slug: string): Promise<TripRecord> {
-    const trip = await this.findTrip(slug);
-    if (!trip) throw new TripNotFoundError(slug);
+  async getTrip(tripId: string): Promise<TripRecord> {
+    const trip = await this.findTrip(tripId);
+    if (!trip) throw new TripNotFoundError();
     return trip;
   }
 
   async createTrip(input: CreateTripInput, now = new Date()): Promise<TripRecord> {
     const trip = TripRecordSchema.parse({
-      _id: input.slug,
+      _id: newTripId(),
       schemaVersion: 1,
       name: input.name,
       defaultCurrency: input.defaultCurrency,
@@ -107,17 +109,12 @@ export class TripRepository {
       createdAt: now,
       updatedAt: now,
     });
-    try {
-      await this.trips.insertOne(trip);
-    } catch (error) {
-      if (isDuplicateKeyError(error)) throw new DuplicateTripError(input.slug);
-      throw error;
-    }
+    await this.trips.insertOne(trip);
     return trip;
   }
 
-  async updateTrip(slug: string, input: UpdateTripInput, now = new Date()): Promise<TripRecord> {
-    const current = await this.getTrip(slug);
+  async updateTrip(tripId: string, input: UpdateTripInput, now = new Date()): Promise<TripRecord> {
+    const current = await this.getTrip(tripId);
     if (current.version !== input.expectedVersion) throw new VersionConflictError('trip');
     const submittedIdList = input.participants.flatMap((person) => (person.id ? [person.id] : []));
     const submittedIds = new Set(submittedIdList);
@@ -128,7 +125,7 @@ export class TripRepository {
     }
     const participants = input.participants.map((person) => ({ id: person.id ?? randomUUID(), name: person.name }));
     const raw = await this.trips.findOneAndUpdate(
-      { _id: slug, version: input.expectedVersion },
+      { _id: tripId, version: input.expectedVersion },
       { $set: { name: input.name, defaultCurrency: input.defaultCurrency, participants, updatedAt: now }, $inc: { version: 1 } },
       { returnDocument: 'after' },
     );
@@ -137,13 +134,13 @@ export class TripRepository {
     return TripRecordSchema.parse(updated);
   }
 
-  async listExpenses(slug: string): Promise<ExpenseRecord[]> {
-    const expenses = await this.expenses.find({ tripId: slug }).sort({ spentOn: -1, createdAt: -1 }).limit(MAX_EXPENSES_PER_TRIP).toArray();
+  async listExpenses(tripId: string): Promise<ExpenseRecord[]> {
+    const expenses = await this.expenses.find({ tripId }).sort({ spentOn: -1, createdAt: -1 }).limit(MAX_EXPENSES_PER_TRIP).toArray();
     return expenses.map((expense) => ExpenseRecordSchema.parse(expense));
   }
 
-  async createExpense(slug: string, input: ExpenseInput, now = new Date()): Promise<ExpenseRecord> {
-    const trip = await this.getTrip(slug);
+  async createExpense(tripId: string, input: ExpenseInput, now = new Date()): Promise<ExpenseRecord> {
+    const trip = await this.getTrip(tripId);
     if (await this.expenses.countDocuments({ tripId: trip._id }) >= MAX_EXPENSES_PER_TRIP) {
       throw new InvalidExpenseError(`A trip can hold at most ${MAX_EXPENSES_PER_TRIP.toLocaleString('en-US')} expenses`);
     }
@@ -160,22 +157,22 @@ export class TripRepository {
     return expense;
   }
 
-  async updateExpense(slug: string, expenseId: string, input: ExpenseInput & { expectedVersion: number }, now = new Date()): Promise<ExpenseRecord> {
-    const trip = await this.getTrip(slug);
+  async updateExpense(tripId: string, expenseId: string, input: ExpenseInput & { expectedVersion: number }, now = new Date()): Promise<ExpenseRecord> {
+    const trip = await this.getTrip(tripId);
     const resolved = await resolveExpense(trip, input);
     const raw = await this.expenses.findOneAndUpdate(
-      { _id: expenseId, tripId: slug, version: input.expectedVersion },
+      { _id: expenseId, tripId, version: input.expectedVersion },
       { $set: { ...resolved, updatedAt: now }, $inc: { version: 1 } },
       { returnDocument: 'after' },
     );
     const updated = unwrapFindOneAndUpdate<WithId<ExpenseRecord>>(raw);
     if (updated) return ExpenseRecordSchema.parse(updated);
-    if (await this.expenses.countDocuments({ _id: expenseId, tripId: slug }, { limit: 1 })) throw new VersionConflictError('expense');
+    if (await this.expenses.countDocuments({ _id: expenseId, tripId }, { limit: 1 })) throw new VersionConflictError('expense');
     throw new ExpenseNotFoundError();
   }
 
-  async deleteExpense(slug: string, expenseId: string): Promise<void> {
-    const result = await this.expenses.deleteOne({ _id: expenseId, tripId: slug });
+  async deleteExpense(tripId: string, expenseId: string): Promise<void> {
+    const result = await this.expenses.deleteOne({ _id: expenseId, tripId });
     if (!result.deletedCount) throw new ExpenseNotFoundError();
   }
 }
@@ -202,8 +199,8 @@ async function resolveExpense(trip: TripRecord, input: ExpenseInput) {
   };
 }
 
-export async function loadTripLedger(slug: string) {
+export async function loadTripLedger(tripId: string) {
   const repository = await TripRepository.connect();
-  const [trip, expenses] = await Promise.all([repository.findTrip(slug), repository.listExpenses(slug)]);
+  const [trip, expenses] = await Promise.all([repository.findTrip(tripId), repository.listExpenses(tripId)]);
   return trip ? { trip, expenses } : null;
 }

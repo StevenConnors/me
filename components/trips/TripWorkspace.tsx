@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { z } from 'zod';
 
@@ -9,7 +8,8 @@ import { ExpenseList, TripSummary } from '@/components/trips/TripLedger';
 import { CURRENCY_CODES, formatYen, minorToInput, parseAmountToMinor, SETTLEMENT_CURRENCY, type CurrencyCode } from '@/lib/trips/currencies';
 import { toYen } from '@/lib/trips/ledger';
 import { ExpenseViewSchema, TripViewSchema, type ExpenseView, type TripView, type YenConversion } from '@/lib/trips/schemas';
-import { readApiError } from '../api-client';
+import { readApiError } from './api-client';
+import { ShareLink } from './ShareLink';
 import workspace from './trip-workspace.module.css';
 
 type Draft = {
@@ -83,7 +83,11 @@ function previewYen(draft: Draft, rate: RatePreview): string {
   return `≈ ${formatYen(toYen({ amountMinor, currency: draft.currency, conversion }))} · ${source}`;
 }
 
-export function TripWorkspace({ initialTrip, initialExpenses }: { initialTrip: TripView; initialExpenses: ExpenseView[] }) {
+/**
+ * `shared` is the public trip link anyone can add expenses from; `admin` also
+ * shows the link to share and lets the author rename or add people.
+ */
+export function TripWorkspace({ initialTrip, initialExpenses, mode }: { initialTrip: TripView; initialExpenses: ExpenseView[]; mode: 'admin' | 'shared' }) {
   const [trip, setTrip] = useState(initialTrip);
   const [expenses, setExpenses] = useState(initialExpenses);
   const [draft, setDraft] = useState<Draft>(() => blankDraft(initialTrip));
@@ -92,6 +96,7 @@ export function TripWorkspace({ initialTrip, initialExpenses }: { initialTrip: T
   const [status, setStatus] = useState<Status>({ state: 'idle' });
   const [people, setPeople] = useState(initialTrip.participants.map((person): { id?: string; name: string } => person));
   const [peopleStatus, setPeopleStatus] = useState<Status>({ state: 'idle' });
+  const apiBase = `/api/trips/${initialTrip.id}`;
 
   useEffect(() => {
     setDraft((current) => (current.spentOn ? current : { ...current, spentOn: localToday() }));
@@ -106,7 +111,7 @@ export function TripWorkspace({ initialTrip, initialExpenses }: { initialTrip: T
     const controller = new AbortController();
     setRate({ state: 'loading' });
     void (async () => {
-      const response = await fetch(`/api/admin/fx-rates?${new URLSearchParams({ currency, date: spentOn })}`, { signal: controller.signal }).catch(() => null);
+      const response = await fetch(`${apiBase}/fx-rate?${new URLSearchParams({ currency, date: spentOn })}`, { signal: controller.signal }).catch(() => null);
       if (controller.signal.aborted) return;
       if (!response?.ok) {
         setRate({ state: 'error', message: await readApiError(response, 'No reference rate. Enter the rate yourself.') });
@@ -116,7 +121,7 @@ export function TripWorkspace({ initialTrip, initialExpenses }: { initialTrip: T
       setRate(parsed.success ? { state: 'ready', ...parsed.data } : { state: 'error', message: 'No reference rate. Enter the rate yourself.' });
     })();
     return () => controller.abort();
-  }, [currency, spentOn, useManualRate]);
+  }, [apiBase, currency, spentOn, useManualRate]);
 
   const preview = useMemo(() => previewYen(draft, rate), [draft, rate]);
   const update = (patch: Partial<Draft>) => setDraft((current) => ({ ...current, ...patch }));
@@ -146,7 +151,7 @@ export function TripWorkspace({ initialTrip, initialExpenses }: { initialTrip: T
       manualRate: draft.useManualRate && draft.currency !== SETTLEMENT_CURRENCY ? Number(draft.manualRate) : null,
       ...(editing ? { expectedVersion: editing.version } : {}),
     };
-    const url = `/api/admin/trips/${trip.slug}/expenses${editing ? `/${editing.id}` : ''}`;
+    const url = `${apiBase}/expenses${editing ? `/${editing.id}` : ''}`;
     const response = await fetch(url, {
       method: editing ? 'PUT' : 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -166,7 +171,7 @@ export function TripWorkspace({ initialTrip, initialExpenses }: { initialTrip: T
 
   async function deleteExpense(expense: ExpenseView) {
     if (!window.confirm(`Delete “${expense.description}”?`)) return;
-    const response = await fetch(`/api/admin/trips/${trip.slug}/expenses/${expense.id}`, { method: 'DELETE' }).catch(() => null);
+    const response = await fetch(`${apiBase}/expenses/${expense.id}`, { method: 'DELETE' }).catch(() => null);
     if (!response?.ok && response?.status !== 404) {
       setStatus({ state: 'error', message: await readApiError(response, 'Could not delete the expense. Try again.') });
       return;
@@ -178,7 +183,7 @@ export function TripWorkspace({ initialTrip, initialExpenses }: { initialTrip: T
 
   async function savePeople() {
     setPeopleStatus({ state: 'saving' });
-    const response = await fetch(`/api/admin/trips/${trip.slug}`, {
+    const response = await fetch(`/api/admin/trips/${trip.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: trip.name, defaultCurrency: trip.defaultCurrency, participants: people, expectedVersion: trip.version }),
@@ -199,11 +204,10 @@ export function TripWorkspace({ initialTrip, initialExpenses }: { initialTrip: T
 
   return (
     <div className={workspace.workspace}>
-      <p className={styles.eyebrow}>Trip expenses</p>
-      <div className={workspace.heading}>
-        <h1 className={styles.title}>{trip.name}</h1>
-        <Link className={styles.quietButton} href={`/${trip.slug}`} target="_blank" rel="noreferrer">Public page /{trip.slug} ↗</Link>
-      </div>
+      <p className={styles.eyebrow}>{mode === 'admin' ? 'Trip expenses' : 'Shared expenses · settled in yen'}</p>
+      <h1 className={`${styles.title} ${workspace.title}`}>{trip.name}</h1>
+      <p className={workspace.peopleLine}>{trip.participants.map((person) => person.name).join(' · ')}</p>
+      {mode === 'admin' ? <ShareLink tripId={trip.id} /> : null}
 
       <form aria-label="Add expense" className={`${styles.form} ${workspace.expenseForm}`} onSubmit={submitExpense}>
         <h2 className={workspace.formTitle}>{editing ? `Editing “${editing.description}”` : 'Add an expense'}</h2>
@@ -286,7 +290,7 @@ export function TripWorkspace({ initialTrip, initialExpenses }: { initialTrip: T
         )}
       />
 
-      <section aria-labelledby="people-heading" className={`${styles.panel} ${workspace.section}`}>
+      {mode === 'admin' ? <section aria-labelledby="people-heading" className={`${styles.panel} ${workspace.section}`}>
         <h2 id="people-heading" className={workspace.formTitle}>People</h2>
         <p className={styles.fieldHint}>Rename or add people. People already on the trip stay so no expense loses its payer.</p>
         <div className={workspace.people}>
@@ -307,7 +311,7 @@ export function TripWorkspace({ initialTrip, initialExpenses }: { initialTrip: T
             <button className={styles.button} type="button" disabled={!peopleDirty || peopleStatus.state === 'saving'} onClick={() => void savePeople()}>Save people</button>
           </div>
         </div>
-      </section>
+      </section> : null}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 # Trip expenses failure cases
 
-Shared trip costs are entered by the author in `/admin/trips` and shown read-only at `/<trip-slug>` (for example `/india-2026`). Everything settles in Japanese yen.
+The author creates trips in `/admin/trips`. Each trip gets an unguessable share link, `/trips/<id>`, where anyone holding it can add, edit and delete expenses without signing in. Everything settles in Japanese yen.
 
 ## Money and conversion
 - An amount with more decimals than its currency allows (`₹10.005`, `¥10.5`) is stored silently rounded instead of rejected.
@@ -22,20 +22,25 @@ Shared trip costs are entered by the author in `/admin/trips` and shown read-onl
 
 ## Data and concurrency
 - Two edits of the same expense from two tabs: the later one silently overwrites the first instead of returning a conflict.
-- Creating a second trip with an existing slug overwrites the first.
-- A trip slug equal to an existing top-level route (`photos`, `admin`, `api`) can be created but never shown.
+- Two trips get the same link, or a create call can pick its own id and overwrite another trip.
 - Invalid JSON or unknown fields in an API body are accepted or crash with a 500.
 - A rejected write (bad currency, unknown payer, unavailable rate) partially persists.
 
-## Auth and public exposure
-- Admin trip and expense APIs respond to visitors without the author session.
-- The public trip page exposes edit or delete controls, or is linked from site navigation.
-- The public page is indexed by search engines (it must send `noindex`).
-- An unknown slug like `/not-a-trip` renders an empty trip instead of a 404.
+## Share links and access
+- A trip id is short, sequential or derived from the name, so other trips' links can be guessed.
+- A malformed or unknown trip link renders an empty trip or a 500 instead of a 404, on the page and on every trip API.
+- Someone with one trip's link edits or deletes an expense from another trip by swapping the expense id.
+- The rate preview works without a real trip, making the site an open exchange-rate proxy.
+- People on a shared link can rename, add or remove trip members (only the author can, from the admin).
+- Creating trips or changing members works without the author session.
+- The admin trip list misses a trip, or shows a stale expense count or yen total.
+- The share link is copied wrong or the copy button fails silently.
+- The share page is indexed by search engines (it must send `noindex`), leaks its URL in `Referer` to other sites, or is linked from site navigation.
 - Descriptions and names render as HTML instead of text.
 
 ## Layout and runtime
 - At 390 px the expense list, balances or settle-up table force horizontal scrolling.
 - Long descriptions or names overflow their cells.
-- Runtime or console errors on the admin editor or public page.
-- Perf: the public trip page ships client JavaScript for what is a static read-only summary, or adds JS to other public routes.
+- Runtime or console errors on the admin pages or share page.
+- An expense added on the share page is missing after reload or from the admin view.
+- Perf: the trip code adds JavaScript to other public routes (only `/trips/<id>` may load the expense form).

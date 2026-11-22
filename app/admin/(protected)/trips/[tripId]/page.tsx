@@ -1,18 +1,18 @@
 import { notFound } from 'next/navigation';
 
 import styles from '@/app/admin/admin.module.css';
+import { TripWorkspace } from '@/components/trips/TripWorkspace';
 import { loadTripLedger } from '@/lib/trips/repository';
-import { serializeExpense, serializeTrip, TripSlugSchema } from '@/lib/trips/schemas';
-import { TripWorkspace } from './TripWorkspace';
+import { serializeExpense, serializeTrip, TripIdSchema } from '@/lib/trips/schemas';
 
 export const dynamic = 'force-dynamic';
 
-export default async function TripEditorPage({ params }: { params: Promise<{ tripSlug: string }> }) {
-  const { tripSlug } = await params;
-  if (!TripSlugSchema.safeParse(tripSlug).success) notFound();
+export default async function TripEditorPage({ params }: { params: Promise<{ tripId: string }> }) {
+  const { tripId } = await params;
+  if (!TripIdSchema.safeParse(tripId).success) notFound();
   let ledger: Awaited<ReturnType<typeof loadTripLedger>>;
   try {
-    ledger = await loadTripLedger(tripSlug);
+    ledger = await loadTripLedger(tripId);
   } catch (error) {
     console.error('Unable to load trip', error);
     return (
@@ -22,5 +22,5 @@ export default async function TripEditorPage({ params }: { params: Promise<{ tri
     );
   }
   if (!ledger) notFound();
-  return <TripWorkspace initialTrip={serializeTrip(ledger.trip)} initialExpenses={ledger.expenses.map(serializeExpense)} />;
+  return <TripWorkspace mode="admin" initialTrip={serializeTrip(ledger.trip)} initialExpenses={ledger.expenses.map(serializeExpense)} />;
 }

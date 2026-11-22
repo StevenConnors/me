@@ -2,19 +2,8 @@ import { z } from 'zod';
 
 import { CurrencyCodeSchema } from '@/lib/trips/currencies';
 
-/**
- * Trip pages live at the site root (`/india-2026`), so a slug must not shadow a
- * top-level route. Keep in sync with `app/` (a unit test enforces it).
- */
-export const RESERVED_TRIP_SLUGS: ReadonlySet<string> = new Set([
-  'admin', 'api', 'concepts', 'gallery', 'glass', 'images', 'journey-lab', 'photos', 'stories', 'travel',
-]);
-
-export const TripSlugSchema = z.string()
-  .min(3)
-  .max(60)
-  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Use lowercase letters, numbers and single hyphens')
-  .refine((slug) => !RESERVED_TRIP_SLUGS.has(slug), 'That address is already used by another page');
+/** Trip ids are unguessable because anyone holding the share link can add expenses. */
+export const TripIdSchema = z.string().regex(/^[A-Za-z0-9_-]{22}$/, 'Not a trip link');
 
 export const IsoDateSchema = z.string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, 'Use a YYYY-MM-DD date')
@@ -31,7 +20,7 @@ function hasUniqueNames(names: string[]) {
 }
 
 export const TripRecordSchema = z.object({
-  _id: TripSlugSchema,
+  _id: TripIdSchema,
   schemaVersion: z.literal(1),
   name: z.string().trim().min(1).max(80),
   defaultCurrency: CurrencyCodeSchema,
@@ -43,7 +32,6 @@ export const TripRecordSchema = z.object({
 export type TripRecord = z.infer<typeof TripRecordSchema>;
 
 export const CreateTripInputSchema = z.object({
-  slug: TripSlugSchema,
   name: z.string().trim().min(1).max(80),
   defaultCurrency: CurrencyCodeSchema,
   participants: z.array(PersonNameSchema).min(2).max(12).refine(hasUniqueNames, 'Each person needs a different name'),
@@ -72,7 +60,7 @@ export type YenConversion = z.infer<typeof YenConversionSchema>;
 export const ExpenseRecordSchema = z.object({
   _id: z.string().uuid(),
   schemaVersion: z.literal(1),
-  tripId: TripSlugSchema,
+  tripId: TripIdSchema,
   description: z.string().trim().min(1).max(120),
   spentOn: IsoDateSchema,
   amountMinor: z.number().int().positive(),
@@ -101,7 +89,7 @@ export type ExpenseInput = z.infer<typeof ExpenseInputSchema>;
 export const UpdateExpenseInputSchema = ExpenseInputSchema.extend({ expectedVersion: z.number().int().nonnegative() }).strict();
 
 export const TripViewSchema = z.object({
-  slug: TripSlugSchema,
+  id: TripIdSchema,
   name: z.string(),
   defaultCurrency: CurrencyCodeSchema,
   participants: z.array(ParticipantSchema),
@@ -112,7 +100,7 @@ export type TripView = z.infer<typeof TripViewSchema>;
 
 export function serializeTrip(trip: TripRecord): TripView {
   return {
-    slug: trip._id,
+    id: trip._id,
     name: trip.name,
     defaultCurrency: trip.defaultCurrency,
     participants: trip.participants,

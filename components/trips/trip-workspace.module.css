@@ -1,6 +1,9 @@
 .workspace { min-width: 0; }
-.heading { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px 24px; }
-.heading h1 { overflow-wrap: anywhere; }
+.title { overflow-wrap: anywhere; }
+.peopleLine { margin: 14px 0 0; color: #625b50; font-size: 15px; }
+.share { display: grid; gap: 10px; margin-top: 28px; padding: 18px 20px; }
+.shareRow { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
+.shareUrl { min-width: 0; color: #201e1a; font: 14px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
 .expenseForm { grid-template-columns: repeat(4, minmax(0, 1fr)); max-width: none; gap: 18px; }
 .wide { grid-column: 1 / -1; }
 .formTitle { margin: 0; font: 400 24px/1.1 Georgia, 'Times New Roman', serif; grid-column: 1 / -1; }
