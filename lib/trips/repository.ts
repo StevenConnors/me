@@ -144,6 +144,9 @@ export class TripRepository {
 
   async createExpense(slug: string, input: ExpenseInput, now = new Date()): Promise<ExpenseRecord> {
     const trip = await this.getTrip(slug);
+    if (await this.expenses.countDocuments({ tripId: trip._id }) >= MAX_EXPENSES_PER_TRIP) {
+      throw new InvalidExpenseError(`A trip can hold at most ${MAX_EXPENSES_PER_TRIP.toLocaleString('en-US')} expenses`);
+    }
     const expense = ExpenseRecordSchema.parse({
       _id: randomUUID(),
       schemaVersion: 1,
