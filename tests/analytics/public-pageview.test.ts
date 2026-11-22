@@ -17,6 +17,12 @@ describe('allowPublicProductionPageview', () => {
     }
   });
 
+  it('hides trip ids, which grant edit access', () => {
+    expect(allowPublicProductionPageview(event('https://yujitanaka.com/trips/k3F9x2AbCdEfGhIjKlMnOp?a=1#x'))).toEqual(event('https://yujitanaka.com/trips/[tripId]'));
+    expect(allowPublicProductionPageview(event('/trips/k3F9x2AbCdEfGhIjKlMnOp'))).toEqual(event('/trips/[tripId]'));
+    expect(allowPublicProductionPageview(event('https://yujitanaka.com/tripsy'))).toEqual(event('https://yujitanaka.com/tripsy'));
+  });
+
   it('keeps events whose URL cannot be parsed', () => {
     expect(allowPublicProductionPageview(event('http://['))).toEqual(event('http://['));
   });

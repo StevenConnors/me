@@ -1,12 +1,20 @@
 import type { BeforeSendEvent } from '@vercel/analytics/next';
 
-/** Drops admin page views so Web Analytics only reports public traffic. */
+const PARSE_BASE = 'https://analytics.invalid';
+const SHARED_TRIP_PATH = '/trips/[tripId]';
+
+/**
+ * Drops admin page views so Web Analytics only reports public traffic, and
+ * hides trip ids because a trip link grants edit access.
+ */
 export function allowPublicProductionPageview(event: BeforeSendEvent): BeforeSendEvent | null {
-  let pathname: string;
+  let url: URL;
   try {
-    pathname = new URL(event.url, 'https://analytics.invalid').pathname;
+    url = new URL(event.url, PARSE_BASE);
   } catch {
     return event;
   }
-  return pathname === '/admin' || pathname.startsWith('/admin/') ? null : event;
+  if (url.pathname === '/admin' || url.pathname.startsWith('/admin/')) return null;
+  if (!url.pathname.startsWith('/trips/')) return event;
+  return { ...event, url: url.origin === PARSE_BASE ? SHARED_TRIP_PATH : `${url.origin}${SHARED_TRIP_PATH}` };
 }

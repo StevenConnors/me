@@ -1,0 +1,30 @@
+.summary { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 16px; }
+.card { min-width: 0; padding: 22px; border: 1px solid #d7d0c4; background: #fffcf7; }
+.cardTitle { margin: 0 0 16px; color: #9d4d3d; font: 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .14em; text-transform: uppercase; }
+.settlements { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.settlements li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; padding-bottom: 10px; border-bottom: 1px solid #eee9e0; font: 400 20px/1.25 Georgia, 'Times New Roman', serif; overflow-wrap: anywhere; }
+.total { display: flex; justify-content: space-between; margin: 18px 0 0; color: #625b50; font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.muted { color: #7e7569; font-size: 13px; line-height: 1.45; overflow-wrap: anywhere; }
+.balances { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
+.balances th, .balances td { padding: 8px 6px; border-bottom: 1px solid #eee9e0; text-align: right; }
+.balances th:first-child { text-align: left; overflow-wrap: anywhere; }
+.balances thead th { color: #7e7569; font: 10px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .08em; text-transform: uppercase; }
+.balances td[data-sign='1'] { color: #427553; }
+.balances td[data-sign='-1'] { color: #a13b2b; }
+.expenses { display: grid; margin: 0; padding: 0; list-style: none; border-top: 1px solid #d7d0c4; }
+.expense { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; gap: 6px 16px; align-items: start; padding: 14px 0; border-bottom: 1px solid #d7d0c4; }
+.date { color: #7e7569; font: 12px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.expenseMain, .amounts { display: grid; gap: 3px; min-width: 0; }
+.description { font: 400 18px/1.3 Georgia, 'Times New Roman', serif; overflow-wrap: anywhere; }
+.amounts { justify-items: end; text-align: right; font-variant-numeric: tabular-nums; }
+.amounts strong { font-size: 16px; }
+.actions { grid-column: 2 / -1; display: flex; gap: 14px; }
+@media (max-width: 760px) {
+  .summary { grid-template-columns: 1fr; }
+  .card { padding: 16px; }
+  .balances { font-size: 13px; }
+  .balances th, .balances td { padding: 8px 3px; }
+  .expense { grid-template-columns: minmax(0, 1fr) auto; }
+  .date { grid-column: 1 / -1; }
+  .actions { grid-column: 1 / -1; }
+}
