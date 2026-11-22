@@ -16,6 +16,8 @@ export const COLLECTION_NAMES = {
   mediaCollections: 'media_collections',
   mediaEnrichments: 'media_enrichments',
   applePhotosImports: 'apple_photos_imports',
+  trips: 'trips',
+  tripExpenses: 'trip_expenses',
 } as const;
 
 /**

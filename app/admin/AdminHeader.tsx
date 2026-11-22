@@ -19,6 +19,7 @@ export function AdminHeader({ email }: { email?: string | null }) {
         <Link href="/admin/analytics" className={styles.navLink}>Analytics</Link>
         <Link href="/admin/photos" className={styles.navLink}>Photos</Link>
         <Link href="/admin/travel" className={styles.navLink}>Travel</Link>
+        <Link href="/admin/trips" className={styles.navLink}>Trips</Link>
         <Link href="/admin/media" className={styles.navLink}>Media</Link>
         <Link href="/" className={styles.navLink}>View site ↗</Link>
       </nav>
