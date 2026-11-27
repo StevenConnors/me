@@ -1,3 +1,4 @@
+.galleryFrame { container-type: inline-size; }
 .gallery { container-type: inline-size; min-height: calc(100vh - 150px); padding: 0 44px 88px; }
 .gallery h1, .section h2 { margin: 0; font-family: Georgia, 'Times New Roman', serif; font-weight: 400; letter-spacing: -.045em; }
 .gallery h1 { font-size: clamp(62px, 9vw, 132px); line-height: .85; }

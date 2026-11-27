@@ -5,6 +5,7 @@
 - The first two public photos remain lazy-loaded and paint later than the same photos on master; prioritizing them must not eagerly load later sections.
 
 - At 390 px or 412 px, the first server-rendered photo layout has different tile positions or section height after hydration.
+- At 390 px the Photos heading and photos sit inside wider side margins than the site header, wasting screen width.
 - Resizing the gallery leaves the wrong number of columns or horizontal overflow.
 - Responsive layout changes reorder the photo image sources or keyboard order.
 - Portrait and landscape photos overlap, disappear, or lose their aspect ratios.

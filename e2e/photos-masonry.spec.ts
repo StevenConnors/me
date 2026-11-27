@@ -69,6 +69,13 @@ test('photos keep their server layout through hydration and resize in canonical 
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
       observations.push({ width, columns });
     }
+    const brandLeft = (await page.getByRole('link', { name: '佑治', exact: true }).first().boundingBox())!.x;
+    const tiles = await geometry(page);
+    const galleryLeft = Math.min(...tiles.map((tile) => tile.x));
+    const galleryRight = Math.max(...tiles.map((tile) => tile.x + tile.width));
+    expect((await page.getByRole('heading', { level: 1, name: 'Photos' }).boundingBox())!.x).toBeCloseTo(brandLeft, 0);
+    expect(galleryLeft).toBeCloseTo(brandLeft, 0);
+    expect(390 - galleryRight).toBeCloseTo(galleryLeft, 0);
     await test.info().attach('e2e-fixture-masonry-mobile.png', { body: await page.screenshot(), contentType: 'image/png' });
     await test.info().attach('e2e-fixture-masonry-layout.json', { body: JSON.stringify(observations), contentType: 'application/json' });
     await page.evaluate(() => {
