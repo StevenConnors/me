@@ -111,7 +111,7 @@ export function PhotosPageView({
   const priorityPhotoIds = new Set(sections[0]?.photos.slice(0, 2).map((photo) => photo.id));
   const albums = (sectionLinks ?? []).flatMap((link) => link.cover ? [{ ...link, cover: link.cover }] : []);
   return (
-    <section aria-labelledby="photos-title" className={styles.gallery}>
+    <div className={styles.galleryFrame}><section aria-labelledby="photos-title" className={styles.gallery}>
       <h1 id="photos-title">{title}</h1>
       {intro ? <p className={styles.intro}>{intro}</p> : null}
       {browseHref ? <p className={styles.browseLink}><Link href={browseHref}>Browse by theme</Link></p> : null}
@@ -152,6 +152,6 @@ export function PhotosPageView({
           /></> : null}
         </section>;
       })}
-    </section>
+    </section></div>
   );
 }
